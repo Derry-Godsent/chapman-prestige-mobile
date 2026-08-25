@@ -35,3 +35,5 @@
 - [ ] Connect authenticated customer records, staff updates, and official Admin/CEO inboxes for secure live tracking and human replies
 - [x] Verify exact website palette when the supplied Chapman website URL can be accessed publicly
 - [x] Extract and apply the authoritative Netlify website palette to the Chapman mobile client
+- [x] Align remaining detailed screen tints with the Netlify cream, emerald, brown, and gold palette
+- [x] Add restrained website-style service photography to existing service experiences
