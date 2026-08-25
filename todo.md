@@ -20,3 +20,5 @@
 - [x] Analyze the newly available second reference recording before finalizing the feature model
 - [x] Resolve the restored 6000ms web font-loader timeout
 - [ ] Resolve the managed Expo host failure that prevents Expo Go from loading the bundle
+- [ ] Establish a verified live Expo Go connection for on-device testing
+- [x] Make illustrated service moments and motion visible in primary customer-facing screens
