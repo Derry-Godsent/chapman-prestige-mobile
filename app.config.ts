@@ -32,7 +32,7 @@ const env = {
   appSlug: "chapman-prestige-client",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "/manus-storage/chapman-prestige-cpl-launcher_911fab0a.png",
+  logoUrl: "/manus-storage/chapman-prestige-icon_4ed4abcb.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,

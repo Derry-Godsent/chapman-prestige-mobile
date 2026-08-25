@@ -1,90 +1,27 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useState } from "react";
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { AppScreen } from "@/components/app-screen";
-import { DisplayText, palette } from "@/components/chapman-ui";
-import { haptic } from "@/lib/haptics";
+import { ChapmanMark, DisplayText, palette } from "@/components/chapman-ui";
 
 const slides = [
-  { label: "CARE, MADE SIMPLE", title: "A better routine starts with one small decision.", body: "Arrange thoughtful care for the parts of life that ask the most of you.", action: "Show me how", image: "/manus-storage/chapman-cleaning-hero_d1b3b6b9.jpg" },
-  { label: "GARMENT CARE", title: "Keep your weekend for yourself.", body: "Book a pickup, choose your care, and welcome your wardrobe back ready to wear.", action: "Next", image: "/manus-storage/chapman-laundry-hero_8866adc9.jpg" },
-  { label: "HOME & LIVING", title: "The spaces you love can feel new again.", body: "From fabric revival to water safety, arrange the specialist care that restores confidence at home.", action: "Next", image: "/manus-storage/chapman-fabric-hero_4ff5bafd.jpg" },
-  { label: "CHAPMAN PRESTIGE", title: "Good care, always within reach.", body: "Discover trusted people, visible progress, and service that meets you where you are.", action: "Get started", image: "/manus-storage/chapman-detailing-hero_f28c3e64.jpg" },
+  { icon: "water", eyebrow: "CHAPMAN PRESTIGE", title: "Care that makes life feel lighter.", body: "Premium home and facility services, arranged around the way you live and work in Kumasi." },
+  { icon: "shirt-outline", eyebrow: "GARMENT CARE", title: "Stop giving your weekends to laundry.", body: "Choose your items, book a pickup, and let your wardrobe return fresh and ready." },
+  { icon: "bed-outline", eyebrow: "FABRIC REVIVAL", title: "Your furniture deserves a professional reset.", body: "Bring back the comfort of your sofas, carpets, and everyday spaces." },
+  { icon: "shield-checkmark-outline", eyebrow: "FUMIGATION", title: "Protect the spaces that look after you.", body: "Request assessment-led pest care for homes, businesses, and facilities." },
+  { icon: "car-sport-outline", eyebrow: "PREMIUM DETAILING", title: "A cleaner drive starts here.", body: "Arrange vehicle care that restores a polished, comfortable experience." },
+  { icon: "sparkles-outline", eyebrow: "READY WHEN YOU ARE", title: "A better routine is one tap away.", body: "Book, track, and manage every care request in one considered place." },
 ];
 
 export default function OnboardingScreen() {
   const [current, setCurrent] = useState(0);
   const slide = slides[current];
   const isFinal = current === slides.length - 1;
-  const fade = useRef(new Animated.Value(1)).current;
-  const imageScale = useRef(new Animated.Value(1.04)).current;
-
-  useEffect(() => {
-    fade.setValue(0);
-    imageScale.setValue(1.07);
-    Animated.parallel([
-      Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }),
-      Animated.timing(imageScale, { toValue: 1, duration: 520, useNativeDriver: true }),
-    ]).start();
-  }, [current, fade, imageScale]);
-
-  const continueFlow = () => {
-    haptic.light();
-    if (isFinal) router.replace("/welcome" as never);
-    else setCurrent((value) => value + 1);
-  };
-
-  return (
-    <AppScreen edges={["top", "bottom", "left", "right"]}>
-      <View style={styles.page}>
-        <View style={styles.topBar}>
-          <Image source={require("@/assets/images/cpl-wordmark.png")} resizeMode="contain" style={styles.wordmark} />
-          <TouchableOpacity onPress={() => router.replace("/welcome" as never)} hitSlop={12} style={styles.skipAction}><Text style={styles.skipText}>Skip</Text></TouchableOpacity>
-        </View>
-
-        <Animated.View style={[styles.main, { opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
-          <View style={styles.imageFrame}>
-            <Animated.Image source={{ uri: slide.image }} resizeMode="cover" style={[styles.image, { transform: [{ scale: imageScale }] }]} />
-            <LinearGradient colors={["rgba(2,17,54,0)", "rgba(2,17,54,0.15)"]} style={StyleSheet.absoluteFill} />
-            <View style={styles.imageCount}><Text style={styles.imageCountText}>0{current + 1}</Text></View>
-          </View>
-
-          <View style={styles.copy}><Text style={styles.label}>{slide.label}</Text><DisplayText style={styles.title}>{slide.title}</DisplayText><Text style={styles.body}>{slide.body}</Text></View>
-        </Animated.View>
-
-        <View style={styles.bottom}>
-          <View style={styles.progressRow}>{slides.map((_, index) => <View key={index} style={[styles.progressLine, index === current && styles.progressLineActive]} />)}</View>
-          <TouchableOpacity onPress={continueFlow} activeOpacity={0.88} style={styles.primaryAction}><Text style={styles.primaryActionText}>{slide.action}</Text><Ionicons name="arrow-forward" size={19} color="#FFFFFF" /></TouchableOpacity>
-          {!isFinal ? <Text style={styles.helperText}>A few considered moments, then you are ready.</Text> : <Text style={styles.helperText}>Your Chapman care journey begins here.</Text>}
-        </View>
-      </View>
-    </AppScreen>
-  );
+  const continueFlow = () => { if (isFinal) router.replace("/welcome" as never); else setCurrent((value) => value + 1); };
+  return <AppScreen dark edges={["top", "bottom", "left", "right"]}><LinearGradient colors={["#001452", "#003EC7", "#001452"]} style={styles.page}><View style={styles.glowOne} /><View style={styles.glowTwo} /><View style={styles.top}><ChapmanMark inverted size={44} /><TouchableOpacity onPress={() => router.replace("/welcome" as never)}><Text style={styles.skip}>Skip</Text></TouchableOpacity></View><View style={styles.center}><View style={styles.iconRing}><View style={styles.iconCore}><Ionicons name={slide.icon as keyof typeof Ionicons.glyphMap} size={58} color="#FFFFFF" /></View></View><Text style={styles.eyebrow}>{slide.eyebrow}</Text><DisplayText style={styles.title}>{slide.title}</DisplayText><Text style={styles.body}>{slide.body}</Text></View><View style={styles.bottom}><View style={styles.progressRow}>{slides.map((_, index) => <View key={index} style={[styles.progress, index <= current && styles.progressActive, index === current && styles.progressCurrent]} />)}</View><TouchableOpacity onPress={continueFlow} activeOpacity={0.9} style={styles.cta}><Text style={styles.ctaText}>{isFinal ? "Get started" : "Continue"}</Text><Ionicons name="arrow-forward" size={20} color={palette.deep} /></TouchableOpacity></View></LinearGradient></AppScreen>;
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#F8F8F6", paddingHorizontal: 22, paddingTop: 8, paddingBottom: 14, justifyContent: "space-between" },
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  wordmark: { width: 122, height: 40 },
-  skipAction: { paddingHorizontal: 4, paddingVertical: 9 },
-  skipText: { color: "#4E596F", fontFamily: "Inter_600SemiBold", fontSize: 13 },
-  main: { gap: 27, marginTop: 10 },
-  imageFrame: { height: 333, borderRadius: 26, overflow: "hidden", backgroundColor: "#DCE6FF" },
-  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  imageCount: { position: "absolute", left: 14, top: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.86)", alignItems: "center", justifyContent: "center" },
-  imageCountText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 11 },
-  copy: { gap: 9, paddingHorizontal: 2 },
-  label: { color: "#5871B5", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.45 },
-  title: { fontSize: 29, lineHeight: 37, maxWidth: 328 },
-  body: { color: "#586378", fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, maxWidth: 320 },
-  bottom: { gap: 13 },
-  progressRow: { flexDirection: "row", gap: 6 },
-  progressLine: { flex: 1, height: 3, borderRadius: 2, backgroundColor: "#DCE1EB" },
-  progressLineActive: { backgroundColor: palette.blue },
-  primaryAction: { height: 54, borderRadius: 16, backgroundColor: palette.blue, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  primaryActionText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 15 },
-  helperText: { color: "#8B94A6", fontFamily: "Inter_400Regular", fontSize: 10, textAlign: "center" },
-});
+const styles = StyleSheet.create({ page: { flex: 1, padding: 24, justifyContent: "space-between", overflow: "hidden" }, glowOne: { width: 280, height: 280, borderRadius: 140, backgroundColor: "rgba(108,134,255,0.22)", position: "absolute", top: -100, right: -90 }, glowTwo: { width: 230, height: 230, borderRadius: 115, backgroundColor: "rgba(255,255,255,0.06)", position: "absolute", bottom: -105, left: -100 }, top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, skip: { color: "#DDE1FF", fontFamily: "Inter_600SemiBold", fontSize: 13 }, center: { alignItems: "center", paddingHorizontal: 12, gap: 15 }, iconRing: { width: 160, height: 160, borderRadius: 80, backgroundColor: "rgba(255,255,255,0.09)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", marginBottom: 8 }, iconCore: { width: 110, height: 110, borderRadius: 42, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" }, eyebrow: { color: "#BFCBFF", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.4 }, title: { textAlign: "center", color: "#FFFFFF", fontSize: 29, lineHeight: 37 }, body: { textAlign: "center", color: "#DDE1FF", fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21, maxWidth: 310 }, bottom: { gap: 22 }, progressRow: { flexDirection: "row", gap: 7, justifyContent: "center" }, progress: { width: 22, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.25)" }, progressActive: { backgroundColor: "#BFCBFF" }, progressCurrent: { width: 43, backgroundColor: "#FFFFFF" }, cta: { height: 55, borderRadius: 18, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 10 }, ctaText: { color: palette.deep, fontFamily: "Inter_700Bold", fontSize: 15 } });

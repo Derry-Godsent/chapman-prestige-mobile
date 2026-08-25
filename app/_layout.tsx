@@ -2,7 +2,6 @@ import "../global.css";
 
 import { useEffect } from "react";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from "@expo-google-fonts/plus-jakarta-sans";
 import * as SplashScreen from "expo-splash-screen";
@@ -10,27 +9,23 @@ import * as SplashScreen from "expo-splash-screen";
 import { BookingProvider } from "@/lib/booking-store";
 import { ThemeProvider } from "@/lib/theme-provider";
 
-if (Platform.OS !== "web") void SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts(
-    Platform.OS === "web"
-      ? {}
-      : {
-          Inter_400Regular,
-          Inter_500Medium,
-          Inter_600SemiBold,
-          Inter_700Bold,
-          PlusJakartaSans_700Bold,
-          PlusJakartaSans_800ExtraBold,
-        },
-  );
+  const [loaded, error] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
 
   useEffect(() => {
-    if (Platform.OS !== "web" && (loaded || error)) void SplashScreen.hideAsync();
+    if (loaded || error) void SplashScreen.hideAsync();
   }, [loaded, error]);
 
-  if (Platform.OS !== "web" && !loaded && !error) return null;
+  if (!loaded && !error) return null;
 
   return (
     <ThemeProvider>
