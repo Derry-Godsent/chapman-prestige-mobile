@@ -18,6 +18,11 @@
 - [x] Resolve the Expo font-loader timeout during app startup
 - [x] Restore the Expo Go QR connection after the reported 502 upstream failure
 - [ ] Replace the failing managed Expo QR proxy path with a verified remote connection
+- [ ] Replace the stale Expo Go bundle URL with a durable tunnel-backed link
+- [ ] Resolve the Expo tunnel endpoint shutdown reported as ERR_NGROK_3200
+- [x] Replace the clustered home composition with a clean premium visual hierarchy
+- [x] Add aspirational service imagery across the main discovery experience
+- [x] Add purposeful motion and refined interaction feedback without visual clutter
 - [x] Regenerate the Expo Go QR code with the correct deep-link payload
 - [x] Rework the interface into a richer Chapman Prestige premium visual system
 - [x] Replace the generic launcher icon with a logo-led Chapman Prestige icon
