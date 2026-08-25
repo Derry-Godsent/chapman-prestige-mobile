@@ -15,3 +15,6 @@
 - [x] Add deterministic tests for pricing, booking flows, and data transformations
 - [x] Run type, lint, and test verification; resolve identified issues
 - [x] Capture a final checkpoint and provide the completed project version
+- [x] Design illustrated service moments for laundry, cleaning, fabric, fumigation, detailing, and polytank care
+- [x] Add simple service explanations, payment choices, bonus visibility, user activity, and live-progress patterns
+- [x] Analyze the newly available second reference recording before finalizing the feature model
