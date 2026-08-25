@@ -75,7 +75,7 @@ export default function HomeScreen() {
         <Animated.View style={[styles.greeting, { opacity: contentFade, transform: [{ translateY: contentFade.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
           <Text style={styles.kicker}>GOOD MORNING, ADWOA</Text>
           <DisplayText style={styles.greetingTitle}>Care for the life you are building.</DisplayText>
-          <BodyText style={styles.greetingBody}>Thoughtful help for your home, wardrobe, vehicle, and workplace—on your own time.</BodyText>
+          <BodyText style={styles.greetingBody}>Thoughtful help for your home, wardrobe, vehicle, and workplace, on your own time.</BodyText>
         </Animated.View>
 
         <TouchableOpacity onPress={() => goToService("laundry")} activeOpacity={0.9} style={styles.heroPress}>
@@ -176,8 +176,8 @@ const styles = StyleSheet.create({
   patronageEyebrow: { color: "#B9C8FF", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.3 },
   patronageTitle: { color: "#FFFFFF", fontSize: 21, lineHeight: 27 },
   patronageBody: { color: "#D5DFFF", fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, marginTop: 3 },
-  patronageSeal: { position: "absolute", right: 19, top: 20, width: 59, height: 59, borderRadius: 30, backgroundColor: "#D6B65E", alignItems: "center", justifyContent: "center" },
-  patronageSealValue: { color: "#17214A", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18 },
-  patronageSealLabel: { color: "#17214A", fontFamily: "Inter_700Bold", fontSize: 7, letterSpacing: 0.65 },
+  patronageSeal: { position: "absolute", right: 19, top: 20, width: 59, height: 59, borderRadius: 30, backgroundColor: "#315FCF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#7193EC" },
+  patronageSealValue: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18 },
+  patronageSealLabel: { color: "#DEE7FF", fontFamily: "Inter_700Bold", fontSize: 7, letterSpacing: 0.65 },
   patronageArrow: { position: "absolute", bottom: 17, right: 19 },
 });

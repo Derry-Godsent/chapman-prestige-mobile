@@ -23,6 +23,9 @@
 - [x] Replace the clustered home composition with a clean premium visual hierarchy
 - [x] Add aspirational service imagery across the main discovery experience
 - [x] Add purposeful motion and refined interaction feedback without visual clutter
+- [x] Analyze the supplied reference recordings and capture transferable interaction patterns
+- [x] Replace generic visual cues with a normal Chapman colour, typography, and icon system
+- [x] Rebuild persuasive onboarding and varied feature layouts from the reference-informed direction
 - [x] Regenerate the Expo Go QR code with the correct deep-link payload
 - [x] Rework the interface into a richer Chapman Prestige premium visual system
 - [x] Replace the generic launcher icon with a logo-led Chapman Prestige icon
