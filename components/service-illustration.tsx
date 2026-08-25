@@ -3,13 +3,13 @@ import { Animated, StyleSheet, Text, View } from "react-native";
 
 import { palette } from "@/components/chapman-ui";
 
-export const SERVICE_ILLUSTRATIONS: Record<string, string> = {
-  laundry: "/manus-storage/chapman-illustration-laundry_08e3f072.png",
-  cleaning: "/manus-storage/chapman-illustration-cleaning_177f1fc3.png",
-  fabric: "/manus-storage/chapman-illustration-fabric_86c0535e.png",
-  fumigation: "/manus-storage/chapman-illustration-fumigation_2005ecb6.png",
-  detailing: "/manus-storage/chapman-illustration-detailing_c1204802.png",
-  polytank: "/manus-storage/chapman-illustration-polytank_8dff74aa.png",
+export const SERVICE_ILLUSTRATIONS: Record<string, number> = {
+  laundry: require("../assets/images/service-laundry.jpg"),
+  cleaning: require("../assets/images/service-cleaning.jpg"),
+  fabric: require("../assets/images/service-fabric.jpg"),
+  fumigation: require("../assets/images/service-fumigation.jpg"),
+  detailing: require("../assets/images/service-detailing.jpg"),
+  polytank: require("../assets/images/service-polytank.jpg"),
 };
 
 const serviceCaptions: Record<string, string> = {
@@ -34,7 +34,7 @@ export function AnimatedServiceScene({ serviceId, height = 230, dark = false }: 
     return () => loop.stop();
   }, [bob]);
 
-  return <View pointerEvents="none" style={[styles.scene, dark && styles.sceneDark, { height }]}><Animated.Image source={{ uri }} resizeMode="contain" style={[styles.sceneImage, { transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [3, -6] }) }, { scale: bob.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] }) }] }]} /></View>;
+  return <View pointerEvents="none" style={[styles.scene, dark && styles.sceneDark, { height }]}><Animated.Image source={uri} resizeMode="contain" style={[styles.sceneImage, { transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [3, -6] }) }, { scale: bob.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] }) }] }]} /></View>;
 }
 
 export function ServiceIllustration({ serviceId }: { serviceId: string }) {
