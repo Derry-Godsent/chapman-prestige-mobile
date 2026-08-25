@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from "react-native";
+import { Image, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -87,9 +87,8 @@ export function IconOrb({ icon, color = palette.blue, size = 42 }: { icon: keyof
 
 export function ChapmanMark({ inverted = false, size = 42 }: { inverted?: boolean; size?: number }) {
   return (
-    <View style={[styles.mark, { width: size, height: size, borderRadius: size * 0.32, backgroundColor: inverted ? "rgba(255,255,255,0.16)" : palette.blue }]}>
-      <Ionicons name="water" color="#FFFFFF" size={size * 0.62} />
-      <View style={[styles.markSpark, { backgroundColor: inverted ? "#FFFFFF" : "#AFC0FF" }]} />
+    <View style={[styles.mark, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: inverted ? "rgba(255,255,255,0.14)" : palette.deep }]}>
+      <Image source={require("@/assets/images/icon.png")} resizeMode="cover" style={{ width: size, height: size, borderRadius: size * 0.3 }} />
     </View>
   );
 }
@@ -112,6 +111,5 @@ const styles = StyleSheet.create({
   statusPill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, alignSelf: "flex-start" },
   statusText: { fontFamily: "Inter_700Bold", fontSize: 11 },
   iconOrb: { alignItems: "center", justifyContent: "center" },
-  mark: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  markSpark: { position: "absolute", width: 6, height: 6, borderRadius: 3, top: "24%", right: "20%" },
+  mark: { alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
 });

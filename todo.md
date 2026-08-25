@@ -17,3 +17,7 @@
 - [x] Capture a final checkpoint and provide the completed project version
 - [x] Resolve the Expo font-loader timeout during app startup
 - [x] Restore the Expo Go QR connection after the reported 502 upstream failure
+- [ ] Replace the failing managed Expo QR proxy path with a verified remote connection
+- [x] Regenerate the Expo Go QR code with the correct deep-link payload
+- [x] Rework the interface into a richer Chapman Prestige premium visual system
+- [x] Replace the generic launcher icon with a logo-led Chapman Prestige icon

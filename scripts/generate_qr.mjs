@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import QRCode from "qrcode";
 
-const url = process.argv[2];
+const url = process.argv.slice(2).find((argument) => argument !== "--");
 
 if (!url) {
   console.error('Usage: node scripts/generate_qr.mjs "exps://..."');
