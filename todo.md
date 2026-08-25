@@ -24,3 +24,13 @@
 - [x] Make illustrated service moments and motion visible in primary customer-facing screens
 - [x] Add service trust, active-service progress, saved routines, personal value, booking intelligence, and concierge support
 - [x] Add a camera-assisted room and carpet measurement flow with manual measurement fallback
+- [x] Restore the original uploaded Chapman logo and apply the Chapman Prestige Limited brand treatment
+- [x] Align shared app colors and icon contrast with the accessible Chapman website palette
+- [x] Rename Deep Sanitization to Deep Cleaning throughout the client
+- [x] Add service dates, confirmation acceptance or rejection, and expanded service-specific request choices
+- [x] Add a multi-contact chat area for Chapman AI, Admin, CEO, and Contact Us
+- [x] Add live-ready booking tracking and real-time notification states
+- [x] Add daily in-app announcement and local notification scheduling for promotions, news, and celebrations
+- [x] Add profile gender/avatar selection, location permission state, light/dark mode, and most-used service history
+- [ ] Connect authenticated customer records, staff updates, and official Admin/CEO inboxes for secure live tracking and human replies
+- [ ] Verify exact website palette when the supplied Chapman website URL can be accessed publicly

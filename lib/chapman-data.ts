@@ -56,7 +56,16 @@ export interface QuoteDetails {
   estimatedAreaM2?: number;
   cameraGuided?: boolean;
   estimateLabel?: string;
+  serviceLocation?: string;
+  selectedOptions?: string[];
+  requestedDate?: string;
+  proposedDate?: string;
+  cleanerCount?: string;
+  cleanerGenderPreference?: string;
+  cleanerExperiencePreference?: string;
 }
+
+export type AppointmentResponse = "awaiting-chapman" | "awaiting-customer" | "accepted" | "rejected";
 
 export interface QuoteRequest {
   id: string;
@@ -65,6 +74,7 @@ export interface QuoteRequest {
   propertyType: string;
   preference: string;
   details?: QuoteDetails;
+  appointmentResponse: AppointmentResponse;
   status: "quote-requested";
   createdAt: string;
 }
@@ -93,13 +103,13 @@ export const SERVICES: Service[] = [
   },
   {
     id: "cleaning",
-    title: "Deep Sanitization",
+    title: "Deep Cleaning",
     shortTitle: "Deep Cleaning",
     description: "Detailed residential and commercial cleaning with an assessment-led care plan.",
     valueStatement: "A visibly cleaner environment makes home and work feel easier to manage.",
     actionLabel: "Request assessment",
     icon: "sparkles-outline",
-    accent: "#6A57E8",
+    accent: "#3E39C8",
     priceHint: "From ₵500 minimum",
     assessmentRequired: true,
     tags: ["Homes", "Offices", "Move-in care"],
@@ -112,7 +122,7 @@ export const SERVICES: Service[] = [
     valueStatement: "Protect the spaces where your family, guests, and customers spend time.",
     actionLabel: "Get a quote",
     icon: "shield-checkmark-outline",
-    accent: "#A04100",
+    accent: "#C94C00",
     priceHint: "From ₵250",
     assessmentRequired: true,
     tags: ["Bedbugs", "Rodents", "Cockroaches"],
@@ -125,7 +135,7 @@ export const SERVICES: Service[] = [
     valueStatement: "Your car faces every road and weather condition. Give it a considered reset.",
     actionLabel: "Schedule service",
     icon: "car-sport-outline",
-    accent: "#136F63",
+    accent: "#056D64",
     priceHint: "Wash from ₵45",
     assessmentRequired: true,
     tags: ["Interior", "Exterior", "Ceramic coating"],
@@ -138,7 +148,7 @@ export const SERVICES: Service[] = [
     valueStatement: "Restore the comfort and confidence of the furniture you use every day.",
     actionLabel: "View pricing",
     icon: "bed-outline",
-    accent: "#B04A7A",
+    accent: "#AC3366",
     priceHint: "From ₵150 minimum",
     assessmentRequired: true,
     tags: ["Sofas", "Carpets", "Stain treatment"],
@@ -151,7 +161,7 @@ export const SERVICES: Service[] = [
     valueStatement: "Clean water starts before the tap. Care for the tank that serves your home.",
     actionLabel: "Request sanitization",
     icon: "water-outline",
-    accent: "#0077B6",
+    accent: "#006FAE",
     priceHint: "From ₵150",
     assessmentRequired: true,
     tags: ["200L–500L", "1kL–2.5kL", "5000L+"],
@@ -164,7 +174,7 @@ export const SERVICES: Service[] = [
     valueStatement: "Give your team and guests a dependable standard of care every month.",
     actionLabel: "Plan a contract",
     icon: "business-outline",
-    accent: "#3D5A80",
+    accent: "#264C7D",
     priceHint: "From ₵600/month",
     assessmentRequired: true,
     tags: ["Offices", "Schools", "Facilities"],
@@ -177,7 +187,7 @@ export const SERVICES: Service[] = [
     valueStatement: "Match with a verified professional when a task needs the right pair of hands.",
     actionLabel: "Browse workers",
     icon: "construct-outline",
-    accent: "#FE6B00",
+    accent: "#E24E00",
     priceHint: "Availability shown live",
     assessmentRequired: false,
     tags: ["Electricians", "Plumbers", "Painters"],

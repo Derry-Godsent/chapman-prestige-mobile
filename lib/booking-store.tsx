@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
-import { Booking, CartLine, LaundryItem, QuoteDetails, QuoteRequest, SavedRoutine, Service, formatGhs } from "@/lib/chapman-data";
+import { AppointmentResponse, Booking, CartLine, LaundryItem, QuoteDetails, QuoteRequest, SavedRoutine, Service, formatGhs } from "@/lib/chapman-data";
 
 interface BookingStoreValue {
   cart: CartLine[];
@@ -15,6 +15,8 @@ interface BookingStoreValue {
   cartCount: number;
   createLaundryBooking: () => Booking;
   createQuoteRequest: (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => QuoteRequest;
+  setProposedAppointment: (quoteId: string, proposedDate: string) => void;
+  respondToAppointment: (quoteId: string, response: Extract<AppointmentResponse, "accepted" | "rejected">) => void;
   saveRoutine: (service: Service, cadence: string) => void;
   removeRoutine: (routineId: string) => void;
   clearCart: () => void;
@@ -41,50 +43,32 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const expressFee = express ? cartCount * 10 : 0;
 
   const createLaundryBooking = () => {
-    const booking: Booking = {
-      id: `CPL-${String(bookings.length + 1042).padStart(4, "0")}`,
-      serviceId: "laundry",
-      serviceTitle: "Laundry & Garment Care",
-      status: "confirmed",
-      scheduledFor: "Pickup tomorrow, 9:00–11:00",
-      totalLabel: formatGhs(laundrySubtotal + expressFee + 20),
-      rewardNote: "Complete this service to unlock Chapman Bonus value.",
-      createdAt: new Date().toISOString(),
-    };
+    const booking: Booking = { id: `CPL-${String(bookings.length + 1042).padStart(4, "0")}`, serviceId: "laundry", serviceTitle: "Laundry & Garment Care", status: "confirmed", scheduledFor: "Pickup tomorrow, 9:00–11:00", totalLabel: formatGhs(laundrySubtotal + expressFee + 20), rewardNote: "Complete this service to unlock Chapman Bonus value.", createdAt: new Date().toISOString() };
     setBookings((current) => [booking, ...current]);
     return booking;
   };
 
   const createQuoteRequest = (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => {
-    const request: QuoteRequest = {
-      id: `QTE-${String(quotes.length + 301).padStart(4, "0")}`,
-      serviceId: service.id,
-      serviceTitle: service.title,
-      propertyType,
-      preference,
-      details,
-      status: "quote-requested",
-      createdAt: new Date().toISOString(),
-    };
+    const request: QuoteRequest = { id: `QTE-${String(quotes.length + 301).padStart(4, "0")}`, serviceId: service.id, serviceTitle: service.title, propertyType, preference, details, appointmentResponse: "awaiting-chapman", status: "quote-requested", createdAt: new Date().toISOString() };
     setQuotes((current) => [request, ...current]);
     return request;
   };
 
+  const setProposedAppointment = (quoteId: string, proposedDate: string) => {
+    setQuotes((current) => current.map((quote) => quote.id === quoteId ? { ...quote, appointmentResponse: "awaiting-customer", details: { ...quote.details, proposedDate } } : quote));
+  };
+
+  const respondToAppointment = (quoteId: string, response: Extract<AppointmentResponse, "accepted" | "rejected">) => {
+    setQuotes((current) => current.map((quote) => quote.id === quoteId ? { ...quote, appointmentResponse: response } : quote));
+  };
+
   const saveRoutine = (service: Service, cadence: string) => {
-    setRoutines((current) => {
-      if (current.some((routine) => routine.serviceId === service.id && routine.cadence === cadence)) return current;
-      return [{ id: `ROU-${service.id}-${cadence.toLowerCase().replace(/\s+/g, "-")}`, serviceId: service.id, serviceTitle: service.shortTitle, cadence, detail: `${cadence} care reminder` }, ...current];
-    });
+    setRoutines((current) => current.some((routine) => routine.serviceId === service.id && routine.cadence === cadence) ? current : [{ id: `ROU-${service.id}-${cadence.toLowerCase().replace(/\s+/g, "-")}`, serviceId: service.id, serviceTitle: service.shortTitle, cadence, detail: `${cadence} care reminder` }, ...current]);
   };
-
   const removeRoutine = (routineId: string) => setRoutines((current) => current.filter((routine) => routine.id !== routineId));
+  const clearCart = () => { setCart([]); setExpress(false); };
 
-  const clearCart = () => {
-    setCart([]);
-    setExpress(false);
-  };
-
-  return <BookingStore.Provider value={{ cart, express, bookings, quotes, routines, updateLaundryQuantity, setExpress, laundrySubtotal, expressFee, cartCount, createLaundryBooking, createQuoteRequest, saveRoutine, removeRoutine, clearCart }}>{children}</BookingStore.Provider>;
+  return <BookingStore.Provider value={{ cart, express, bookings, quotes, routines, updateLaundryQuantity, setExpress, laundrySubtotal, expressFee, cartCount, createLaundryBooking, createQuoteRequest, setProposedAppointment, respondToAppointment, saveRoutine, removeRoutine, clearCart }}>{children}</BookingStore.Provider>;
 }
 
 export function useBookingStore() {

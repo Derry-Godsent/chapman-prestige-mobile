@@ -93,6 +93,19 @@ const config: ExpoConfig = {
       },
     ],
     [
+      "expo-location",
+      {
+        locationWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location to show your service area and help with booking addresses.",
+      },
+    ],
+    [
+      "expo-notifications",
+      {
+        color: "#0038B6",
+        defaultChannel: "chapman-updates",
+      },
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone.",

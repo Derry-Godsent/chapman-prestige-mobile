@@ -1,16 +1,16 @@
 import { ReactNode } from "react";
-import { StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from "react-native";
+import { Image, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
 import { haptic } from "@/lib/haptics";
 
 export const palette = {
-  blue: "#003EC7",
-  electric: "#0052FF",
-  deep: "#001452",
-  orange: "#FE6B00",
-  secondaryOrange: "#A04100",
+  blue: "#0038B6",
+  electric: "#1A66FF",
+  deep: "#00184F",
+  orange: "#E85000",
+  secondaryOrange: "#8D3500",
   canvas: "#F8F9FA",
   surface: "#FFFFFF",
   ink: "#191C1D",
@@ -82,16 +82,11 @@ export function StatusPill({ label, tone = "blue" }: { label: string; tone?: "bl
 }
 
 export function IconOrb({ icon, color = palette.blue, size = 42 }: { icon: keyof typeof Ionicons.glyphMap; color?: string; size?: number }) {
-  return <View style={[styles.iconOrb, { width: size, height: size, borderRadius: size / 2, backgroundColor: `${color}18` }]}><Ionicons name={icon} size={size * 0.47} color={color} /></View>;
+  return <View style={[styles.iconOrb, { width: size, height: size, borderRadius: size / 2, backgroundColor: `${color}20`, borderColor: `${color}45` }]}><Ionicons name={icon} size={size * 0.47} color={color} /></View>;
 }
 
 export function ChapmanMark({ inverted = false, size = 42 }: { inverted?: boolean; size?: number }) {
-  return (
-    <View style={[styles.mark, { width: size, height: size, borderRadius: size * 0.32, backgroundColor: inverted ? "rgba(255,255,255,0.16)" : palette.blue }]}>
-      <Ionicons name="water" color="#FFFFFF" size={size * 0.62} />
-      <View style={[styles.markSpark, { backgroundColor: inverted ? "#FFFFFF" : "#AFC0FF" }]} />
-    </View>
-  );
+  return <Image source={require("@/assets/images/cpl-original-logo.jpg")} resizeMode="contain" style={[styles.brandLogo, { width: size * 1.45, height: size }, inverted && styles.brandLogoInverted]} />;
 }
 
 const styles = StyleSheet.create({
@@ -111,7 +106,7 @@ const styles = StyleSheet.create({
   sectionActionText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 13 },
   statusPill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5, alignSelf: "flex-start" },
   statusText: { fontFamily: "Inter_700Bold", fontSize: 11 },
-  iconOrb: { alignItems: "center", justifyContent: "center" },
-  mark: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  markSpark: { position: "absolute", width: 6, height: 6, borderRadius: 3, top: "24%", right: "20%" },
+  iconOrb: { alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  brandLogo: { opacity: 1 },
+  brandLogoInverted: { opacity: 0.94 },
 });

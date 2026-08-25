@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, ChapmanMark, DisplayText, IconOrb, SectionHeading, StatusPill, palette } from "@/components/chapman-ui";
 import { AnimatedServiceScene } from "@/components/service-illustration";
+import { DailyAnnouncement } from "@/components/daily-announcement";
 import { SERVICES, Service } from "@/lib/chapman-data";
 import { useBookingStore } from "@/lib/booking-store";
 import { haptic } from "@/lib/haptics";
@@ -20,13 +21,14 @@ export default function HomeScreen() {
 
   return (
     <AppScreen>
+      <DailyAnnouncement onOpen={() => router.push("/notifications" as never)} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <ChapmanMark size={42} />
-            <View>
-              <Text style={styles.brandName}>CHAPMAN</Text>
-              <Text style={styles.brandSub}>PRESTIGE</Text>
+            <ChapmanMark size={45} />
+            <View style={styles.brandCopy}>
+              <Text style={styles.brandName}>Chapman Prestige</Text>
+              <Text style={styles.brandSub}>LIMITED</Text>
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -117,7 +119,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: palette.canvas }, content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 36, gap: 23 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 10 }, brandName: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 14, letterSpacing: 1.1 }, brandSub: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 2.2, marginTop: 1 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 10 }, bellButton: { width: 41, height: 41, borderRadius: 14, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }, notificationDot: { position: "absolute", top: 9, right: 10, width: 7, height: 7, backgroundColor: "#D8362A", borderWidth: 1.5, borderColor: "#FFFFFF", borderRadius: 4 }, avatar: { width: 41, height: 41, borderRadius: 15, backgroundColor: "#DEEBFF", alignItems: "center", justifyContent: "center" }, avatarText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 8 }, brandCopy: { justifyContent: "center", paddingTop: 1 }, brandName: { color: palette.deep, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 14, letterSpacing: -0.35 }, brandSub: { color: palette.orange, fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 2.7, marginTop: 1 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 10 }, bellButton: { width: 41, height: 41, borderRadius: 14, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }, notificationDot: { position: "absolute", top: 9, right: 10, width: 7, height: 7, backgroundColor: "#D8362A", borderWidth: 1.5, borderColor: "#FFFFFF", borderRadius: 4 }, avatar: { width: 41, height: 41, borderRadius: 15, backgroundColor: "#DEEBFF", alignItems: "center", justifyContent: "center" }, avatarText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 },
   greeting: { gap: 4 }, eyebrow: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3 }, greetingTitle: { maxWidth: 315, fontSize: 28, lineHeight: 35 },
   storyMoment: { minHeight: 151, borderRadius: 22, backgroundColor: "#EEF3FF", overflow: "hidden", flexDirection: "row", alignItems: "center", paddingLeft: 17 }, storyCopy: { flex: 1, zIndex: 2, gap: 7, paddingVertical: 15 }, storyLabel: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.05 }, storyTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 17, lineHeight: 23, maxWidth: 175 }, storyAction: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 11, flexDirection: "row" }, storyArt: { width: 154, height: 151, marginRight: -5, justifyContent: "center" },
   loyaltyPress: { borderRadius: 24, overflow: "hidden", shadowColor: palette.blue, shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 4 }, loyaltyCard: { minHeight: 162, borderRadius: 24, padding: 20, overflow: "hidden", justifyContent: "space-between" }, loyaltyGlowOne: { position: "absolute", width: 180, height: 180, borderRadius: 90, backgroundColor: "rgba(204,215,255,0.16)", right: -48, top: -84 }, loyaltyGlowTwo: { position: "absolute", width: 110, height: 110, borderRadius: 55, backgroundColor: "rgba(255,255,255,0.09)", left: 120, bottom: -70 }, loyaltyTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, loyaltyLabel: { color: "#DDE1FF", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.35 }, loyaltyTier: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 21, marginTop: 5 }, discountBubble: { width: 50, height: 50, borderRadius: 25, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", alignItems: "center", justifyContent: "center" }, discountValue: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 15 }, discountLabel: { color: "#DDE1FF", fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 0.8 }, loyaltyBottom: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }, progressCopy: { flex: 1, gap: 8, paddingRight: 16 }, progressLabel: { color: "#DDE1FF", fontFamily: "Inter_500Medium", fontSize: 11 }, progressTrack: { height: 6, backgroundColor: "rgba(255,255,255,0.23)", borderRadius: 99, overflow: "hidden" }, progressFill: { width: "57%", height: "100%", borderRadius: 99, backgroundColor: "#FFFFFF" },
