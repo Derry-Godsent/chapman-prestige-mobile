@@ -18,3 +18,5 @@
 - [x] Design illustrated service moments for laundry, cleaning, fabric, fumigation, detailing, and polytank care
 - [x] Add simple service explanations, payment choices, bonus visibility, user activity, and live-progress patterns
 - [x] Analyze the newly available second reference recording before finalizing the feature model
+- [x] Resolve the restored 6000ms web font-loader timeout
+- [ ] Resolve the managed Expo host failure that prevents Expo Go from loading the bundle
