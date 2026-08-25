@@ -15,3 +15,4 @@
 - [x] Add deterministic tests for pricing, booking flows, and data transformations
 - [x] Run type, lint, and test verification; resolve identified issues
 - [x] Capture a final checkpoint and provide the completed project version
+- [x] Resolve the Expo font-loader timeout during app startup
