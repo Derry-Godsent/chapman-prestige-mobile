@@ -22,7 +22,7 @@ export default function TabLayout() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: palette.blue,
-        tabBarInactiveTintColor: "#7A7E8D",
+        tabBarInactiveTintColor: "#7A6A59",
         tabBarLabelStyle: { fontFamily: "Inter_600SemiBold", fontSize: 10, marginTop: 2 },
         tabBarStyle: {
           height: 60 + bottomPadding,
@@ -30,8 +30,8 @@ export default function TabLayout() {
           paddingBottom: bottomPadding,
           backgroundColor: "#FFFFFF",
           borderTopWidth: 1,
-          borderTopColor: "#E4E7EE",
-          shadowColor: "#001452",
+          borderTopColor: "#DED4C6",
+          shadowColor: "#1C1208",
           shadowOpacity: 0.06,
           shadowOffset: { width: 0, height: -3 },
           shadowRadius: 14,

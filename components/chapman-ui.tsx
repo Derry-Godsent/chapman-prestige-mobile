@@ -6,18 +6,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { haptic } from "@/lib/haptics";
 
 export const palette = {
-  blue: "#0038B6",
-  electric: "#1A66FF",
-  deep: "#00184F",
-  orange: "#E85000",
-  secondaryOrange: "#8D3500",
-  canvas: "#F8F9FA",
+  blue: "#059669",
+  electric: "#10B981",
+  deep: "#1C1208",
+  orange: "#F59E0B",
+  secondaryOrange: "#92400E",
+  canvas: "#FAF6EE",
   surface: "#FFFFFF",
-  ink: "#191C1D",
-  muted: "#434656",
-  border: "#E4E7EE",
-  paleBlue: "#DDE1FF",
-  green: "#168267",
+  ink: "#4B3E30",
+  muted: "#7A6A59",
+  border: "#DED4C6",
+  paleBlue: "#E4F4E9",
+  green: "#047857",
   error: "#BA1A1A",
 };
 
@@ -73,10 +73,10 @@ export function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow?:
 
 export function StatusPill({ label, tone = "blue" }: { label: string; tone?: "blue" | "orange" | "green" | "gray" }) {
   const colors = {
-    blue: { backgroundColor: "#E7EDFF", color: palette.blue },
-    orange: { backgroundColor: "#FFF0E8", color: palette.secondaryOrange },
-    green: { backgroundColor: "#E0F6EF", color: palette.green },
-    gray: { backgroundColor: "#EEF0F4", color: palette.muted },
+    blue: { backgroundColor: "#E4F4E9", color: palette.blue },
+    orange: { backgroundColor: "#FFF1CC", color: palette.secondaryOrange },
+    green: { backgroundColor: "#DCFCE7", color: palette.green },
+    gray: { backgroundColor: "#F1ECE4", color: palette.muted },
   }[tone];
   return <View style={[styles.statusPill, { backgroundColor: colors.backgroundColor }]}><Text style={[styles.statusText, { color: colors.color }]}>{label}</Text></View>;
 }
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   primaryGradient: { minHeight: 52, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9, borderRadius: 16 },
   primaryText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 15 },
   disabled: { opacity: 0.44 },
-  outlineButton: { minHeight: 46, paddingHorizontal: 15, borderRadius: 14, borderWidth: 1, borderColor: "#BFCBFC", backgroundColor: "#F9FAFF", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  outlineButton: { minHeight: 46, paddingHorizontal: 15, borderRadius: 14, borderWidth: 1, borderColor: "#A7D8C4", backgroundColor: "#F4FBF6", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   outlineText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 14 },
   sectionHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 },
   sectionCopy: { flex: 1 },

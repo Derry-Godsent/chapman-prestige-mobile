@@ -33,4 +33,5 @@
 - [x] Add daily in-app announcement and local notification scheduling for promotions, news, and celebrations
 - [x] Add profile gender/avatar selection, location permission state, light/dark mode, and most-used service history
 - [ ] Connect authenticated customer records, staff updates, and official Admin/CEO inboxes for secure live tracking and human replies
-- [ ] Verify exact website palette when the supplied Chapman website URL can be accessed publicly
+- [x] Verify exact website palette when the supplied Chapman website URL can be accessed publicly
+- [x] Extract and apply the authoritative Netlify website palette to the Chapman mobile client
