@@ -16,3 +16,4 @@
 - [x] Run type, lint, and test verification; resolve identified issues
 - [x] Capture a final checkpoint and provide the completed project version
 - [x] Resolve the Expo font-loader timeout during app startup
+- [x] Restore the Expo Go QR connection after the reported 502 upstream failure
