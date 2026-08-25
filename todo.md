@@ -22,3 +22,5 @@
 - [ ] Resolve the managed Expo host failure that prevents Expo Go from loading the bundle
 - [ ] Establish a verified live Expo Go connection for on-device testing
 - [x] Make illustrated service moments and motion visible in primary customer-facing screens
+- [x] Add service trust, active-service progress, saved routines, personal value, booking intelligence, and concierge support
+- [x] Add a camera-assisted room and carpet measurement flow with manual measurement fallback

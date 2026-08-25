@@ -1,19 +1,22 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
-import { Booking, CartLine, LaundryItem, QuoteRequest, Service, ServiceKind, formatGhs } from "@/lib/chapman-data";
+import { Booking, CartLine, LaundryItem, QuoteDetails, QuoteRequest, SavedRoutine, Service, formatGhs } from "@/lib/chapman-data";
 
 interface BookingStoreValue {
   cart: CartLine[];
   express: boolean;
   bookings: Booking[];
   quotes: QuoteRequest[];
+  routines: SavedRoutine[];
   updateLaundryQuantity: (item: LaundryItem, quantity: number) => void;
   setExpress: (value: boolean) => void;
   laundrySubtotal: number;
   expressFee: number;
   cartCount: number;
   createLaundryBooking: () => Booking;
-  createQuoteRequest: (service: Service, propertyType: string, preference: string) => QuoteRequest;
+  createQuoteRequest: (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => QuoteRequest;
+  saveRoutine: (service: Service, cadence: string) => void;
+  removeRoutine: (routineId: string) => void;
   clearCart: () => void;
 }
 
@@ -24,6 +27,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [express, setExpress] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
+  const [routines, setRoutines] = useState<SavedRoutine[]>([]);
 
   const updateLaundryQuantity = (item: LaundryItem, quantity: number) => {
     setCart((current) => {
@@ -32,10 +36,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const laundrySubtotal = useMemo(
-    () => cart.reduce((sum, line) => sum + line.item.price * line.quantity, 0),
-    [cart],
-  );
+  const laundrySubtotal = useMemo(() => cart.reduce((sum, line) => sum + line.item.price * line.quantity, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
   const expressFee = express ? cartCount * 10 : 0;
 
@@ -47,19 +48,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       status: "confirmed",
       scheduledFor: "Pickup tomorrow, 9:00–11:00",
       totalLabel: formatGhs(laundrySubtotal + expressFee + 20),
+      rewardNote: "Complete this service to unlock Chapman Bonus value.",
       createdAt: new Date().toISOString(),
     };
     setBookings((current) => [booking, ...current]);
     return booking;
   };
 
-  const createQuoteRequest = (service: Service, propertyType: string, preference: string) => {
+  const createQuoteRequest = (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => {
     const request: QuoteRequest = {
       id: `QTE-${String(quotes.length + 301).padStart(4, "0")}`,
-      serviceId: service.id as ServiceKind,
+      serviceId: service.id,
       serviceTitle: service.title,
       propertyType,
       preference,
+      details,
       status: "quote-requested",
       createdAt: new Date().toISOString(),
     };
@@ -67,31 +70,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return request;
   };
 
+  const saveRoutine = (service: Service, cadence: string) => {
+    setRoutines((current) => {
+      if (current.some((routine) => routine.serviceId === service.id && routine.cadence === cadence)) return current;
+      return [{ id: `ROU-${service.id}-${cadence.toLowerCase().replace(/\s+/g, "-")}`, serviceId: service.id, serviceTitle: service.shortTitle, cadence, detail: `${cadence} care reminder` }, ...current];
+    });
+  };
+
+  const removeRoutine = (routineId: string) => setRoutines((current) => current.filter((routine) => routine.id !== routineId));
+
   const clearCart = () => {
     setCart([]);
     setExpress(false);
   };
 
-  return (
-    <BookingStore.Provider
-      value={{
-        cart,
-        express,
-        bookings,
-        quotes,
-        updateLaundryQuantity,
-        setExpress,
-        laundrySubtotal,
-        expressFee,
-        cartCount,
-        createLaundryBooking,
-        createQuoteRequest,
-        clearCart,
-      }}
-    >
-      {children}
-    </BookingStore.Provider>
-  );
+  return <BookingStore.Provider value={{ cart, express, bookings, quotes, routines, updateLaundryQuantity, setExpress, laundrySubtotal, expressFee, cartCount, createLaundryBooking, createQuoteRequest, saveRoutine, removeRoutine, clearCart }}>{children}</BookingStore.Provider>;
 }
 
 export function useBookingStore() {

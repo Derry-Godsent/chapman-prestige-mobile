@@ -44,7 +44,18 @@ export interface Booking {
   scheduledFor: string;
   totalLabel: string;
   specialistName?: string;
+  rewardNote?: string;
   createdAt: string;
+}
+
+export interface QuoteDetails {
+  primaryLabel?: string;
+  primaryValue?: string;
+  secondaryLabel?: string;
+  secondaryValue?: string;
+  estimatedAreaM2?: number;
+  cameraGuided?: boolean;
+  estimateLabel?: string;
 }
 
 export interface QuoteRequest {
@@ -53,8 +64,17 @@ export interface QuoteRequest {
   serviceTitle: string;
   propertyType: string;
   preference: string;
+  details?: QuoteDetails;
   status: "quote-requested";
   createdAt: string;
+}
+
+export interface SavedRoutine {
+  id: string;
+  serviceId: ServiceKind;
+  serviceTitle: string;
+  cadence: string;
+  detail: string;
 }
 
 export const SERVICES: Service[] = [
