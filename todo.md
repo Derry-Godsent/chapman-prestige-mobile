@@ -38,3 +38,4 @@
 - [x] Align remaining detailed screen tints with the Netlify cream, emerald, brown, and gold palette
 - [x] Add restrained website-style service photography to existing service experiences
 - [x] Assess the live Chapman order system against the mobile client and document the production integration roadmap
+- [x] Map every mobile feature to its exact staff-system workflow and identify unsupported customer actions
