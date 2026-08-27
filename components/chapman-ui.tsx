@@ -86,7 +86,7 @@ export function IconOrb({ icon, color = palette.blue, size = 42 }: { icon: keyof
 }
 
 export function ChapmanMark({ inverted = false, size = 42 }: { inverted?: boolean; size?: number }) {
-  return <Image source={require("@/assets/images/cpl-original-logo.jpg")} resizeMode="contain" style={[styles.brandLogo, { width: size * 1.45, height: size }, inverted && styles.brandLogoInverted]} />;
+  return <Image source={require("@/assets/images/cpl-logo-borderless.png")} resizeMode="contain" style={[styles.brandLogo, { width: size * 1.31, height: size }, inverted && styles.brandLogoInverted]} />;
 }
 
 const styles = StyleSheet.create({

@@ -40,11 +40,9 @@ export default function ChapmanSplashScreen() {
         <View style={styles.ambientTwo} />
         <View style={styles.center}>
           <Animated.View style={[styles.markWrap, { opacity: emblemOpacity, transform: [{ scale: emblemScale }] }]}>
-            <ChapmanMark inverted size={104} />
+            <ChapmanMark size={104} />
           </Animated.View>
           <Animated.View style={[styles.copy, { opacity: copyOpacity }]}>
-            <Text style={styles.name}>CHAPMAN PRESTIGE</Text>
-            <Text style={styles.limited}>LIMITED</Text>
             <Text style={styles.tagline}>Care, arranged around your life.</Text>
           </Animated.View>
         </View>
@@ -62,10 +60,8 @@ const styles = StyleSheet.create({
   ambientOne: { position: "absolute", width: 340, height: 340, borderRadius: 170, top: -155, right: -140, backgroundColor: "rgba(255,255,255,0.08)" },
   ambientTwo: { position: "absolute", width: 280, height: 280, borderRadius: 140, bottom: -145, left: -122, backgroundColor: "rgba(246,199,105,0.12)" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 8 },
-  markWrap: { width: 176, height: 142, alignItems: "center", justifyContent: "center", marginBottom: 22 },
+  markWrap: { width: 190, height: 142, alignItems: "center", justifyContent: "center", marginBottom: 14 },
   copy: { alignItems: "center" },
-  name: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 22, letterSpacing: 1.2 },
-  limited: { color: "#F6C769", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 4.1, marginTop: 5, marginLeft: 4 },
   tagline: { color: "#E8E0D3", fontFamily: "Inter_400Regular", fontSize: 13, marginTop: 20 },
   footer: { gap: 15, alignItems: "center" },
   loadingTrack: { width: "100%", height: 3, borderRadius: 4, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.18)" },
