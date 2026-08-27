@@ -49,3 +49,5 @@
 - [x] Restyle the “What needs more care today” page with website green and yellow accents
 - [x] Replace the service-choice page’s three-star decoration with a washing, scrubbing, car, and floor-care collage
 - [x] Remove only the green leaves from the welcome-page service collage
+- [x] Extend the Chapman splash sequence to approximately 3.5 seconds
+- [x] Review and structurally validate the local customer-account security preparation without changing production

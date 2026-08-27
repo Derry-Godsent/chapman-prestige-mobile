@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, palette } from "@/components/chapman-ui";
 
-const SPLASH_DURATION_MS = 1450;
+const SPLASH_DURATION_MS = 3500;
 
 export default function ChapmanSplashScreen() {
   const emblemOpacity = useRef(new Animated.Value(0)).current;
@@ -24,8 +24,8 @@ export default function ChapmanSplashScreen() {
         Animated.timing(copyOpacity, { toValue: 1, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
       Animated.sequence([
-        Animated.delay(480),
-        Animated.timing(lineScale, { toValue: 1, duration: 620, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+        Animated.delay(520),
+        Animated.timing(lineScale, { toValue: 1, duration: 2150, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
       ]),
     ]);
     entrance.start();
