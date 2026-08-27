@@ -1,0 +1,24 @@
+export const PICKUP_WINDOWS = ["9:00–11:00", "11:00–13:00", "13:00–15:00", "15:00–17:00"] as const;
+export type PickupWindow = (typeof PICKUP_WINDOWS)[number];
+
+export type SubmittedLaundryItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+};
+
+export type MobileLaundryRequest = {
+  id: string;
+  request_status: "pending" | "under_review" | "needs_customer_confirmation" | "confirmed" | "declined" | "cancelled" | "converted";
+  requested_for: string | null;
+  pickup_area: string | null;
+  pickup_address: string | null;
+  pickup_window: PickupWindow | null;
+  laundry_items: SubmittedLaundryItem[];
+  express: boolean;
+  estimated_total: number | string | null;
+  customer_note: string | null;
+  created_at: string;
+};

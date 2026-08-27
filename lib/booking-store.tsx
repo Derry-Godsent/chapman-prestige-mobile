@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from "react";
 
 import { AppointmentResponse, Booking, CartLine, LaundryItem, QuoteDetails, QuoteRequest, SavedRoutine, Service, formatGhs } from "@/lib/chapman-data";
+import type { MobileLaundryRequest } from "@/lib/mobile-requests";
 
 interface BookingStoreValue {
   cart: CartLine[];
@@ -13,7 +14,7 @@ interface BookingStoreValue {
   laundrySubtotal: number;
   expressFee: number;
   cartCount: number;
-  createLaundryBooking: () => Booking;
+  createLaundryBooking: (request?: MobileLaundryRequest) => Booking;
   createQuoteRequest: (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => QuoteRequest;
   setProposedAppointment: (quoteId: string, proposedDate: string) => void;
   respondToAppointment: (quoteId: string, response: Extract<AppointmentResponse, "accepted" | "rejected">) => void;
@@ -42,8 +43,20 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const cartCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
   const expressFee = express ? cartCount * 10 : 0;
 
-  const createLaundryBooking = () => {
-    const booking: Booking = { id: `CPL-${String(bookings.length + 1042).padStart(4, "0")}`, serviceId: "laundry", serviceTitle: "Laundry & Garment Care", status: "confirmed", scheduledFor: "Pickup tomorrow, 9:00–11:00", totalLabel: formatGhs(laundrySubtotal + expressFee + 20), rewardNote: "Complete this service to unlock Chapman Bonus value.", createdAt: new Date().toISOString() };
+  const createLaundryBooking = (request?: MobileLaundryRequest) => {
+    const isSubmittedRequest = Boolean(request);
+    const requestDate = request?.requested_for ? new Date(`${request.requested_for}T12:00:00`).toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" }) : "your preferred date";
+    const booking: Booking = {
+      id: request?.id ?? `CPL-${String(bookings.length + 1042).padStart(4, "0")}`,
+      referenceCode: request?.id ? `CPL-${request.id.slice(0, 8).toUpperCase()}` : undefined,
+      serviceId: "laundry",
+      serviceTitle: "Laundry & Garment Care",
+      status: isSubmittedRequest ? "pending-review" : "confirmed",
+      scheduledFor: isSubmittedRequest ? `Preferred pickup ${requestDate} · ${request?.pickup_window ?? "time to be confirmed"}` : "Pickup tomorrow, 9:00–11:00",
+      totalLabel: formatGhs(Number(request?.estimated_total ?? laundrySubtotal + expressFee + 20)),
+      rewardNote: "Complete this service to unlock Chapman Bonus value.",
+      createdAt: request?.created_at ?? new Date().toISOString(),
+    };
     setBookings((current) => [booking, ...current]);
     return booking;
   };

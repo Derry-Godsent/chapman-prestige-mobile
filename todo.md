@@ -77,3 +77,7 @@
 - [ ] Securely create a linked customer record for an already-verified profile without requiring a second OTP flow
 - [x] Restore scrolling on the Profile screen
 - [x] Keep verified users signed in across app launches unless they explicitly log out
+- [x] Add a protected staff-side Mobile Requests page for Laundry-first customer bookings
+- [x] Connect approved mobile Laundry request details to the new staff request workflow
+- [ ] Submit verified customer Laundry checkout requests to the protected live Mobile Requests queue
+- [x] Release the reviewed Laundry Mobile Requests staff page to the live operations system.

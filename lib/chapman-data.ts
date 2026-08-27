@@ -8,7 +8,7 @@ export type ServiceKind =
   | "contract"
   | "workers";
 
-export type BookingStatus = "confirmed" | "assigned" | "en-route" | "in-progress" | "completed" | "quote-requested";
+export type BookingStatus = "pending-review" | "confirmed" | "assigned" | "en-route" | "in-progress" | "completed" | "quote-requested";
 
 export interface Service {
   id: ServiceKind;
@@ -38,6 +38,7 @@ export interface CartLine {
 
 export interface Booking {
   id: string;
+  referenceCode?: string;
   serviceId: ServiceKind;
   serviceTitle: string;
   status: BookingStatus;
