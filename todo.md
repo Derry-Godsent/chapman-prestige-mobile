@@ -51,3 +51,5 @@
 - [x] Remove only the green leaves from the welcome-page service collage
 - [x] Extend the Chapman splash sequence to approximately 3.5 seconds
 - [x] Review and structurally validate the local customer-account security preparation without changing production
+- [x] Publish the reviewed customer-account security preparation to a dedicated GitHub branch
+- [x] Prepare a read-only database schema and policy backup procedure before any production security change
