@@ -68,3 +68,8 @@
 - [x] Prevent the verification form and action button from becoming crowded or covered when the numeric keyboard opens
 - [ ] Confirm the required Arkesel approval action for the accepted but pending SMS delivery
 - [x] Return the signed SMS hook promptly so delayed Arkesel requests do not exceed Supabase’s five-second authentication deadline
+- [x] Move the verification action next to the OTP entry so it remains visible above the keyboard
+- [ ] Inspect and resolve the one-time Arkesel sender or account approval holding real OTP messages as pending
+- [x] Automatically verify a complete autofilled OTP once, without repeated verification requests
+- [x] Fix the verified customer profile completion request that currently fails at the final setup page
+- [x] Refine only the OTP-screen Verify action placement so it feels consistent with the app’s other buttons
