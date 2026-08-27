@@ -46,3 +46,5 @@
 - [x] Force the Chapman splash route before the main tab screen on every fresh Expo Go launch
 - [x] Replace off-brand splash blue with the approved website cream, espresso, emerald, and gold treatment
 - [x] Fit splash imagery cleanly inside its frame and show the authentic CPL logo without a border
+- [x] Restyle the “What needs more care today” page with website green and yellow accents
+- [x] Replace the service-choice page’s three-star decoration with a washing, scrubbing, car, and floor-care collage
