@@ -98,7 +98,21 @@ export async function getCurrentCustomerAccount(): Promise<CustomerAccount | nul
     .eq("auth_user_id", userData.user.id)
     .maybeSingle();
   if (!error && data) return data as CustomerAccount;
-  return accountFromAuthUser(userData.user);
+
+  const fallbackAccount = accountFromAuthUser(userData.user);
+  if (!fallbackAccount.full_name || !fallbackAccount.profile_completed_at) return fallbackAccount;
+
+  // A profile completed before the customer-record migration is kept in the
+  // user's own Auth metadata. On first account access after the migration,
+  // create the protected customer link from those already-verified details.
+  const { data: linkedAccount, error: linkError } = await client.rpc("complete_customer_onboarding", {
+    p_full_name: fallbackAccount.full_name,
+    p_gender: fallbackAccount.gender,
+    p_email: fallbackAccount.email,
+  });
+  if (!linkError && linkedAccount) return linkedAccount as CustomerAccount;
+
+  return fallbackAccount;
 }
 
 export async function getCustomerSession() {

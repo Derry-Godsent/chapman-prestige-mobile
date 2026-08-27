@@ -55,21 +55,23 @@
 - [x] Prepare a read-only database schema and policy backup procedure before any production security change
 - [x] Publish a plain-language, tickable roadmap for safely connecting the mobile app, staff system, website, and Supabase
 - [x] Create a separate private GitHub repository and push the Chapman Prestige mobile app source
-- [ ] Inspect Supabase Phone Auth readiness and configure the mobile app for real customer SMS verification
-- [ ] Prepare Arkesel as the secure Ghana SMS provider for customer phone verification
-- [ ] Fix the Arkesel Send SMS Hook 500 error reported during the controlled phone-login test
+- [x] Inspect Supabase Phone Auth readiness and configure the mobile app for real customer SMS verification
+- [x] Prepare Arkesel as the secure Ghana SMS provider for customer phone verification
+- [x] Fix the Arkesel Send SMS Hook 500 error reported during the controlled phone-login test
 - [x] Show a fixed +233 prefix and limit Chapman phone entry to nine digits without the leading zero
 - [x] Accept the intended nine-digit Ghana entry after the fixed +233 prefix and update the validation example
-- [ ] Diagnose and correct the Arkesel SMS-hook 502 response from the controlled customer sign-in test
-- [ ] Replace the private Arkesel sender name with an approved value of eleven characters or fewer and retest SMS
+- [x] Diagnose and correct the Arkesel SMS-hook 502 response from the controlled customer sign-in test
+- [x] Replace the private Arkesel sender name with an approved value of eleven characters or fewer and retest SMS
 - [x] Add a Back action to onboarding pages after the first page
 - [x] Add a five-minute SMS code delivery countdown and resend state
 - [x] Replace the single OTP field with connected six-cell entry and device code autofill support
 - [x] Prevent the verification form and action button from becoming crowded or covered when the numeric keyboard opens
-- [ ] Confirm the required Arkesel approval action for the accepted but pending SMS delivery
+- [x] Confirm the required Arkesel approval action for the accepted but pending SMS delivery
 - [x] Return the signed SMS hook promptly so delayed Arkesel requests do not exceed Supabase’s five-second authentication deadline
 - [x] Move the verification action next to the OTP entry so it remains visible above the keyboard
-- [ ] Inspect and resolve the one-time Arkesel sender or account approval holding real OTP messages as pending
+- [x] Inspect and resolve the one-time Arkesel sender or account approval holding real OTP messages as pending
 - [x] Automatically verify a complete autofilled OTP once, without repeated verification requests
 - [x] Fix the verified customer profile completion request that currently fails at the final setup page
 - [x] Refine only the OTP-screen Verify action placement so it feels consistent with the app’s other buttons
+- [x] Apply the reviewed customer-record security migration to production Supabase and validate staff access
+- [ ] Securely create a linked customer record for an already-verified profile without requiring a second OTP flow
