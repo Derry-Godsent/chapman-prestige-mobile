@@ -75,3 +75,5 @@
 - [x] Refine only the OTP-screen Verify action placement so it feels consistent with the app’s other buttons
 - [x] Apply the reviewed customer-record security migration to production Supabase and validate staff access
 - [ ] Securely create a linked customer record for an already-verified profile without requiring a second OTP flow
+- [x] Restore scrolling on the Profile screen
+- [x] Keep verified users signed in across app launches unless they explicitly log out

@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, palette } from "@/components/chapman-ui";
+import { getLaunchDestination } from "@/lib/customer-auth";
 
 const SPLASH_DURATION_MS = 3500;
 
@@ -29,8 +30,13 @@ export default function ChapmanSplashScreen() {
       ]),
     ]);
     entrance.start();
-    const timer = setTimeout(() => router.replace("/onboarding" as never), SPLASH_DURATION_MS);
-    return () => { entrance.stop(); clearTimeout(timer); };
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void getLaunchDestination()
+        .then((destination) => { if (!cancelled) router.replace(destination as never); })
+        .catch(() => { if (!cancelled) router.replace("/onboarding" as never); });
+    }, SPLASH_DURATION_MS);
+    return () => { cancelled = true; entrance.stop(); clearTimeout(timer); };
   }, [copyOpacity, emblemOpacity, emblemScale, lineScale]);
 
   return (

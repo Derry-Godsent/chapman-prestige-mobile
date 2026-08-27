@@ -1,6 +1,9 @@
 import { CustomerGender, normalizeGhanaPhone } from "@/lib/customer-auth-utils";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export const CUSTOMER_GUEST_SESSION_KEY = "chapman-guest-session";
 
 export type CustomerAccount = {
   auth_user_id: string;
@@ -126,4 +129,17 @@ export async function signOutCustomer() {
   const client = requireSupabase();
   const { error } = await client.auth.signOut();
   if (error) throw error;
+  await AsyncStorage.removeItem(CUSTOMER_GUEST_SESSION_KEY);
+}
+
+export async function continueAsGuest() {
+  await AsyncStorage.setItem(CUSTOMER_GUEST_SESSION_KEY, "true");
+}
+
+export async function getLaunchDestination(): Promise<"/(tabs)" | "/onboarding"> {
+  if (supabase) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return "/(tabs)";
+  }
+  return (await AsyncStorage.getItem(CUSTOMER_GUEST_SESSION_KEY)) === "true" ? "/(tabs)" : "/onboarding";
 }

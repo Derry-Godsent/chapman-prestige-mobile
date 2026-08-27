@@ -7,7 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
 import { cleanGhanaLocalEntry, cleanOtpCode, CustomerGender } from "@/lib/customer-auth-utils";
-import { completeCustomerOnboarding, sendCustomerOtp, verifyCustomerOtp } from "@/lib/customer-auth";
+import { completeCustomerOnboarding, continueAsGuest, sendCustomerOtp, verifyCustomerOtp } from "@/lib/customer-auth";
 
 type Stage = "phone" | "code" | "profile";
 
@@ -197,7 +197,7 @@ export default function PhoneAuthScreen() {
           {stage !== "code" ? <View style={styles.footer}>
             <PrimaryButton label={busy ? "Please wait" : stage === "phone" ? "Send verification code" : "Finish setup"} icon={busy ? undefined : "arrow-forward"} disabled={busy} onPress={stage === "phone" ? beginOtp : finishOnboarding} />
             {busy ? <ActivityIndicator color="#FFFFFF" style={styles.loader} /> : null}
-            {stage === "phone" ? <TouchableOpacity onPress={() => router.replace("/(tabs)" as never)} style={styles.guest}><Text style={styles.guestText}>Continue as guest</Text></TouchableOpacity> : null}
+            {stage === "phone" ? <TouchableOpacity onPress={() => { void continueAsGuest().finally(() => router.replace("/(tabs)" as never)); }} style={styles.guest}><Text style={styles.guestText}>Continue as guest</Text></TouchableOpacity> : null}
           </View> : null}
         </View>
       </LinearGradient>
