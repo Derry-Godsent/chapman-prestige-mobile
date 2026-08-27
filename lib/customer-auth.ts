@@ -21,7 +21,7 @@ function requireSupabase() {
 
 export async function sendCustomerOtp(phoneInput: string) {
   const phone = normalizeGhanaPhone(phoneInput);
-  if (!phone) throw new Error("Enter a valid Ghana phone number, for example 024 123 4567.");
+  if (!phone) throw new Error("Enter the 9 digits after +233, for example 24 123 4567.");
 
   const client = requireSupabase();
   const { error } = await client.auth.signInWithOtp({ phone });

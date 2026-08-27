@@ -58,4 +58,5 @@
 - [ ] Inspect Supabase Phone Auth readiness and configure the mobile app for real customer SMS verification
 - [ ] Prepare Arkesel as the secure Ghana SMS provider for customer phone verification
 - [ ] Fix the Arkesel Send SMS Hook 500 error reported during the controlled phone-login test
-- [ ] Show a fixed +233 prefix and limit Chapman phone entry to nine digits without the leading zero
+- [x] Show a fixed +233 prefix and limit Chapman phone entry to nine digits without the leading zero
+- [x] Accept the intended nine-digit Ghana entry after the fixed +233 prefix and update the validation example

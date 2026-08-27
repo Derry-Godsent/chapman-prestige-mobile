@@ -1,12 +1,10 @@
 /** Converts common Ghana phone formats to the E.164 value required by SMS OTP. */
 export function normalizeGhanaPhone(input: string): string | null {
-  const compact = input.replace(/[\s()-]/g, "");
-  if (!compact) return null;
-
-  const local = compact.startsWith("0") ? `+233${compact.slice(1)}` : compact;
-  const international = local.startsWith("233") ? `+${local}` : local;
-
-  return /^\+233\d{9}$/.test(international) ? international : null;
+  const digits = input.replace(/\D/g, "");
+  if (/^\d{9}$/.test(digits)) return `+233${digits}`;
+  if (/^0\d{9}$/.test(digits)) return `+233${digits.slice(1)}`;
+  if (/^233\d{9}$/.test(digits)) return `+${digits}`;
+  return null;
 }
 
 /** Keeps only the nine local Ghana digits shown after the fixed +233 prefix. */

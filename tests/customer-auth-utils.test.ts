@@ -5,6 +5,7 @@ import { cleanGhanaLocalEntry, cleanOtpCode, normalizeGhanaPhone } from "../lib/
 describe("customer phone authentication helpers", () => {
   it("normalizes familiar Ghana phone formats to E.164", () => {
     expect(normalizeGhanaPhone("024 123 4567")).toBe("+233241234567");
+    expect(normalizeGhanaPhone("24 123 4567")).toBe("+233241234567");
     expect(normalizeGhanaPhone("233241234567")).toBe("+233241234567");
     expect(normalizeGhanaPhone("+233 (24) 123-4567")).toBe("+233241234567");
   });
