@@ -13,6 +13,7 @@ export type MobileLaundryRequest = {
   id: string;
   request_status: "pending" | "under_review" | "needs_customer_confirmation" | "confirmed" | "declined" | "cancelled" | "converted";
   requested_for: string | null;
+  confirmed_for: string | null;
   pickup_area: string | null;
   pickup_address: string | null;
   pickup_window: PickupWindow | null;
@@ -20,5 +21,14 @@ export type MobileLaundryRequest = {
   express: boolean;
   estimated_total: number | string | null;
   customer_note: string | null;
+  created_at: string;
+};
+
+export type MobileRequestEvent = {
+  id: number;
+  mobile_request_id: string;
+  actor_type: "customer" | "staff" | "system";
+  event_type: string;
+  note: string | null;
   created_at: string;
 };
