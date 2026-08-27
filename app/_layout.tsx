@@ -37,8 +37,9 @@ export default function RootLayout() {
     <ChapmanTRPCProvider>
       <ThemeProvider>
         <BookingProvider>
-          <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false, animation: "fade" }}>
+          <Stack initialRouteName="splash" screenOptions={{ headerShown: false, animation: "fade" }}>
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="splash" options={{ gestureEnabled: false }} />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
             <Stack.Screen name="welcome" />
             <Stack.Screen name="auth/phone" />
