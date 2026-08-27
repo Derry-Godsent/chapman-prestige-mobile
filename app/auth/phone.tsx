@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
-import { cleanOtpCode, CustomerGender } from "@/lib/customer-auth-utils";
+import { cleanGhanaLocalEntry, cleanOtpCode, CustomerGender } from "@/lib/customer-auth-utils";
 import { completeCustomerOnboarding, sendCustomerOtp, verifyCustomerOtp } from "@/lib/customer-auth";
 
 type Stage = "phone" | "code" | "profile";
@@ -45,6 +45,10 @@ export default function PhoneAuthScreen() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "We could not send a code. Please try again.");
     } finally { setBusy(false); }
+  };
+
+  const updatePhoneInput = (value: string) => {
+    setPhoneInput(cleanGhanaLocalEntry(value));
   };
 
   const verifyOtp = async () => {
@@ -90,8 +94,8 @@ export default function PhoneAuthScreen() {
             <View style={styles.card}>
               {stage === "phone" ? <>
                 <Text style={styles.fieldLabel}>Mobile number</Text>
-                <View style={styles.field}><Text style={styles.country}>+233</Text><TextInput value={phoneInput} onChangeText={setPhoneInput} keyboardType="phone-pad" autoComplete="tel" placeholder="24 123 4567" placeholderTextColor="#9A8B79" style={styles.input} editable={!busy} /></View>
-                <Text style={styles.fieldHint}>Use your Ghana mobile number. We never show it publicly.</Text>
+                <View style={styles.field}><Text style={styles.country}>+233</Text><TextInput value={phoneInput} onChangeText={updatePhoneInput} keyboardType="number-pad" autoComplete="tel" maxLength={9} placeholder="24 123 4567" placeholderTextColor="#9A8B79" style={styles.input} editable={!busy} /></View>
+                <Text style={styles.fieldHint}>Enter the 9 digits after +233. Do not start with 0. We never show it publicly.</Text>
               </> : null}
 
               {stage === "code" ? <>

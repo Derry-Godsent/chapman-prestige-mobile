@@ -55,3 +55,7 @@
 - [x] Prepare a read-only database schema and policy backup procedure before any production security change
 - [x] Publish a plain-language, tickable roadmap for safely connecting the mobile app, staff system, website, and Supabase
 - [x] Create a separate private GitHub repository and push the Chapman Prestige mobile app source
+- [ ] Inspect Supabase Phone Auth readiness and configure the mobile app for real customer SMS verification
+- [ ] Prepare Arkesel as the secure Ghana SMS provider for customer phone verification
+- [ ] Fix the Arkesel Send SMS Hook 500 error reported during the controlled phone-login test
+- [ ] Show a fixed +233 prefix and limit Chapman phone entry to nine digits without the leading zero
