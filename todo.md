@@ -83,3 +83,4 @@
 - [x] Release the reviewed Laundry Mobile Requests staff page to the live operations system.
 - [ ] Refresh customer-owned Laundry request status in the mobile tracking screen
 - [ ] Let the customer accept or reject a staff-proposed Laundry date securely
+- [x] Diagnose and fix pages where vertical swipe scrolling has stopped while touch actions still work

@@ -1,26 +1,16 @@
 import { type ReactNode } from "react";
-import { StyleSheet, TouchableWithoutFeedback, View } from "react-native";
-
-import { dismissKeyboard } from "@/lib/keyboard-utils";
 
 interface KeyboardDismissBoundaryProps {
   children: ReactNode;
 }
 
 /**
- * Lets any current or future Chapman screen close the keyboard with a tap
- * outside the active input, while preserving normal input focus and controls.
+ * Intentionally does not register as a touch responder. The previous global
+ * touchable wrapper could win the responder negotiation ahead of nested
+ * ScrollViews in Expo Go, leaving taps usable but blocking vertical swipes.
+ * Screens that contain inputs already use their own keyboard-safe scroll
+ * settings, so scroll movement always takes priority.
  */
 export function KeyboardDismissBoundary({ children }: KeyboardDismissBoundaryProps) {
-  return (
-    <TouchableWithoutFeedback accessible={false} onPress={dismissKeyboard}>
-      <View style={styles.fill}>{children}</View>
-    </TouchableWithoutFeedback>
-  );
+  return <>{children}</>;
 }
-
-const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-  },
-});
