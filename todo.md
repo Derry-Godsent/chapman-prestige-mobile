@@ -65,3 +65,6 @@
 - [x] Add a Back action to onboarding pages after the first page
 - [x] Add a five-minute SMS code delivery countdown and resend state
 - [x] Replace the single OTP field with connected six-cell entry and device code autofill support
+- [x] Prevent the verification form and action button from becoming crowded or covered when the numeric keyboard opens
+- [ ] Confirm the required Arkesel approval action for the accepted but pending SMS delivery
+- [x] Return the signed SMS hook promptly so delayed Arkesel requests do not exceed Supabase’s five-second authentication deadline
