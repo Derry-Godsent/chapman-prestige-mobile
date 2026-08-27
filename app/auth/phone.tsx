@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,7 +21,9 @@ export default function PhoneAuthScreen() {
   const [stage, setStage] = useState<Stage>("phone");
   const [phoneInput, setPhoneInput] = useState("");
   const [verifiedPhone, setVerifiedPhone] = useState("");
-  const [code, setCode] = useState("");
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const otpInputRefs = useRef<Array<TextInput | null>>([]);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<CustomerGender>("prefer_not_to_say");
@@ -29,17 +31,35 @@ export default function PhoneAuthScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const code = otpDigits.join("");
+  const countdownLabel = `${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, "0")}`;
+  const canResend = secondsRemaining === 0;
+
   const copy = useMemo(() => ({
     phone: { eyebrow: "CHAPMAN ACCOUNT", title: "Sign in with your phone.", body: "We will send a one-time code. Your number helps us keep your bookings and updates in one place." },
-    code: { eyebrow: "VERIFY YOUR NUMBER", title: "Enter your six-digit code.", body: `We sent a code to ${verifiedPhone}. It expires quickly for your security.` },
+    code: { eyebrow: "VERIFY YOUR NUMBER", title: "Enter your six-digit code.", body: `We sent a code to ${verifiedPhone}. Enter it as soon as it arrives.` },
     profile: { eyebrow: "ALMOST THERE", title: "Tell us how to address you.", body: "These details help Chapman prepare the right service experience. You can update them later." },
   })[stage], [stage, verifiedPhone]);
+
+  useEffect(() => {
+    if (stage !== "code" || secondsRemaining === 0) return;
+    const interval = setInterval(() => setSecondsRemaining((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(interval);
+  }, [secondsRemaining, stage]);
+
+  useEffect(() => {
+    if (stage !== "code") return;
+    const focusTimeout = setTimeout(() => otpInputRefs.current[0]?.focus(), 180);
+    return () => clearTimeout(focusTimeout);
+  }, [stage]);
 
   const beginOtp = async () => {
     setBusy(true); setError(null); setNotice(null);
     try {
       const phone = await sendCustomerOtp(phoneInput);
       setVerifiedPhone(phone);
+      setOtpDigits(["", "", "", "", "", ""]);
+      setSecondsRemaining(5 * 60);
       setStage("code");
       setNotice("Your code is on its way.");
     } catch (cause) {
@@ -49,6 +69,42 @@ export default function PhoneAuthScreen() {
 
   const updatePhoneInput = (value: string) => {
     setPhoneInput(cleanGhanaLocalEntry(value));
+  };
+
+  const updateOtpDigit = (value: string, index: number) => {
+    const digits = cleanOtpCode(value);
+    setOtpDigits((current) => {
+      const next = [...current];
+      if (digits.length > 1) {
+        digits.slice(0, 6 - index).split("").forEach((digit, offset) => { next[index + offset] = digit; });
+      } else {
+        next[index] = digits;
+      }
+      return next;
+    });
+
+    if (digits.length > 0) {
+      const nextIndex = Math.min(index + digits.length, 5);
+      requestAnimationFrame(() => otpInputRefs.current[nextIndex]?.focus());
+    }
+  };
+
+  const handleOtpBackspace = (index: number) => {
+    if (otpDigits[index] || index === 0) return;
+    setOtpDigits((current) => {
+      const next = [...current];
+      next[index - 1] = "";
+      return next;
+    });
+    requestAnimationFrame(() => otpInputRefs.current[index - 1]?.focus());
+  };
+
+  const goBack = () => {
+    setError(null);
+    setNotice(null);
+    if (stage === "phone") { router.back(); return; }
+    if (stage === "code") setSecondsRemaining(0);
+    setStage(stage === "profile" ? "code" : "phone");
   };
 
   const verifyOtp = async () => {
@@ -78,7 +134,7 @@ export default function PhoneAuthScreen() {
       <LinearGradient colors={[palette.deep, "#3E2D1D", palette.blue]} locations={[0, 0.56, 1]} style={styles.page}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboard}>
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => stage === "phone" ? router.back() : setStage(stage === "profile" ? "code" : "phone")} style={styles.backButton} accessibilityLabel="Go back">
+            <TouchableOpacity onPress={goBack} style={styles.backButton} accessibilityLabel="Go back">
               <Ionicons name="arrow-back" size={21} color="#FFFFFF" />
             </TouchableOpacity>
             <View style={styles.mark}><ChapmanMark inverted size={34} /><Text style={styles.markText}>CHAPMAN PRESTIGE</Text></View>
@@ -100,8 +156,14 @@ export default function PhoneAuthScreen() {
 
               {stage === "code" ? <>
                 <Text style={styles.fieldLabel}>Verification code</Text>
-                <TextInput value={code} onChangeText={(value) => setCode(cleanOtpCode(value))} keyboardType="number-pad" autoComplete="one-time-code" maxLength={6} placeholder="••••••" placeholderTextColor="#B8AA99" style={styles.codeInput} editable={!busy} />
-                <TouchableOpacity disabled={busy} onPress={beginOtp} style={styles.resend}><Text style={styles.resendText}>Send a new code</Text></TouchableOpacity>
+                <View style={styles.otpRow}>
+                  {otpDigits.map((digit, index) => <TextInput key={index} ref={(input) => { otpInputRefs.current[index] = input; }} value={digit} onChangeText={(value) => updateOtpDigit(value, index)} onKeyPress={({ nativeEvent }) => nativeEvent.key === "Backspace" && handleOtpBackspace(index)} keyboardType="number-pad" autoComplete={Platform.OS === "android" ? "sms-otp" : "one-time-code"} textContentType="oneTimeCode" maxLength={6} style={[styles.otpCell, digit.length > 0 && styles.otpCellFilled]} editable={!busy} accessibilityLabel={`Verification code digit ${index + 1} of 6`} />)}
+                </View>
+                <View style={styles.countdown}>
+                  <Ionicons name="time-outline" size={17} color={palette.green} />
+                  <View style={styles.countdownCopy}><Text style={styles.countdownTitle}>Waiting for your code</Text><Text style={styles.countdownText}>{canResend ? "You can request another code now." : `You can request another code in ${countdownLabel}.`}</Text></View>
+                </View>
+                <TouchableOpacity disabled={busy || !canResend} onPress={beginOtp} style={[styles.resend, (!canResend || busy) && styles.resendDisabled]}><Text style={[styles.resendText, (!canResend || busy) && styles.resendTextDisabled]}>{canResend ? "Send a new code" : `Resend available in ${countdownLabel}`}</Text></TouchableOpacity>
               </> : null}
 
               {stage === "profile" ? <>
@@ -130,5 +192,5 @@ export default function PhoneAuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, keyboard: { flex: 1, padding: 20, justifyContent: "space-between" }, topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" }, mark: { flexDirection: "row", alignItems: "center", gap: 7 }, markText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", letterSpacing: 0.8, fontSize: 10 }, step: { minWidth: 42, height: 27, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" }, stepText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 10 }, main: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 4, paddingTop: 26 }, heroIcon: { width: 80, height: 80, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.13)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", marginBottom: 18 }, eyebrow: { color: "#E5D7BD", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.4, marginBottom: 6 }, title: { color: "#FFFFFF", textAlign: "center", fontSize: 28, lineHeight: 35, maxWidth: 330 }, body: { color: "#F2EBDD", fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", lineHeight: 20, marginTop: 9, maxWidth: 330 }, card: { width: "100%", marginTop: 24, backgroundColor: palette.canvas, borderRadius: 22, padding: 17, borderWidth: 1, borderColor: "rgba(255,255,255,0.32)" }, fieldLabel: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 12, marginBottom: 8 }, field: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", overflow: "hidden" }, country: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14, paddingHorizontal: 13, borderRightWidth: 1, borderRightColor: palette.border }, input: { flex: 1, color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 15, paddingHorizontal: 13, alignSelf: "stretch" }, fieldHint: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15, marginTop: 8 }, codeInput: { minHeight: 58, borderRadius: 14, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 24, textAlign: "center", letterSpacing: 9, paddingLeft: 9 }, resend: { paddingTop: 12, alignSelf: "flex-start" }, resendText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 }, plainInput: { minHeight: 49, borderRadius: 14, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 14, paddingHorizontal: 13 }, secondLabel: { marginTop: 15 }, optional: { color: palette.muted, fontFamily: "Inter_400Regular" }, genderGrid: { gap: 7 }, genderOption: { minHeight: 39, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 9 }, genderOptionActive: { backgroundColor: palette.blue, borderColor: palette.blue }, genderText: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }, genderTextActive: { color: "#FFFFFF" }, notice: { marginTop: 13, minHeight: 36, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, gap: 7, backgroundColor: "#E5F5EA", borderRadius: 11 }, noticeText: { flex: 1, color: palette.green, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15 }, error: { marginTop: 13, minHeight: 40, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, gap: 7, backgroundColor: "#FDEBEB", borderRadius: 11 }, errorText: { flex: 1, color: palette.error, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15 }, footer: { gap: 11 }, guest: { minHeight: 43, alignItems: "center", justifyContent: "center" }, guestText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 13 }, loader: { position: "absolute", right: 18, top: 17 },
+  page: { flex: 1 }, keyboard: { flex: 1, padding: 20, justifyContent: "space-between" }, topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" }, mark: { flexDirection: "row", alignItems: "center", gap: 7 }, markText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", letterSpacing: 0.8, fontSize: 10 }, step: { minWidth: 42, height: 27, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" }, stepText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 10 }, main: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 4, paddingTop: 26 }, heroIcon: { width: 80, height: 80, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.13)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", marginBottom: 18 }, eyebrow: { color: "#E5D7BD", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.4, marginBottom: 6 }, title: { color: "#FFFFFF", textAlign: "center", fontSize: 28, lineHeight: 35, maxWidth: 330 }, body: { color: "#F2EBDD", fontFamily: "Inter_400Regular", fontSize: 13, textAlign: "center", lineHeight: 20, marginTop: 9, maxWidth: 330 }, card: { width: "100%", marginTop: 24, backgroundColor: palette.canvas, borderRadius: 22, padding: 17, borderWidth: 1, borderColor: "rgba(255,255,255,0.32)" }, fieldLabel: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 12, marginBottom: 8 }, field: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", overflow: "hidden" }, country: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14, paddingHorizontal: 13, borderRightWidth: 1, borderRightColor: palette.border }, input: { flex: 1, color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 15, paddingHorizontal: 13, alignSelf: "stretch" }, fieldHint: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15, marginTop: 8 }, otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 7 }, otpCell: { flex: 1, minHeight: 54, borderRadius: 13, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 21, textAlign: "center", paddingHorizontal: 0 }, otpCellFilled: { borderColor: palette.green, backgroundColor: "#F3FBF5" }, countdown: { marginTop: 14, minHeight: 47, flexDirection: "row", alignItems: "center", paddingHorizontal: 11, gap: 9, backgroundColor: "#E5F5EA", borderRadius: 12 }, countdownCopy: { flex: 1, gap: 2 }, countdownTitle: { color: palette.green, fontFamily: "Inter_700Bold", fontSize: 11 }, countdownText: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 10, lineHeight: 14 }, resend: { paddingTop: 12, alignSelf: "flex-start" }, resendDisabled: { opacity: 0.55 }, resendText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 }, resendTextDisabled: { color: palette.muted }, plainInput: { minHeight: 49, borderRadius: 14, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 14, paddingHorizontal: 13 }, secondLabel: { marginTop: 15 }, optional: { color: palette.muted, fontFamily: "Inter_400Regular" }, genderGrid: { gap: 7 }, genderOption: { minHeight: 39, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 9 }, genderOptionActive: { backgroundColor: palette.blue, borderColor: palette.blue }, genderText: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }, genderTextActive: { color: "#FFFFFF" }, notice: { marginTop: 13, minHeight: 36, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, gap: 7, backgroundColor: "#E5F5EA", borderRadius: 11 }, noticeText: { flex: 1, color: palette.green, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15 }, error: { marginTop: 13, minHeight: 40, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, gap: 7, backgroundColor: "#FDEBEB", borderRadius: 11 }, errorText: { flex: 1, color: palette.error, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15 }, footer: { gap: 11 }, guest: { minHeight: 43, alignItems: "center", justifyContent: "center" }, guestText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 13 }, loader: { position: "absolute", right: 18, top: 17 },
 });

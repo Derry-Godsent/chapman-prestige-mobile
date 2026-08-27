@@ -60,3 +60,8 @@
 - [ ] Fix the Arkesel Send SMS Hook 500 error reported during the controlled phone-login test
 - [x] Show a fixed +233 prefix and limit Chapman phone entry to nine digits without the leading zero
 - [x] Accept the intended nine-digit Ghana entry after the fixed +233 prefix and update the validation example
+- [ ] Diagnose and correct the Arkesel SMS-hook 502 response from the controlled customer sign-in test
+- [ ] Replace the private Arkesel sender name with an approved value of eleven characters or fewer and retest SMS
+- [x] Add a Back action to onboarding pages after the first page
+- [x] Add a five-minute SMS code delivery countdown and resend state
+- [x] Replace the single OTP field with connected six-cell entry and device code autofill support
