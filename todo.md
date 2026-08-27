@@ -54,4 +54,4 @@
 - [x] Publish the reviewed customer-account security preparation to a dedicated GitHub branch
 - [x] Prepare a read-only database schema and policy backup procedure before any production security change
 - [x] Publish a plain-language, tickable roadmap for safely connecting the mobile app, staff system, website, and Supabase
-- [ ] Create a separate private GitHub repository and push the Chapman Prestige mobile app source
+- [x] Create a separate private GitHub repository and push the Chapman Prestige mobile app source
