@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 
+import type { StaffRequestUpdateNotice } from "./mobile-request-updates";
+
 const DAILY_IDENTIFIER_KEY = "chapman-daily-update";
 
 Notifications.setNotificationHandler({
@@ -23,4 +25,14 @@ export async function disableDailyChapmanUpdates() {
   if (Platform.OS === "web") return;
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(scheduled.filter((item) => item.content.data?.kind === DAILY_IDENTIFIER_KEY).map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier)));
+}
+
+/** Shows a device alert for a live staff update only when the customer has already allowed notifications. */
+export async function showLiveServiceUpdate(notice: StaffRequestUpdateNotice, requestId: string) {
+  if (!notice || Platform.OS === "web") return false;
+  const permission = await Notifications.getPermissionsAsync();
+  if (permission.status !== "granted") return false;
+  if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("chapman-service-updates", { name: "Chapman service updates", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 180], lightColor: "#047857" });
+  await Notifications.scheduleNotificationAsync({ content: { title: notice.title, body: notice.body, data: { kind: "chapman-service-update", requestId, url: `/booking/${requestId}` } }, trigger: null });
+  return true;
 }

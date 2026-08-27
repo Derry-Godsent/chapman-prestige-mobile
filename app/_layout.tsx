@@ -2,7 +2,7 @@ import "../global.css";
 
 import { useEffect } from "react";
 import { Stack } from "expo-router";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from "@expo-google-fonts/plus-jakarta-sans";
 import * as SplashScreen from "expo-splash-screen";
@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { BookingProvider } from "@/lib/booking-store";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { ChapmanTRPCProvider } from "@/components/trpc-provider";
+import { MobileRequestUpdateListener } from "@/components/mobile-request-update-listener";
 
 if (Platform.OS !== "web") void SplashScreen.preventAutoHideAsync();
 
@@ -37,7 +38,8 @@ export default function RootLayout() {
     <ChapmanTRPCProvider>
       <ThemeProvider>
         <BookingProvider>
-          <Stack initialRouteName="splash" screenOptions={{ headerShown: false, animation: "fade" }}>
+          <View style={{ flex: 1 }}>
+            <Stack initialRouteName="splash" screenOptions={{ headerShown: false, animation: "fade" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="splash" options={{ gestureEnabled: false }} />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
@@ -52,7 +54,9 @@ export default function RootLayout() {
             <Stack.Screen name="checkout" />
             <Stack.Screen name="booking/[id]" />
             <Stack.Screen name="notifications" />
-          </Stack>
+            </Stack>
+            <MobileRequestUpdateListener />
+          </View>
         </BookingProvider>
       </ThemeProvider>
     </ChapmanTRPCProvider>

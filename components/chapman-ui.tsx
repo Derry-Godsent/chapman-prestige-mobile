@@ -71,12 +71,13 @@ export function SectionHeading({ eyebrow, title, action, onAction }: { eyebrow?:
   );
 }
 
-export function StatusPill({ label, tone = "blue" }: { label: string; tone?: "blue" | "orange" | "green" | "gray" }) {
+export function StatusPill({ label, tone = "blue" }: { label: string; tone?: "blue" | "orange" | "green" | "gray" | "red" }) {
   const colors = {
     blue: { backgroundColor: "#E4F4E9", color: palette.blue },
     orange: { backgroundColor: "#FFF1CC", color: palette.secondaryOrange },
     green: { backgroundColor: "#DCFCE7", color: palette.green },
     gray: { backgroundColor: "#F1ECE4", color: palette.muted },
+    red: { backgroundColor: "#FDEBEB", color: palette.error },
   }[tone];
   return <View style={[styles.statusPill, { backgroundColor: colors.backgroundColor }]}><Text style={[styles.statusText, { color: colors.color }]}>{label}</Text></View>;
 }

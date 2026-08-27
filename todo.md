@@ -84,3 +84,5 @@
 - [ ] Refresh customer-owned Laundry request status in the mobile tracking screen
 - [ ] Let the customer accept or reject a staff-proposed Laundry date securely
 - [x] Diagnose and fix pages where vertical swipe scrolling has stopped while touch actions still work
+- [ ] Notify the signed-in customer when Chapman updates a Laundry request
+- [ ] Show clear approved and declined outcomes, including completed or cancelled timeline markers and matching activity entries
