@@ -21,6 +21,7 @@ export function MobileRequestUpdateListener() {
     if (!client) return;
     let channel: ReturnType<typeof client.channel> | null = null;
     let active = true;
+    let subscriptionRun = 0;
 
     const stop = () => {
       if (channel) void client.removeChannel(channel);
@@ -29,16 +30,17 @@ export function MobileRequestUpdateListener() {
     };
 
     const start = async () => {
+      const currentRun = ++subscriptionRun;
       stop();
       const { data: sessionData } = await client.auth.getSession();
       const customerId = sessionData.session?.user.id;
-      if (!active || !customerId) return;
+      if (!active || currentRun !== subscriptionRun || !customerId) return;
 
       const { data } = await client.from("mobile_requests").select("id, request_status").eq("service_code", "laundry");
-      if (!active) return;
+      if (!active || currentRun !== subscriptionRun) return;
       for (const request of (data ?? []) as LiveRequestRow[]) knownStatuses.current.set(request.id, request.request_status);
 
-      channel = client.channel(`customer-mobile-request-updates-${customerId}`)
+      const nextChannel = client.channel(`customer-mobile-request-updates-${customerId}-${currentRun}`)
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "mobile_requests", filter: `customer_account_id=eq.${customerId}` }, (payload) => {
           const updated = payload.new as LiveRequestRow;
           const previousStatus = knownStatuses.current.get(updated.id);
@@ -50,13 +52,20 @@ export function MobileRequestUpdateListener() {
           if (clearNoticeTimer.current) clearTimeout(clearNoticeTimer.current);
           clearNoticeTimer.current = setTimeout(() => setNotice(null), 8000);
           void showLiveServiceUpdate(updateNotice, updated.id);
-        })
-        .subscribe();
+        });
+
+      if (!active || currentRun !== subscriptionRun) {
+        void client.removeChannel(nextChannel);
+        return;
+      }
+
+      channel = nextChannel;
+      nextChannel.subscribe();
     };
 
     void start();
     const { data: authSubscription } = client.auth.onAuthStateChange(() => { void start(); });
-    return () => { active = false; authSubscription.subscription.unsubscribe(); stop(); if (clearNoticeTimer.current) clearTimeout(clearNoticeTimer.current); };
+    return () => { active = false; subscriptionRun += 1; authSubscription.subscription.unsubscribe(); stop(); if (clearNoticeTimer.current) clearTimeout(clearNoticeTimer.current); };
   }, []);
 
   if (!notice) return null;

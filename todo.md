@@ -86,3 +86,4 @@
 - [x] Diagnose and fix pages where vertical swipe scrolling has stopped while touch actions still work
 - [ ] Notify the signed-in customer when Chapman updates a Laundry request
 - [ ] Show clear approved and declined outcomes, including completed or cancelled timeline markers and matching activity entries
+- [x] Fix the real-time customer request listener crash caused by registering callbacks after subscribing
