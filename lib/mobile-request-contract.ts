@@ -9,6 +9,12 @@ export type SubmittedLaundryItem = {
   line_total: number;
 };
 
+export type PickupLocation = {
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number | null;
+};
+
 export type MobileLaundryRequest = {
   id: string;
   request_status: "pending" | "under_review" | "needs_customer_confirmation" | "confirmed" | "declined" | "cancelled" | "converted";
@@ -17,10 +23,14 @@ export type MobileLaundryRequest = {
   pickup_area: string | null;
   pickup_address: string | null;
   pickup_window: PickupWindow | null;
+  pickup_latitude: number | null;
+  pickup_longitude: number | null;
+  pickup_accuracy_meters: number | null;
   laundry_items: SubmittedLaundryItem[];
   express: boolean;
   estimated_total: number | string | null;
   customer_note: string | null;
+  customer_response: "accepted" | "rejected" | null;
   created_at: string;
 };
 

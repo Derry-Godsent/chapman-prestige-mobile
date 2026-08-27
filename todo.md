@@ -87,3 +87,8 @@
 - [ ] Notify the signed-in customer when Chapman updates a Laundry request
 - [ ] Show clear approved and declined outcomes, including completed or cancelled timeline markers and matching activity entries
 - [x] Fix the real-time customer request listener crash caused by registering callbacks after subscribing
+- [x] Request client location permission during a live booking and send the approved pickup location securely with that request
+- [x] Display confirmed client request dates in a clear green approved state and declined requests in a clear red denied state
+- [x] Replace the generic confirmed request headline with a clear animated green Date confirmed success state
+- [x] Add an understandable onboarding permission setup for notifications and one-time pickup location sharing
+- [x] Show a client’s saved pickup point in the booking tracker and make it obvious how to share it during checkout

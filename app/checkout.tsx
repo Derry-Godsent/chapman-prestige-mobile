@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Location from "expo-location";
 
 import { AppScreen } from "@/components/app-screen";
 import { DisplayText, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
@@ -10,7 +11,7 @@ import { formatGhs } from "@/lib/chapman-data";
 import { useBookingStore } from "@/lib/booking-store";
 import { getCurrentCustomerAccount, getCustomerSession } from "@/lib/customer-auth";
 import { CustomerSignInRequiredError, submitMobileLaundryRequest } from "@/lib/mobile-requests";
-import { PICKUP_WINDOWS, PickupWindow } from "@/lib/mobile-request-contract";
+import { PICKUP_WINDOWS, PickupLocation, PickupWindow } from "@/lib/mobile-request-contract";
 import { haptic } from "@/lib/haptics";
 
 const payments = [
@@ -39,6 +40,8 @@ export default function CheckoutScreen() {
   const [pickupArea, setPickupArea] = useState("Danyame");
   const [pickupAddress, setPickupAddress] = useState("");
   const [pickupWindow, setPickupWindow] = useState<PickupWindow>(PICKUP_WINDOWS[0]);
+  const [pickupLocation, setPickupLocation] = useState<PickupLocation | null>(null);
+  const [locationBusy, setLocationBusy] = useState(false);
   const [customerNote, setCustomerNote] = useState("");
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -56,6 +59,28 @@ export default function CheckoutScreen() {
   }, []);
 
   const signInToSend = () => router.push("/auth/phone" as never);
+
+  const sharePickupLocation = async () => {
+    setError(null);
+    setLocationBusy(true);
+    try {
+      if (!await Location.hasServicesEnabledAsync()) {
+        setError("Turn on location services to share a pickup point. You can still use your house or landmark.");
+        return;
+      }
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        setError("Location was not shared. Your house or landmark is still enough to send this request.");
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setPickupLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracyMeters: position.coords.accuracy });
+    } catch {
+      setError("Your pickup point could not be found. Please use your house, street, or landmark instead.");
+    } finally {
+      setLocationBusy(false);
+    }
+  };
 
   const confirm = async () => {
     setError(null);
@@ -81,6 +106,7 @@ export default function CheckoutScreen() {
         items: cart,
         express,
         customerNote,
+        pickupLocation,
       });
       const booking = createLaundryBooking(request);
       haptic.success();
@@ -119,6 +145,7 @@ export default function CheckoutScreen() {
             <TextInput value={pickupArea} onChangeText={setPickupArea} placeholder="Enter your Kumasi area" placeholderTextColor="#9AA1AD" style={styles.compactInput} maxLength={100} editable={!busy} />
             <Text style={styles.fieldLabel}>House, street, or landmark</Text>
             <TextInput value={pickupAddress} onChangeText={setPickupAddress} placeholder="e.g. House 14, near the Danyame roundabout" placeholderTextColor="#9AA1AD" style={styles.input} maxLength={300} editable={!busy} />
+            <View style={[styles.locationShareCard, pickupLocation && styles.locationShareCardReady]}><View style={styles.locationShareCopy}><View style={[styles.locationShareIcon, pickupLocation && styles.locationShareIconReady]}><Ionicons name={pickupLocation ? "checkmark" : "location-outline"} size={17} color={pickupLocation ? "#FFFFFF" : palette.blue} /></View><View style={styles.locationShareText}><Text style={styles.locationShareTitle}>{pickupLocation ? "Pickup point shared" : "Share your exact pickup point"}</Text><Text style={styles.locationShareDetail}>{pickupLocation ? `Sent only with this request · about ${Math.round(pickupLocation.accuracyMeters ?? 0)} m accuracy` : "Optional. Helps the Chapman pickup team find you; we do not track you afterwards."}</Text></View></View>{pickupLocation ? <TouchableOpacity onPress={() => setPickupLocation(null)} disabled={busy} style={styles.locationRemove}><Text style={styles.locationRemoveText}>Remove</Text></TouchableOpacity> : <TouchableOpacity onPress={() => void sharePickupLocation()} disabled={busy || locationBusy} style={styles.locationShareAction}><Text style={styles.locationShareActionText}>{locationBusy ? "Finding…" : "Share"}</Text></TouchableOpacity>}</View>
             <Text style={styles.fieldLabel}>Preferred pickup window</Text>
             <View style={styles.windowGrid}>{PICKUP_WINDOWS.map((window) => <TouchableOpacity key={window} onPress={() => { haptic.light(); setPickupWindow(window); }} activeOpacity={0.8} style={[styles.window, pickupWindow === window && styles.windowSelected]}><Text style={[styles.windowText, pickupWindow === window && styles.optionTextSelected]}>{window}</Text></TouchableOpacity>)}</View>
             <Text style={styles.fieldLabel}>Note for Chapman <Text style={styles.optional}>(optional)</Text></Text>
@@ -141,6 +168,7 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: palette.canvas }, content: { padding: 20, paddingTop: 12, paddingBottom: 106, gap: 16 },
   progress: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, paddingHorizontal: 2 }, progressStepDone: { width: 22, height: 22, borderRadius: 11, backgroundColor: palette.green, alignItems: "center", justifyContent: "center" }, progressStepActive: { width: 22, height: 22, borderRadius: 11, backgroundColor: palette.blue, alignItems: "center", justifyContent: "center" }, progressStepMuted: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#E2E5EB", alignItems: "center", justifyContent: "center" }, progressNumber: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 10 }, progressMuted: { color: palette.muted, fontFamily: "Inter_700Bold", fontSize: 10 }, progressLine: { width: 38, height: 2, backgroundColor: palette.blue }, progressLineMuted: { width: 38, height: 2, backgroundColor: "#E2E5EB" }, progressText: { width: "100%", color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 10, marginTop: 3 },
   requestCard: { padding: 16, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DCE6D9", gap: 10 }, requestHeading: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 2 }, requestIcon: { width: 41, height: 41, borderRadius: 14, backgroundColor: "#EEF8F0", alignItems: "center", justifyContent: "center" }, requestCopy: { flex: 1, gap: 2 }, requestTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15 }, requestHelp: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15 },
+  locationShareCard: { minHeight: 67, padding: 10, borderRadius: 14, backgroundColor: "#F7F9FE", borderWidth: 1, borderColor: "#DFE6F3", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, locationShareCardReady: { backgroundColor: "#EFF9F0", borderColor: "#B7DFC0" }, locationShareCopy: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }, locationShareIcon: { width: 32, height: 32, borderRadius: 11, backgroundColor: "#EAF0FF", alignItems: "center", justifyContent: "center" }, locationShareIconReady: { backgroundColor: palette.green }, locationShareText: { flex: 1, gap: 2 }, locationShareTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 11 }, locationShareDetail: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 9, lineHeight: 13 }, locationShareAction: { minHeight: 32, paddingHorizontal: 10, borderRadius: 10, backgroundColor: "#EAF0FF", alignItems: "center", justifyContent: "center" }, locationShareActionText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10 }, locationRemove: { minHeight: 32, paddingHorizontal: 8, alignItems: "center", justifyContent: "center" }, locationRemoveText: { color: palette.muted, fontFamily: "Inter_700Bold", fontSize: 10 },
   label: { color: "#5871B5", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.05 }, fieldLabel: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 12, marginTop: 3 }, optional: { color: palette.muted, fontFamily: "Inter_400Regular" }, optionRow: { flexDirection: "row", gap: 7 }, dateOption: { flex: 1, minHeight: 54, padding: 8, borderRadius: 13, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", justifyContent: "center", gap: 3 }, dateOptionSelected: { backgroundColor: palette.blue, borderColor: palette.blue }, dateOptionDay: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 10 }, dateOptionValue: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 9 }, optionTextSelected: { color: "#FFFFFF" }, chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 }, chip: { minHeight: 32, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", justifyContent: "center" }, chipSelected: { backgroundColor: "#E8F5EA", borderColor: palette.green }, chipText: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 10 }, chipTextSelected: { color: palette.green }, compactInput: { minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FAFBFC", color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 13, paddingHorizontal: 12 }, input: { minHeight: 48, borderRadius: 13, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FAFBFC", color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 13, paddingHorizontal: 12 }, noteInput: { minHeight: 74, paddingTop: 11, textAlignVertical: "top" }, windowGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, window: { width: "48.5%", minHeight: 38, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, windowSelected: { backgroundColor: palette.blue, borderColor: palette.blue }, windowText: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 11 },
   orderCard: { padding: 16, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 11 }, orderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 7, borderBottomWidth: 1, borderBottomColor: "#EEF0F4" }, orderTitle: { fontSize: 18, lineHeight: 24, marginTop: 3 }, orderLine: { flexDirection: "row", justifyContent: "space-between" }, orderItem: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 12 }, orderPrice: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   totalCard: { padding: 16, borderRadius: 20, backgroundColor: "#F8FAFF", borderWidth: 1, borderColor: "#E1E8FB", gap: 10 }, totalTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18, marginBottom: 2 }, totalLine: { flexDirection: "row", justifyContent: "space-between" }, totalLabel: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12 }, totalValue: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 }, totalDivider: { height: 1, backgroundColor: "#DFE6F3", marginVertical: 2 }, finalLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, finalLabel: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, finalValue: { color: palette.blue, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 20 }, estimateHelp: { color: "#818A9B", fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 14 },

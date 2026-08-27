@@ -9,12 +9,19 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
 });
 
-export async function enableDailyChapmanUpdates() {
-  if (Platform.OS === "web") return { enabled: false, message: "Daily device notifications are available in the mobile app." };
-  if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("chapman-updates", { name: "Chapman updates", importance: Notifications.AndroidImportance.DEFAULT, vibrationPattern: [0, 180], lightColor: "#0038B6" });
+export async function requestChapmanNotificationPermission() {
+  if (Platform.OS === "web") return { enabled: false, message: "Device alerts are available in the mobile app." };
+  if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("chapman-service-updates", { name: "Chapman service updates", importance: Notifications.AndroidImportance.HIGH, vibrationPattern: [0, 180], lightColor: "#047857" });
   const current = await Notifications.getPermissionsAsync();
   const permission = current.status === "granted" ? current : await Notifications.requestPermissionsAsync();
-  if (permission.status !== "granted") return { enabled: false, message: "Notification permission was not granted." };
+  return permission.status === "granted" ? { enabled: true, message: "Service update alerts are on." } : { enabled: false, message: "Service update alerts were not enabled. You can change this later in your phone settings." };
+}
+
+export async function enableDailyChapmanUpdates() {
+  if (Platform.OS === "web") return { enabled: false, message: "Daily device notifications are available in the mobile app." };
+  const notificationPermission = await requestChapmanNotificationPermission();
+  if (!notificationPermission.enabled) return notificationPermission;
+  if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("chapman-updates", { name: "Chapman updates", importance: Notifications.AndroidImportance.DEFAULT, vibrationPattern: [0, 180], lightColor: "#0038B6" });
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(scheduled.filter((item) => item.content.data?.kind === DAILY_IDENTIFIER_KEY).map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier)));
   await Notifications.scheduleNotificationAsync({ content: { title: "Chapman Prestige Limited", body: "See today’s service news, care tips, and offers.", data: { kind: DAILY_IDENTIFIER_KEY, url: "/notifications" } }, trigger: { hour: 9, minute: 0, repeats: true, channelId: "chapman-updates" } });
