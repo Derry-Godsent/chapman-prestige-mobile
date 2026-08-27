@@ -43,3 +43,4 @@
 - [ ] Diagnose and resolve the recurring Expo Go connection failure or document a verified on-device testing alternative
 - [x] Make phone sign-in reachable from the active app and add a safe customer logout control
 - [x] Add a branded Chapman Prestige Limited splash screen before onboarding and returning-user entry
+- [x] Force the Chapman splash route before the main tab screen on every fresh Expo Go launch
