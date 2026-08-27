@@ -40,3 +40,5 @@
 - [x] Assess the live Chapman order system against the mobile client and document the production integration roadmap
 - [x] Map every mobile feature to its exact staff-system workflow and identify unsupported customer actions
 - [x] Inspect the selected GitHub operations-system code and document a safe additive mobile integration plan
+- [ ] Diagnose and resolve the recurring Expo Go connection failure or document a verified on-device testing alternative
+- [x] Make phone sign-in reachable from the active app and add a safe customer logout control

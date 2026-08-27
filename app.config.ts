@@ -87,6 +87,12 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-secure-store",
+      {
+        configureAndroidBackup: true,
+      },
+    ],
+    [
       "expo-camera",
       {
         cameraPermission: "Allow $(PRODUCT_NAME) to use your camera to guide room and carpet measurements.",

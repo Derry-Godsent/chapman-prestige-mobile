@@ -41,6 +41,8 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
             <Stack.Screen name="welcome" />
+            <Stack.Screen name="auth/phone" />
+            <Stack.Screen name="account" />
             <Stack.Screen name="services" />
             <Stack.Screen name="service/[id]" />
             <Stack.Screen name="booking/laundry" />
