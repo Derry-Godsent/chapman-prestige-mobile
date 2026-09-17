@@ -39,13 +39,22 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const laundrySubtotal = useMemo(() => cart.reduce((sum, line) => sum + line.item.price * line.quantity, 0), [cart]);
+  // FIX: Changed line.item.price to line.item.price_wash to prevent NaN
+  const laundrySubtotal = useMemo(() => cart.reduce((sum, line) => sum + (line.item.price_wash || 0) * line.quantity, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
   const expressFee = express ? cartCount * 10 : 0;
 
   const createLaundryBooking = (request?: MobileLaundryRequest) => {
     const isSubmittedRequest = Boolean(request);
-    const requestDate = request?.requested_for ? new Date(`${request.requested_for}T12:00:00`).toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" }) : "your preferred date";
+       let requestDate = "your preferred date";
+   if (request?.requested_for) {
+     const parsedDate = new Date(`${request.requested_for}T12:00:00`);
+     if (!isNaN(parsedDate.getTime())) {
+       requestDate = parsedDate.toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" });
+     } else {
+       requestDate = request.requested_for;
+     }
+   }
     const booking: Booking = {
       id: request?.id ?? `CPL-${String(bookings.length + 1042).padStart(4, "0")}`,
       referenceCode: request?.id ? `CPL-${request.id.slice(0, 8).toUpperCase()}` : undefined,

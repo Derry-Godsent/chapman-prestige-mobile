@@ -1,3 +1,5 @@
+import { supabase } from "./supabase";
+
 export type ServiceKind =
   | "laundry"
   | "cleaning"
@@ -24,11 +26,15 @@ export interface Service {
   tags: string[];
 }
 
+// Updated to match the columns in your Supabase 'laundry_items' table
 export interface LaundryItem {
   id: string;
   name: string;
-  price: number;
   category: string;
+  price_wash: number;
+  price_iron: number | null;
+  price_fold: number | null;
+  price_hang: number | null;
 }
 
 export interface CartLine {
@@ -195,24 +201,17 @@ export const SERVICES: Service[] = [
   },
 ];
 
-export const LAUNDRY_ITEMS: LaundryItem[] = [
-  { id: "vest", name: "Vest", price: 6, category: "Basics" },
-  { id: "underwear", name: "Underwear", price: 3, category: "Basics" },
-  { id: "shorts", name: "Shorts", price: 6, category: "Basics" },
-  { id: "t-shirt", name: "T-Shirt", price: 7, category: "Everyday" },
-  { id: "shirt", name: "Shirt", price: 7, category: "Everyday" },
-  { id: "trousers", name: "Trousers", price: 7, category: "Everyday" },
-  { id: "dress", name: "Dress", price: 7, category: "Ladies" },
-  { id: "blouse-skirt", name: "Blouse & Skirt", price: 11, category: "Ladies" },
-  { id: "suit-2", name: "Suit 2-Piece", price: 17, category: "Formal" },
-  { id: "national-costume", name: "National Costume 2-Piece", price: 11, category: "Traditional" },
-  { id: "smock", name: "Smock", price: 10, category: "Traditional" },
-  { id: "bedsheet", name: "Bedsheet", price: 11, category: "Linen" },
-  { id: "pillowcase", name: "Pillowcase", price: 2, category: "Linen" },
-  { id: "blanket", name: "Blanket", price: 40, category: "Specialty" },
-  { id: "kente", name: "Kente Cloth", price: 35, category: "Specialty" },
-];
-
+// Function to fetch live data from Supabase
+export const fetchLaundryItems = async (): Promise<LaundryItem[]> => {
+  if (!supabase) return [];
+  
+  const { data, error } = await supabase.from('laundry_items').select('*');
+  if (error) {
+    console.error('Error fetching laundry items:', error);
+    return [];
+  }
+  return data || [];
+};
 export const WORKERS = [
   { id: "kwame", name: "Kwame Mensah", skill: "Electrician", rating: "4.9", jobs: 184, availability: "Available today", color: "#0052FF", initials: "KM" },
   { id: "ama", name: "Ama Serwaa", skill: "Painter", rating: "4.8", jobs: 127, availability: "Available tomorrow", color: "#B04A7A", initials: "AS" },

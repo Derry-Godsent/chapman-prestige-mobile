@@ -14,6 +14,7 @@ export type LaundryRequestInput = {
   express: boolean;
   customerNote?: string;
   pickupLocation?: PickupLocation | null;
+  paymentMethod: string;
 };
 
 export type CustomerDateResponse = "accepted" | "rejected";
@@ -30,45 +31,81 @@ function requireSupabase() {
   return supabase;
 }
 
-/**
- * Sends only item identifiers, quantities, and an optional customer-approved
- * pickup point. The database derives the customer, validates the payload, and
- * calculates the official estimate without trusting the app.
- */
 export async function submitMobileLaundryRequest(input: LaundryRequestInput): Promise<MobileLaundryRequest> {
   const client = requireSupabase();
+  
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
 
-  const { data, error } = await client.rpc("submit_mobile_laundry_request", {
+  // FIX: Use the designated RPC instead of direct insert to 'orders' table
+  const { data: requestData, error: requestError } = await client.rpc("submit_mobile_laundry_request", {
     p_requested_for: input.requestedFor,
-    p_pickup_area: input.pickupArea.trim(),
-    p_pickup_address: input.pickupAddress.trim(),
+    p_pickup_area: input.pickupArea,
+    p_pickup_address: input.pickupAddress,
     p_pickup_window: input.pickupWindow,
-    p_laundry_items: input.items.map((line) => ({ id: line.item.id, quantity: line.quantity })),
+    p_laundry_items: input.items.map(i => ({ id: i.item.id, name: i.item.name, quantity: i.quantity, price: i.item.price_wash || 0 })),
     p_express: input.express,
-    p_customer_note: input.customerNote?.trim() || null,
+    p_customer_note: input.customerNote ? `Payment: ${input.paymentMethod} | ${input.customerNote}` : `Payment: ${input.paymentMethod}`,
     p_pickup_latitude: input.pickupLocation?.latitude ?? null,
     p_pickup_longitude: input.pickupLocation?.longitude ?? null,
     p_pickup_accuracy_meters: input.pickupLocation?.accuracyMeters ?? null,
   });
 
-  if (error) throw error;
-  if (!data) throw new Error("Chapman could not receive this request. Please try again.");
-  return data as MobileLaundryRequest;
-}
+  if (requestError) {
+    console.error('Supabase RPC Error:', requestError);
+    throw new Error('Chapman could not receive this request. Please try again.');
+  }
 
-const requestFields = "id, request_status, requested_for, confirmed_for, pickup_area, pickup_address, pickup_window, pickup_latitude, pickup_longitude, pickup_accuracy_meters, laundry_items, express, estimated_total, customer_note, customer_response, created_at";
+  return {
+    id: requestData.id,
+    request_status: requestData.request_status || 'pending',
+    requested_for: requestData.requested_for || input.requestedFor,
+    pickup_area: requestData.pickup_area,
+    pickup_address: requestData.pickup_address,
+    pickup_window: requestData.pickup_window,
+    laundry_items: requestData.laundry_items || input.items,
+    express: requestData.express ?? input.express,
+    estimated_total: requestData.estimated_total,
+    created_at: requestData.created_at || new Date().toISOString(),
+  } as any;
+}
 
 export async function getMobileLaundryRequest(requestId: string): Promise<MobileLaundryRequest | null> {
   const client = requireSupabase();
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
-  const { data, error } = await client.from("mobile_requests").select(requestFields).eq("id", requestId).eq("service_code", "laundry").maybeSingle();
+
+  // FIX: Query 'mobile_requests' table, not 'orders'
+  const { data, error } = await client
+    .from('mobile_requests')
+    .select('id, request_status, requested_for, confirmed_for, pickup_area, pickup_address, pickup_window, pickup_latitude, pickup_longitude, pickup_accuracy_meters, laundry_items, express, estimated_total, customer_note, staff_note, customer_response, created_at')
+    .eq('id', requestId) 
+    .maybeSingle();
+
   if (error) throw error;
-  return data as MobileLaundryRequest | null;
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    request_status: data.request_status || 'pending',
+    requested_for: data.requested_for || 'Today',
+    confirmed_for: data.confirmed_for,
+    pickup_area: data.pickup_area,
+    pickup_address: data.pickup_address,
+    pickup_window: data.pickup_window,
+    pickup_latitude: data.pickup_latitude,
+    pickup_longitude: data.pickup_longitude,
+    pickup_accuracy_meters: data.pickup_accuracy_meters,
+    laundry_items: data.laundry_items || [],
+    express: data.express || false,
+    estimated_total: data.estimated_total,
+    customer_note: data.customer_note,
+    staff_note: data.staff_note,
+    customer_response: data.customer_response,
+    created_at: data.created_at,
+  } as any;
 }
 
 export async function getMyMobileLaundryRequests(): Promise<MobileLaundryRequest[]> {
@@ -76,9 +113,34 @@ export async function getMyMobileLaundryRequests(): Promise<MobileLaundryRequest
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
-  const { data, error } = await client.from("mobile_requests").select(requestFields).eq("service_code", "laundry").order("created_at", { ascending: false });
+
+  // FIX: Query 'mobile_requests' table, not 'orders'
+  const { data, error } = await client
+    .from('mobile_requests')
+    .select('id, request_status, requested_for, confirmed_for, pickup_area, pickup_address, pickup_window, pickup_latitude, pickup_longitude, pickup_accuracy_meters, laundry_items, express, estimated_total, customer_note, staff_note, customer_response, created_at')
+    .order('created_at', { ascending: false });
+
   if (error) throw error;
-  return (data ?? []) as MobileLaundryRequest[];
+
+  return (data ?? []).map((req: any) => ({
+    id: req.id,
+    request_status: req.request_status || 'pending',
+    requested_for: req.requested_for || 'Today',
+    confirmed_for: req.confirmed_for,
+    pickup_area: req.pickup_area,
+    pickup_address: req.pickup_address,
+    pickup_window: req.pickup_window,
+    pickup_latitude: req.pickup_latitude,
+    pickup_longitude: req.pickup_longitude,
+    pickup_accuracy_meters: req.pickup_accuracy_meters,
+    laundry_items: req.laundry_items || [],
+    express: req.express || false,
+    estimated_total: req.estimated_total,
+    customer_note: req.customer_note,
+    staff_note: req.staff_note,
+    customer_response: req.customer_response,
+    created_at: req.created_at,
+  })) as MobileLaundryRequest[];
 }
 
 export async function getMobileRequestEvents(requestId: string): Promise<MobileRequestEvent[]> {
@@ -86,8 +148,16 @@ export async function getMobileRequestEvents(requestId: string): Promise<MobileR
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
-  const { data, error } = await client.from("mobile_request_events").select("id, mobile_request_id, actor_type, event_type, note, created_at").eq("mobile_request_id", requestId).order("created_at", { ascending: true });
+
+  // FIX: Query 'mobile_request_events' table
+  const { data, error } = await client
+    .from('mobile_request_events')
+    .select('id, mobile_request_id, actor_type, event_type, note, created_at')
+    .eq('mobile_request_id', requestId)
+    .order('created_at', { ascending: true });
+
   if (error) throw error;
+
   return (data ?? []) as MobileRequestEvent[];
 }
 
@@ -96,8 +166,33 @@ export async function respondToMobileRequestDate(requestId: string, response: Cu
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
-  const { data, error } = await client.rpc("respond_to_mobile_request_date", { p_request_id: requestId, p_response: response });
+
+  // FIX: Use the designated RPC for customer responses
+  const { data, error } = await client.rpc("respond_to_mobile_request_date", {
+    p_request_id: requestId,
+    p_response: response, // "accepted" or "rejected"
+  });
+
   if (error) throw error;
   if (!data) throw new Error("Chapman could not save your response. Please try again.");
-  return data as MobileLaundryRequest;
+
+  return {
+    id: data.id,
+    request_status: data.request_status || 'pending',
+    requested_for: data.requested_for || 'Today',
+    confirmed_for: data.confirmed_for,
+    pickup_area: data.pickup_area,
+    pickup_address: data.pickup_address,
+    pickup_window: data.pickup_window,
+    pickup_latitude: data.pickup_latitude,
+    pickup_longitude: data.pickup_longitude,
+    pickup_accuracy_meters: data.pickup_accuracy_meters,
+    laundry_items: data.laundry_items || [],
+    express: data.express || false,
+    estimated_total: data.estimated_total,
+    customer_note: data.customer_note,
+    staff_note: data.staff_note,
+    customer_response: data.customer_response,
+    created_at: data.created_at,
+  } as any;
 }

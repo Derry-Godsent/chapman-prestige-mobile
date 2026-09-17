@@ -19,7 +19,7 @@ function ColorSwatch({ name, value }: { name: PaletteName; value: string }) {
         <View className="h-6 w-6 rounded-full border border-border" style={{ backgroundColor: value }} />
         <Text className="text-sm font-semibold text-foreground">{name}</Text>
       </View>
-      <Text className="text-xs font-mono text-muted">{value}</Text>
+      <Text className="text-xs text-muted">{value}</Text>
     </View>
   );
 }
