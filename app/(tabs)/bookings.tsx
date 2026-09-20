@@ -8,6 +8,7 @@ import { BodyText, DisplayText, IconOrb, StatusPill, palette } from "@/component
 import { useBookingStore } from "@/lib/booking-store";
 import { CustomerSignInRequiredError, getMyMobileLaundryRequests, MobileLaundryRequest } from "@/lib/mobile-requests";
 import { supabase } from "@/lib/supabase";
+import type { QuoteRequest } from "@/lib/chapman-data";
 
 function requestLabel(request: MobileLaundryRequest) {
   const status = request.request_status;
@@ -22,6 +23,45 @@ function requestLabel(request: MobileLaundryRequest) {
 function requestDate(request: MobileLaundryRequest) {
   const date = request.confirmed_for ?? request.requested_for;
   return date ? new Date(`${date}T12:00:00`).toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" }) : "Date to be confirmed";
+}
+
+// Get the correct icon for a service type
+function getServiceIcon(serviceId: string, status?: string) {
+  if (status === "declined") return "close-outline";
+  switch (serviceId) {
+    case "laundry": return "shirt-outline";
+    case "cleaning": return "sparkles-outline";
+    case "fumigation": return "shield-checkmark-outline";
+    case "detailing": return "car-sport-outline";
+    case "fabric": return "bed-outline";
+    case "polytank": return "water-outline";
+    case "contract": return "business-outline";
+    default: return "document-text-outline";
+  }
+}
+
+// Get accent color for a service type
+function getServiceColor(serviceId: string, status?: string) {
+  if (status === "declined") return palette.error;
+  switch (serviceId) {
+    case "laundry": return palette.green;
+    case "cleaning": return "#D97706";
+    case "fumigation": return "#92400E";
+    case "detailing": return "#047857";
+    case "fabric": return "#7A6A59";
+    case "polytank": return "#059669";
+    case "contract": return "#4B3E30";
+    default: return palette.blue;
+  }
+}
+
+// Format a quote ID into a clean reference code
+function formatQuoteRef(id: string) {
+  // If it's already a formatted ref like QTE-0302, return as-is
+  if (id.startsWith("QTE-")) return id;
+  // If it's a UUID, show first 8 chars uppercase
+  if (/^[0-9a-f]{8}-/i.test(id)) return `CPL-${id.slice(0, 8).toUpperCase()}`;
+  return id;
 }
 
 export default function BookingsScreen() {
@@ -44,25 +84,26 @@ export default function BookingsScreen() {
     void loadLiveRequests(); 
   }, [loadLiveRequests]);
 
-  // FIX: Updated Realtime subscription to listen to mobile_requests and mobile_request_events
   useEffect(() => {
     const client = supabase;
     if (!client) return;
 
+    let channel: any = null;
+
     const setupRealtime = async () => {
       const { data: sessionData } = await client.auth.getSession();
-      // Use the authenticated user ID, or fallback to the test client ID if anonymous
       const userId = sessionData?.session?.user?.id || '057b4ebf-cbe3-44fc-bd53-781026d50a14';
 
-      const channel = client.channel(`customer-mobile-${userId}`)
+      await client.removeChannel(client.channel(`customer-mobile-${userId}`));
+
+      channel = client.channel(`customer-mobile-${userId}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
             table: "mobile_requests",
-            // IMPORTANT: Ensure 'customer_account_id' matches the actual column name in your mobile_requests table (e.g., it might be 'client_id')
-            filter: `customer_account_id=eq.${userId}`, 
+            filter: `customer_account_id=eq.${userId}`,
           },
           () => {
             void loadLiveRequests();
@@ -79,23 +120,20 @@ export default function BookingsScreen() {
             void loadLiveRequests();
           },
         )
-        .subscribe((status) => {
+        .subscribe((status: any) => {
           if (status === "SUBSCRIBED") console.log("Customer realtime connected");
           if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             console.warn("Customer realtime disconnected", status);
           }
         });
-
-      return channel;
     };
 
-    let channel: any;
-    void setupRealtime().then((c) => {
-      channel = c;
-    });
+    void setupRealtime();
 
     return () => {
-      if (channel) void client.removeChannel(channel);
+      if (channel) {
+        void client.removeChannel(channel);
+      }
     };
   }, [loadLiveRequests]);
 
@@ -126,41 +164,52 @@ export default function BookingsScreen() {
         {loadingLive ? (
           <View style={styles.liveLoading}>
             <ActivityIndicator size="small" color={palette.blue} />
-            <Text style={styles.liveLoadingText}>Refreshing secure request updates…</Text>
+            <Text style={styles.liveLoadingText}>Refreshing secure request updates\u2026</Text>
           </View>
         ) : null}
-        {liveRequests.map((request) => (
-          <TouchableOpacity 
-            key={request.id} 
-            onPress={() => router.push(`/booking/${request.id}` as never)} 
-            style={styles.bookingCard} 
-            activeOpacity={0.82}
-          >
-            <View style={styles.cardTop}>
-              <IconOrb icon={request.request_status === "declined" ? "close-outline" : "shirt-outline"} color={request.request_status === "declined" ? palette.error : palette.green} />
-              <View style={styles.cardCopy}>
-                <Text style={styles.bookingTitle}>Laundry & Garment Care</Text>
-                <Text style={styles.bookingMeta}>
-                  {request.request_status === "declined" 
-                    ? request.customer_response === "rejected" 
-                      ? "You rejected the proposed date. This request is closed." 
-                      : "Chapman declined this request" 
-                    : `${requestDate(request)} · ${request.pickup_window ?? "time to be confirmed"}`}
+
+        {/* Live laundry requests */}
+        {liveRequests.map((request) => {
+          // FIX: Extract actual service info from customer_note or use metadata
+          // For now, use the pickup_area as a hint, but ideally this should come from the DB
+          const serviceTitle = "Laundry & Garment Care"; // Laundry always uses this title
+          const serviceId = "laundry";
+          
+          return (
+            <TouchableOpacity 
+              key={request.id} 
+              onPress={() => router.push(`/booking/${request.id}` as never)} 
+              style={styles.bookingCard} 
+              activeOpacity={0.82}
+            >
+              <View style={styles.cardTop}>
+                <IconOrb icon={getServiceIcon(serviceId, request.request_status)} color={getServiceColor(serviceId, request.request_status)} />
+                <View style={styles.cardCopy}>
+                  <Text style={styles.bookingTitle}>{serviceTitle}</Text>
+                  <Text style={styles.bookingMeta}>
+                    {request.request_status === "declined" 
+                      ? request.customer_response === "rejected" 
+                        ? "You rejected the proposed date. This request is closed." 
+                        : "Chapman declined this request" 
+                      : `${requestDate(request)} \u00B7 ${request.pickup_window ?? "time to be confirmed"}`}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#7A7E8D" />
+              </View>
+              <View style={styles.cardFoot}>
+                <StatusPill 
+                  label={requestLabel(request)} 
+                  tone={request.request_status === "needs_customer_confirmation" ? "orange" : request.request_status === "confirmed" ? "green" : request.request_status === "declined" ? "red" : "blue"} 
+                />
+                <Text style={styles.price}>
+                  {request.estimated_total === null ? "Estimate pending" : `\u20B5${Number(request.estimated_total).toFixed(0)}`}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#7A7E8D" />
-            </View>
-            <View style={styles.cardFoot}>
-              <StatusPill 
-                label={requestLabel(request)} 
-                tone={request.request_status === "needs_customer_confirmation" ? "orange" : request.request_status === "confirmed" ? "green" : request.request_status === "declined" ? "red" : "blue"} 
-              />
-              <Text style={styles.price}>
-                {request.estimated_total === null ? "Estimate pending" : `₵${Number(request.estimated_total).toFixed(0)}`}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* Local bookings (non-laundry, created locally) */}
         {localBookings.map((booking) => (
           <TouchableOpacity 
             key={booking.id} 
@@ -169,7 +218,7 @@ export default function BookingsScreen() {
             activeOpacity={0.82}
           >
             <View style={styles.cardTop}>
-              <IconOrb icon="calendar-outline" color={palette.blue} />
+              <IconOrb icon={getServiceIcon(booking.serviceId)} color={getServiceColor(booking.serviceId)} />
               <View style={styles.cardCopy}>
                 <Text style={styles.bookingTitle}>{booking.serviceTitle}</Text>
                 <Text style={styles.bookingMeta}>{booking.scheduledFor}</Text>
@@ -182,22 +231,30 @@ export default function BookingsScreen() {
             </View>
           </TouchableOpacity>
         ))}
-        {quotes.map((quote) => (
-          <View key={quote.id} style={styles.bookingCard}>
+
+        {/* Quote requests (Deep Cleaning, Fumigation, etc.) */}
+        {quotes.map((quote: QuoteRequest) => (
+          <TouchableOpacity 
+            key={quote.id} 
+            onPress={() => router.push(`/booking/${quote.id}` as never)} 
+            style={styles.bookingCard} 
+            activeOpacity={0.82}
+          >
             <View style={styles.cardTop}>
-              <IconOrb icon="document-text-outline" color={palette.orange} />
+              <IconOrb icon={getServiceIcon(quote.serviceId)} color={getServiceColor(quote.serviceId)} />
               <View style={styles.cardCopy}>
                 <Text style={styles.bookingTitle}>{quote.serviceTitle}</Text>
-                <Text style={styles.bookingMeta}>{quote.propertyType} · {quote.preference}</Text>
+                <Text style={styles.bookingMeta}>{quote.propertyType} \u00B7 {quote.preference}</Text>
               </View>
               <Ionicons name="time-outline" size={20} color="#7A7E8D" />
             </View>
             <View style={styles.cardFoot}>
               <StatusPill label="assessment requested" tone="orange" />
-              <Text style={styles.quoteRef}>{quote.id}</Text>
+              <Text style={styles.quoteRef}>{formatQuoteRef(quote.id)}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
+
         {!hasActivity ? (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>

@@ -12,16 +12,30 @@ import { haptic } from "@/lib/haptics";
 
 type ServiceType = "wash" | "iron" | "fold" | "hang";
 
+// FIX: Updated to use actual Supabase UUIDs instead of text strings
 const quickBaskets = [
-  { label: "Work-week refresh", detail: "5 shirts · 2 trousers", items: [{ id: "shirt", quantity: 5, service: "wash" as ServiceType }, { id: "trousers", quantity: 2, service: "wash" as ServiceType }] },
-  { label: "Linen refresh", detail: "2 bedsheets · 4 pillowcases", items: [{ id: "bedsheet", quantity: 2, service: "wash" as ServiceType }, { id: "pillowcase", quantity: 4, service: "wash" as ServiceType }] },
+  { 
+    label: "Work-week refresh", 
+    detail: "5 shirts · 2 trousers", 
+    items: [
+      { id: "963cdf02-6f99-41bc-8f2b-c94fc70a7aff", quantity: 5, service: "wash" as ServiceType }, 
+      { id: "9927d464-1648-49e0-9738-b6c6bcfdaac9", quantity: 2, service: "wash" as ServiceType }
+    ] 
+  },
+  { 
+    label: "Linen refresh", 
+    detail: "2 bedsheets · 4 pillowcases", 
+    items: [
+      { id: "7b5eb296-caef-4ebe-b279-a128dac8d857", quantity: 2, service: "wash" as ServiceType }, 
+      { id: "a6f7c40e-cdc9-4b82-b993-af360658de36", quantity: 4, service: "wash" as ServiceType }
+    ] 
+  },
 ];
 
 export default function LaundryBookingScreen() {
   const { cart, express, setExpress, updateLaundryQuantity, cartCount, laundrySubtotal, expressFee } = useBookingStore();
   const [items, setItems] = useState<LaundryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  // Tracks which service type is selected for each item ID
   const [selectedServices, setSelectedServices] = useState<Record<string, ServiceType>>({});
 
   useEffect(() => {
@@ -41,11 +55,9 @@ export default function LaundryBookingScreen() {
     }, {});
   }, [items]);
 
-  // Calculate total based on the actual selected services in the cart
   const calculateTotal = () => {
     let itemsTotal = 0;
     cart.forEach(line => {
-      // We use the price stored in the item object (which we override in handleQuantityChange)
       itemsTotal += Number(line.item.price_wash || 0) * line.quantity;
     });
     const expressFeeCalc = express ? cartCount * 10 : 0;
@@ -58,8 +70,6 @@ export default function LaundryBookingScreen() {
   const handleServiceSelect = (itemId: string, service: ServiceType) => {
     haptic.selection();
     setSelectedServices(prev => ({ ...prev, [itemId]: service }));
-    // If they change the service while items are in the cart, we could reset quantity, 
-    // but for smooth UX we'll just let them adjust.
   };
 
   const handleQuantityChange = (item: LaundryItem, delta: number) => {
@@ -72,8 +82,6 @@ export default function LaundryBookingScreen() {
     const selectedService = selectedServices[item.id] || "wash";
     let priceToUse = item.price_wash || 0;
 
-    // Override the price_wash property with the selected service's price 
-    // so the store and database calculations work perfectly without breaking.
     if (selectedService === "iron") priceToUse = item.price_iron || 0;
     if (selectedService === "fold") priceToUse = item.price_fold || 0;
     if (selectedService === "hang") priceToUse = item.price_hang || 0;
@@ -169,7 +177,6 @@ export default function LaundryBookingScreen() {
                     <View key={item.id} style={styles.itemRow}>
                       <View style={styles.itemInfo}>
                         <Text style={styles.itemName}>{item.name}</Text>
-                        {/* Service Selection Buttons */}
                         <View style={styles.serviceButtons}>
                           {item.price_wash !== null && (
                             <TouchableOpacity 

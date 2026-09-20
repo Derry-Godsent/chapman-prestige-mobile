@@ -38,13 +38,21 @@ export async function submitMobileLaundryRequest(input: LaundryRequestInput): Pr
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
 
-  // FIX: Use the designated RPC instead of direct insert to 'orders' table
+  // DEBUG: This will print the exact IDs being sent to the database
+  const itemsToSend = input.items.map(i => ({
+    id: i.item.id,
+    name: i.item.name,
+    quantity: i.quantity,
+    price: i.item.price_wash || 0
+  }));
+  console.log("🔍 DEBUG: Items being sent to RPC:", JSON.stringify(itemsToSend, null, 2));
+
   const { data: requestData, error: requestError } = await client.rpc("submit_mobile_laundry_request", {
     p_requested_for: input.requestedFor,
     p_pickup_area: input.pickupArea,
     p_pickup_address: input.pickupAddress,
     p_pickup_window: input.pickupWindow,
-    p_laundry_items: input.items.map(i => ({ id: i.item.id, name: i.item.name, quantity: i.quantity, price: i.item.price_wash || 0 })),
+    p_laundry_items: itemsToSend,
     p_express: input.express,
     p_customer_note: input.customerNote ? `Payment: ${input.paymentMethod} | ${input.customerNote}` : `Payment: ${input.paymentMethod}`,
     p_pickup_latitude: input.pickupLocation?.latitude ?? null,
@@ -53,7 +61,7 @@ export async function submitMobileLaundryRequest(input: LaundryRequestInput): Pr
   });
 
   if (requestError) {
-    console.error('Supabase RPC Error:', requestError);
+    console.error('❌ Supabase RPC Error:', requestError);
     throw new Error('Chapman could not receive this request. Please try again.');
   }
 
@@ -70,7 +78,6 @@ export async function submitMobileLaundryRequest(input: LaundryRequestInput): Pr
     created_at: requestData.created_at || new Date().toISOString(),
   } as any;
 }
-
 export async function getMobileLaundryRequest(requestId: string): Promise<MobileLaundryRequest | null> {
   const client = requireSupabase();
   const { data: sessionData, error: sessionError } = await client.auth.getSession();

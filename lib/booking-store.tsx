@@ -1,7 +1,8 @@
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { AppointmentResponse, Booking, CartLine, LaundryItem, QuoteDetails, QuoteRequest, SavedRoutine, Service, formatGhs } from "@/lib/chapman-data";
 import type { MobileLaundryRequest } from "@/lib/mobile-requests";
+import { supabase } from "@/lib/supabase";
 
 interface BookingStoreValue {
   cart: CartLine[];
@@ -32,6 +33,45 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [routines, setRoutines] = useState<SavedRoutine[]>([]);
 
+  // Load quotes from Supabase on mount
+  useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+
+    const loadQuotes = async () => {
+      try {
+        const { data: session } = await client.auth.getSession();
+        const userId = session?.session?.user?.id;
+        if (!userId) return;
+
+        const { data } = await client
+          .from("quote_requests")
+          .select("*")
+          .eq("customer_account_id", userId)
+          .order("created_at", { ascending: false });
+
+        if (data) {
+          const mapped: QuoteRequest[] = data.map((row: any) => ({
+            id: row.id,
+            serviceId: row.service_id as any,
+            serviceTitle: row.service_title || "",
+            propertyType: row.property_type || "",
+            preference: row.preference || "",
+            details: row.details ?? undefined,
+            appointmentResponse: (row.appointment_response as AppointmentResponse) || "awaiting-chapman",
+            status: "quote-requested" as const,
+            createdAt: row.created_at || new Date().toISOString(),
+          }));
+          setQuotes(mapped);
+        }
+      } catch (error) {
+        console.error("Failed to load quotes from Supabase:", error);
+      }
+    };
+
+    void loadQuotes();
+  }, []);
+
   const updateLaundryQuantity = (item: LaundryItem, quantity: number) => {
     setCart((current) => {
       const otherLines = current.filter((line) => line.item.id !== item.id);
@@ -39,22 +79,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // FIX: Changed line.item.price to line.item.price_wash to prevent NaN
   const laundrySubtotal = useMemo(() => cart.reduce((sum, line) => sum + (line.item.price_wash || 0) * line.quantity, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
   const expressFee = express ? cartCount * 10 : 0;
 
   const createLaundryBooking = (request?: MobileLaundryRequest) => {
     const isSubmittedRequest = Boolean(request);
-       let requestDate = "your preferred date";
-   if (request?.requested_for) {
-     const parsedDate = new Date(`${request.requested_for}T12:00:00`);
-     if (!isNaN(parsedDate.getTime())) {
-       requestDate = parsedDate.toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" });
-     } else {
-       requestDate = request.requested_for;
-     }
-   }
+    let requestDate = "your preferred date";
+    if (request?.requested_for) {
+      const parsedDate = new Date(`${request.requested_for}T12:00:00`);
+      if (!isNaN(parsedDate.getTime())) {
+        requestDate = parsedDate.toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" });
+      } else {
+        requestDate = request.requested_for;
+      }
+    }
     const booking: Booking = {
       id: request?.id ?? `CPL-${String(bookings.length + 1042).padStart(4, "0")}`,
       referenceCode: request?.id ? `CPL-${request.id.slice(0, 8).toUpperCase()}` : undefined,
@@ -70,19 +109,100 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return booking;
   };
 
-  const createQuoteRequest = (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => {
-    const request: QuoteRequest = { id: `QTE-${String(quotes.length + 301).padStart(4, "0")}`, serviceId: service.id, serviceTitle: service.title, propertyType, preference, details, appointmentResponse: "awaiting-chapman", status: "quote-requested", createdAt: new Date().toISOString() };
+  const createQuoteRequest = useCallback((service: Service, propertyType: string, preference: string, details?: QuoteDetails) => {
+    const localId = `QTE-${String(quotes.length + 301).padStart(4, "0")}`;
+    const request: QuoteRequest = { 
+      id: localId, 
+      serviceId: service.id, 
+      serviceTitle: service.title, 
+      propertyType, 
+      preference, 
+      details, 
+      appointmentResponse: "awaiting-chapman", 
+      status: "quote-requested", 
+      createdAt: new Date().toISOString() 
+    };
     setQuotes((current) => [request, ...current]);
+
+    // Save to Supabase
+    const client = supabase;
+    if (client) {
+      void (async () => {
+        try {
+          const { data: session } = await client.auth.getSession();
+          const userId = session?.session?.user?.id;
+          if (!userId) return;
+
+          const { data, error } = await client
+            .from("quote_requests")
+            .insert({
+              customer_account_id: userId,
+              service_id: service.id,
+              service_title: service.title,
+              property_type: propertyType,
+              preference: preference,
+              details: details ?? {},
+              appointment_response: "awaiting-chapman",
+              created_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (data && !error) {
+            // Update local state with the real Supabase ID
+            setQuotes((current) => 
+              current.map((q) => q.id === localId ? { ...q, id: data.id } : q)
+            );
+          }
+        } catch (error) {
+          console.error("Failed to save quote to Supabase:", error);
+        }
+      })();
+    }
+
     return request;
-  };
+  }, [quotes.length]);
 
-  const setProposedAppointment = (quoteId: string, proposedDate: string) => {
+  const setProposedAppointment = useCallback((quoteId: string, proposedDate: string) => {
     setQuotes((current) => current.map((quote) => quote.id === quoteId ? { ...quote, appointmentResponse: "awaiting-customer", details: { ...quote.details, proposedDate } } : quote));
-  };
 
-  const respondToAppointment = (quoteId: string, response: Extract<AppointmentResponse, "accepted" | "rejected">) => {
+    // Update in Supabase
+    const client = supabase;
+    if (client) {
+      void (async () => {
+        try {
+          await client
+            .from("quote_requests")
+            .update({ 
+              appointment_response: "awaiting-customer",
+              details: { ...(await client.from("quote_requests").select("details").eq("id", quoteId).single()).data?.details ?? {}, proposedDate }
+            })
+            .eq("id", quoteId);
+        } catch (error) {
+          console.error("Failed to update proposed appointment in Supabase:", error);
+        }
+      })();
+    }
+  }, []);
+
+  const respondToAppointment = useCallback((quoteId: string, response: Extract<AppointmentResponse, "accepted" | "rejected">) => {
     setQuotes((current) => current.map((quote) => quote.id === quoteId ? { ...quote, appointmentResponse: response } : quote));
-  };
+
+    // Update in Supabase
+    const client = supabase;
+    if (client) {
+      void (async () => {
+        try {
+          await client
+            .from("quote_requests")
+            .update({ appointment_response: response })
+            .eq("id", quoteId);
+        } catch (error) {
+          console.error("Failed to update appointment response in Supabase:", error);
+        }
+      })();
+    }
+  }, []);
 
   const saveRoutine = (service: Service, cadence: string) => {
     setRoutines((current) => current.some((routine) => routine.serviceId === service.id && routine.cadence === cadence) ? current : [{ id: `ROU-${service.id}-${cadence.toLowerCase().replace(/\s+/g, "-")}`, serviceId: service.id, serviceTitle: service.shortTitle, cadence, detail: `${cadence} care reminder` }, ...current]);

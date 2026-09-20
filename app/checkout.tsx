@@ -127,7 +127,7 @@ export default function CheckoutScreen() {
       signInToSend();
       return;
     }
-    if (pickupAddress.trim().length < 5) {
+    if (pickupAddress.trim().length < 2) {
       setError("Please add the house, street, or landmark for pickup.");
       return;
     }
@@ -231,7 +231,12 @@ export default function CheckoutScreen() {
               />
             )}
 
-            <Text style={styles.fieldLabel}>House, street, or landmark <Text style={styles.required}>*</Text></Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
+              <Text style={styles.fieldLabel}>House, street, or landmark <Text style={styles.required}>*</Text></Text>
+              <TouchableOpacity onPress={() => Alert.alert("What to enter", "Enter the shortest identifier for your location. This can be a house number (e.g., '14'), a building name (e.g., 'Accra Mall'), or a short landmark (e.g., 'BP'). Minimum 2 characters.")}>
+                <Ionicons name="information-circle-outline" size={16} color={palette.blue} />
+              </TouchableOpacity>
+            </View>
             <TextInput 
               value={pickupAddress} 
               onChangeText={setPickupAddress} 

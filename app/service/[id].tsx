@@ -37,20 +37,24 @@ export default function ServiceDetailScreen() {
   const detail = serviceDetails[service.id] ?? serviceDetails.cleaning;
   const isLaundry = service.id === "laundry";
   const canRepeat = service.id !== "workers";
+  const showMeasure = !isLaundry && service.id !== "workers";
   const servicePhoto = servicePhotos[service.id as keyof typeof servicePhotos];
   
   const { routines, saveRoutine, removeRoutine } = useBookingStore();
   const [savedCadences, setSavedCadences] = useState<string[]>([]);
   const [loadingRoutines, setLoadingRoutines] = useState(true);
 
-  useEffect(() => {
+    useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+    
     const loadRoutines = async () => {
       setLoadingRoutines(true);
       try {
-        const { data: session } = await supabase.auth.getSession();
+        const { data: session } = await client.auth.getSession();
         const clientId = session?.session?.user?.id || '057b4ebf-cbe3-44fc-bd53-781026d50a14';
         
-        const { data } = await supabase
+        const { data } = await client
           .from('routines')
           .select('cadence, id')
           .eq('client_id', clientId)
@@ -72,20 +76,22 @@ export default function ServiceDetailScreen() {
   }, [service.id, routines]);
 
   const handleRoutineToggle = useCallback(async (cadence: string) => {
+    const client = supabase;
+    if (!client) return;
     haptic.medium();
     const isSaved = savedCadences.includes(cadence);
     
     try {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: session } = await client.auth.getSession();
       const clientId = session?.session?.user?.id || '057b4ebf-cbe3-44fc-bd53-781026d50a14';
 
       if (isSaved) {
-        await supabase.from('routines').delete().eq('client_id', clientId).eq('service_id', service.id).eq('cadence', cadence);
+        await client.from('routines').delete().eq('client_id', clientId).eq('service_id', service.id).eq('cadence', cadence);
         const routineToRemove = routines.find(r => r.serviceId === service.id && r.cadence === cadence);
         if (routineToRemove) removeRoutine(routineToRemove.id);
         setSavedCadences(prev => prev.filter(c => c !== cadence));
       } else {
-        await supabase.from('routines').insert({
+        await client.from('routines').insert({
           client_id: clientId,
           service_id: service.id,
           service_title: service.shortTitle,
@@ -101,6 +107,8 @@ export default function ServiceDetailScreen() {
   }, [savedCadences, routines, service, saveRoutine, removeRoutine]);
 
   const beginBooking = () => isLaundry ? router.push("/booking/laundry" as never) : router.push({ pathname: "/booking/request-quote" as never, params: { serviceId: service.id } });
+  
+  const goMeasure = () => router.push(`/measure?serviceId=${service.id}` as never);
 
   return (
     <AppScreen>
@@ -163,6 +171,19 @@ export default function ServiceDetailScreen() {
               </View>
             ))}
           </View>
+
+          {showMeasure ? (
+            <TouchableOpacity activeOpacity={0.82} onPress={goMeasure} style={styles.measureCard}>
+              <View style={styles.measureIcon}>
+                <Ionicons name="scan-outline" size={22} color={palette.blue} />
+              </View>
+              <View style={styles.measureCopy}>
+                <Text style={styles.measureTitle}>Measure your space or item</Text>
+                <Text style={styles.measureText}>Use your camera for a reference photo, then enter dimensions for a sample estimate.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#7A7E8D" />
+            </TouchableOpacity>
+          ) : null}
 
           {canRepeat ? (
             <View style={styles.routineCard}>
@@ -252,6 +273,11 @@ const styles = StyleSheet.create({
   priceLine: { flexDirection: "row", alignItems: "center", gap: 8 }, 
   priceDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.blue }, 
   priceLineText: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 12 }, 
+  measureCard: { padding: 14, borderRadius: 18, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", gap: 10 }, 
+  measureIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center" }, 
+  measureCopy: { flex: 1, gap: 2 }, 
+  measureTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
+  measureText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15 }, 
   routineCard: { padding: 16, borderRadius: 19, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 8 }, 
   routineTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, 
   routineTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 16, marginTop: 3 }, 
