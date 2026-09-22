@@ -1,0 +1,54 @@
+-- ============================================================================
+-- Chapman Prestige, DECLINE A SERVICE REQUEST WITH A REASON
+-- ============================================================================
+--
+-- ONE statement. Paste it into Supabase, then SQL Editor, then Run.
+--
+-- WHY YOU NEED IT
+-- Today your staff can offer a customer a date for a cleaning, fumigation,
+-- detailing, polytank or contract request. They cannot say no. Your database
+-- has the words "waiting for the customer", "accepted" and "the customer wants
+-- another date", and nothing that means "Chapman cannot take this one".
+--
+-- So a customer asking for something Chapman cannot do has no way to be told.
+-- They wait, and they assume they were ignored.
+--
+-- WHAT THIS DOES, IN PLAIN ENGLISH
+-- It adds one empty box to your cleaning request records, called
+-- "declined reason", where your team can write one short line explaining why.
+-- An empty box holds nothing, so nothing that exists changes, no row is touched,
+-- and nothing is deleted. Your app keeps working exactly as it does now until a
+-- staff member writes something in that box.
+--
+-- WHAT HAPPENS AFTER YOU RUN IT
+-- - The staff page (Service Requests) gains a "Decline with reason" action.
+-- - The customer app shows the customer that reason plainly, on their tracking
+--   page, with a clear next step: send a new request, or message Chapman.
+--
+-- It is safe to run twice. The "if not exists" means the second run does nothing.
+-- ============================================================================
+
+alter table public.quote_requests add column if not exists declined_reason text;
+
+
+-- ============================================================================
+-- HOW TO CHECK IT WORKED
+-- ============================================================================
+--
+-- Run this second, on its own, and you should see one row naming the new box:
+--
+--   select column_name, data_type from information_schema.columns
+--   where table_schema = 'public' and table_name = 'quote_requests'
+--     and column_name = 'declined_reason';
+--
+-- You do not have to run that check. Opening the staff page and declining a test
+-- request is a better test, and the customer app will show the reason.
+--
+-- ============================================================================
+-- THE UNDO, run only this if you change your mind
+-- ============================================================================
+--
+--   alter table public.quote_requests drop column if exists declined_reason;
+--
+-- That removes the box and anything written in it. Everything else is untouched.
+-- ============================================================================

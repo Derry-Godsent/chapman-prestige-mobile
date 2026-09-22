@@ -1,0 +1,53 @@
+diff --git a/src/components/sidebar/Sidebar.tsx b/src/components/sidebar/Sidebar.tsx
+index f275a9c..feec416 100644
+--- a/src/components/sidebar/Sidebar.tsx
++++ b/src/components/sidebar/Sidebar.tsx
+@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
+ import {
+   LayoutDashboard, Package, Users, User, Settings, FileText,
+   ChevronLeft, ChevronRight, Shield, CreditCard, ShoppingCart,
+-  Printer, LogOut, X, BarChart3, Inbox
++  Printer, LogOut, X, BarChart3, Inbox, Sparkles
+ } from "lucide-react";
+ // @ts-ignore
+ import { supabase } from "../../lib/supabaseClient";
+@@ -82,6 +82,7 @@ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarPr
+     { icon: ShoppingCart, label: "New Order", path: "/new-order", pageKey: "new-order" },
+     { icon: Package, label: "Orders", path: "/orders", pageKey: "orders", badge: orderCount > 0 ? orderCount : undefined },
+     { icon: Inbox, label: "Mobile Requests", path: "/mobile-requests", pageKey: "mobile-requests" },
++    { icon: Sparkles, label: "Service Requests", path: "/service-requests", pageKey: "service-requests" },
+     { icon: Users, label: "Staff", path: "/staff", pageKey: "staff" },
+     { icon: User, label: "Clients", path: "/clients", pageKey: "clients" },
+     { icon: FileText, label: "Services", path: "/services", pageKey: "services" },
+diff --git a/src/hooks/usePermission.ts b/src/hooks/usePermission.ts
+index 1dc9746..6670f23 100644
+--- a/src/hooks/usePermission.ts
++++ b/src/hooks/usePermission.ts
+@@ -15,6 +15,7 @@ const PATH_TO_PERMISSION: Record<string, string> = {
+   "/new-order": "new-order",
+   "/security": "security",
+   "/mobile-requests": "mobile-requests",
++  "/service-requests": "service-requests",
+ };
+ 
+ interface CacheEntry {
+diff --git a/src/router.tsx b/src/router.tsx
+index fed814b..88a473b 100644
+--- a/src/router.tsx
++++ b/src/router.tsx
+@@ -19,6 +19,7 @@ import { SystemAdmin } from "./pages/SystemAdmin";
+ import { Profile } from "./pages/Profile";
+ import { Help } from "./pages/Help";
+ import { MobileRequests } from "./pages/MobileRequests";
++import { ServiceRequests } from "./pages/ServiceRequests";
+ 
+ /* ─── PROTECTED ROUTE WRAPPER ────────────────────────────────────────────── */
+ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+@@ -80,6 +81,7 @@ export const router = createBrowserRouter([
+       { path: "reports", element: <Reports /> },
+       { path: "help", element: <Help /> },
+       { path: "mobile-requests", element: <MobileRequests /> },
++      { path: "service-requests", element: <ServiceRequests /> },
+     ],
+   },
+   { path: "*", element: <Navigate to="/dashboard" replace /> }, 
