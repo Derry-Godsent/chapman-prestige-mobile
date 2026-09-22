@@ -1,0 +1,235 @@
+diff --git a/src/components/sidebar/NavItem.tsx b/src/components/sidebar/NavItem.tsx
+index 84b0829..bcec18e 100644
+--- a/src/components/sidebar/NavItem.tsx
++++ b/src/components/sidebar/NavItem.tsx
+@@ -8,11 +8,13 @@ interface NavItemProps {
+   label: string;
+   path: string;
+   badge?: number;
++  /** What the number means, shown when the office hovers it. */
++  badgeTitle?: string;
+   isCollapsed?: boolean;
+   onClick?: () => void;
+ }
+ 
+-export const NavItem = ({ icon: Icon, label, path, badge, isCollapsed, onClick }: NavItemProps) => {
++export const NavItem = ({ icon: Icon, label, path, badge, badgeTitle, isCollapsed, onClick }: NavItemProps) => {
+   const location = useLocation();
+   const isActive = location.pathname === path;
+ 
+@@ -23,6 +25,7 @@ export const NavItem = ({ icon: Icon, label, path, badge, isCollapsed, onClick }
+         className={`nav-item ${isActive ? "active" : ""}`}
+         onClick={onClick}
+         aria-current={isActive ? "page" : undefined}
++        title={badge && badgeTitle ? `${badge} ${badgeTitle}` : undefined}
+       >
+         <span className="nav-icon">
+           <Icon size={20} />
+diff --git a/src/components/sidebar/Sidebar.tsx b/src/components/sidebar/Sidebar.tsx
+index f275a9c..293f7e6 100644
+--- a/src/components/sidebar/Sidebar.tsx
++++ b/src/components/sidebar/Sidebar.tsx
+@@ -2,12 +2,13 @@ import { useState, useMemo, useEffect } from "react";
+ import {
+   LayoutDashboard, Package, Users, User, Settings, FileText,
+   ChevronLeft, ChevronRight, Shield, CreditCard, ShoppingCart,
+-  Printer, LogOut, X, BarChart3, Inbox
++  Printer, LogOut, X, BarChart3, Inbox, Sparkles
+ } from "lucide-react";
+ // @ts-ignore
+ import { supabase } from "../../lib/supabaseClient";
+ import { NavItem } from "./NavItem";
+ import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
++import { useIntakeCounts } from "../../hooks/useIntakeCounts";
+ import "./Sidebar.css";
+ 
+ interface SidebarProps {
+@@ -18,28 +19,15 @@ interface SidebarProps {
+ 
+ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarProps) => {
+   const [isCollapsed, setIsCollapsed] = useState(false);
+-  const [orderCount, setOrderCount] = useState(0);
+   const [userRole, setUserRole] = useState<string>("staff");
+   const [allowedPages, setAllowedPages] = useState<Set<string>>(new Set());
+ 
+-  /* ─── REALTIME ORDER COUNT ─────────────────────────────────────────────── */
+-  useEffect(() => {
+-    let isMounted = true;
+-    const fetchCount = async () => {
+-      const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+-      if (isMounted) setOrderCount(count || 0);
+-    };
+-    fetchCount();
+-    
+-    const channel = supabase.channel('sidebar-orders-badge')
+-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchCount())
+-      .subscribe();
+-      
+-    return () => { 
+-      isMounted = false; 
+-      supabase.removeChannel(channel); 
+-    };
+-  }, []);
++  /* ─── LIVE COUNTS FOR THE MENU ─────────────────────────────────────────────
++     One hook counts the records behind each page and keeps the numbers current
++     as customers send work and the office changes it. It only starts once the
++     role is known, because the menu hides pages this role may not open. */
++  const countsKnown = allowedPages.size > 0;
++  const { counts } = useIntakeCounts(countsKnown);
+ 
+   /* ─── FETCH ROLE & PERMISSIONS ─────────────────────────────────────────── */
+   useEffect(() => {
+@@ -80,10 +68,11 @@ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarPr
+   const navItems = useMemo(() => [
+     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", pageKey: "dashboard" },
+     { icon: ShoppingCart, label: "New Order", path: "/new-order", pageKey: "new-order" },
+-    { icon: Package, label: "Orders", path: "/orders", pageKey: "orders", badge: orderCount > 0 ? orderCount : undefined },
+-    { icon: Inbox, label: "Mobile Requests", path: "/mobile-requests", pageKey: "mobile-requests" },
+-    { icon: Users, label: "Staff", path: "/staff", pageKey: "staff" },
+-    { icon: User, label: "Clients", path: "/clients", pageKey: "clients" },
++    { icon: Package, label: "Orders", path: "/orders", pageKey: "orders", badge: countsKnown && counts.orders > 0 ? counts.orders : undefined },
++    { icon: Inbox, label: "Mobile Requests", path: "/mobile-requests", pageKey: "mobile-requests", badge: countsKnown && counts.mobileRequests > 0 ? counts.mobileRequests : undefined, badgeTitle: "waiting for Chapman to act" },
++    { icon: Sparkles, label: "Service Requests", path: "/service-requests", pageKey: "service-requests", badge: countsKnown && counts.serviceRequests > 0 ? counts.serviceRequests : undefined, badgeTitle: "need a date from Chapman" },
++    { icon: Users, label: "Staff", path: "/staff", pageKey: "staff", badge: countsKnown && counts.staff > 0 ? counts.staff : undefined },
++    { icon: User, label: "Clients", path: "/clients", pageKey: "clients", badge: countsKnown && counts.clients > 0 ? counts.clients : undefined },
+     { icon: FileText, label: "Services", path: "/services", pageKey: "services" },
+     { icon: Printer, label: "Receipt", path: "/receipt", pageKey: "receipt" },
+     { icon: CreditCard, label: "Payments", path: "/payments", pageKey: "payments" },
+@@ -91,7 +80,7 @@ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarPr
+     { icon: Shield, label: "Security", path: "/security", pageKey: "security" },
+     { icon: Settings, label: "Settings", path: "/settings", pageKey: "settings" },
+     { icon: Shield, label: "System Admin", path: "/system", pageKey: "system" },
+-  ], [orderCount]);
++  ], [counts, countsKnown]);
+ 
+   // Filter nav items based on database permissions
+   const filteredNavItems = useMemo(() => {
+diff --git a/src/components/topbar/Topbar.tsx b/src/components/topbar/Topbar.tsx
+index ad414c3..9946c50 100644
+--- a/src/components/topbar/Topbar.tsx
++++ b/src/components/topbar/Topbar.tsx
+@@ -6,6 +6,7 @@ import { CommandPalette } from "./CommandPalette";
+ import { NotificationDropdown } from "./NotificationDropdown";
+ import { ProfileDropdown } from "./ProfileDropdown";
+ import { supabase } from "../../lib/supabaseClient";
++import { useIntakeNotifications } from "../../hooks/useIntakeNotifications";
+ import type { User } from "@supabase/supabase-js";
+ import "./Topbar.css";
+ 
+@@ -15,12 +16,14 @@ interface TopbarProps {
+ }
+ 
+ interface NotificationItem {
+-  id: number;
++  id: number | string;
+   title: string;
+   message: string;
+   time: string;
+   read: boolean;
+   type: "success" | "info" | "warning" | "error";
++  /** Where clicking this alert takes the office. */
++  href?: string;
+ }
+ 
+ interface StaffProfile {
+@@ -37,8 +40,6 @@ export const Topbar = ({ onMenuClick, isMobile = false }: TopbarProps) => {
+   const [userRole, setUserRole] = useState<string>("");
+   const [userName, setUserName] = useState<string>("");
+   const [loading, setLoading] = useState(true);
+-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+-  const [unreadCount, setUnreadCount] = useState(0);
+ 
+   // Fetch current user session and staff profile
+   useEffect(() => {
+@@ -121,57 +122,19 @@ export const Topbar = ({ onMenuClick, isMobile = false }: TopbarProps) => {
+     };
+   }, []);
+ 
+-  // Listen for real-time notifications
+-  useEffect(() => {
+-    if (!user) return;
+-
+-    const channel = supabase
+-      .channel("topbar-notifications")
+-      .on(
+-        "postgres_changes",
+-        { event: "*", schema: "public", table: "orders", filter: `client_id=eq.${user.id}` },
+-        (payload: { eventType: string; new: Record<string, unknown> | null; old: Record<string, unknown> | null }) => {
+-          const eventType = payload.eventType;
+-          const newRecord = payload.new as Record<string, unknown> | null;
+-          const oldRecord = payload.old as Record<string, unknown> | null;
+-
+-          let title = "Order Updated";
+-          let message = "Your order has been updated";
+-          let type: NotificationItem["type"] = "info";
+-
+-          if (eventType === "INSERT") {
+-            title = "New Order";
+-            message = `Order ${newRecord?.order_id || "#???"} was created`;
+-            type = "success";
+-          } else if (eventType === "UPDATE") {
+-            title = "Order Updated";
+-            message = `Order ${newRecord?.order_id || "#???"} was updated`;
+-            type = "info";
+-          } else if (eventType === "DELETE") {
+-            title = "Order Deleted";
+-            message = `Order ${oldRecord?.order_id || "#???"} was removed`;
+-            type = "warning";
+-          }
+-
+-          const newNotification: NotificationItem = {
+-            id: Date.now(),
+-            title,
+-            message,
+-            time: new Date().toLocaleTimeString(),
+-            read: false,
+-            type,
+-          };
+-
+-          setNotifications((prev) => [newNotification, ...prev.slice(0, 19)]);
+-          setUnreadCount((prev) => prev + 1);
+-        }
+-      )
+-      .subscribe();
+-
+-    return () => {
+-      supabase.removeChannel(channel);
+-    };
+-  }, [user]);
++  /* ─── LIVE ALERTS ──────────────────────────────────────────────────────────
++     Every alert comes from a record: a customer sending a request, asking for a
++     service, or answering a date Chapman offered. The count is what is new since
++     this staff member last looked, so it is honest rather than decorative. */
++  const { notifications: intakeAlerts, unreadCount, markRead, markAllRead } = useIntakeNotifications(user?.id ?? null, Boolean(user));
++
++  // Clicking an alert marks it read and opens the queue it belongs to.
++  const handleAlertClick = (id?: number | string) => {
++    if (id === undefined || id === null) return;
++    const item = intakeAlerts.find((entry) => String(entry.id) === String(id));
++    markRead([String(id)]);
++    if (item?.href) navigate(item.href);
++  };
+ 
+   // Keyboard shortcuts
+   useEffect(() => {
+@@ -238,13 +201,13 @@ export const Topbar = ({ onMenuClick, isMobile = false }: TopbarProps) => {
+           </button>
+ 
+           <NotificationDropdown
+-  notifications={notifications}
+-  unreadCount={unreadCount}
+-  onMarkRead={(id) => { /* mark single read */ }}
+-  onMarkAllRead={() => setUnreadCount(0)}
+-  onViewAll={() => navigate("/notifications")}
+-  pulseBadge={unreadCount > 0}
+-/>
++            notifications={intakeAlerts}
++            unreadCount={unreadCount}
++            onMarkRead={handleAlertClick}
++            onMarkAllRead={markAllRead}
++            onViewAll={() => navigate("/mobile-requests")}
++            pulseBadge={unreadCount > 0}
++          />
+ 
+           <ProfileDropdown
+             user={user}

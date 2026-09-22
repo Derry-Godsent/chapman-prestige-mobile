@@ -19,6 +19,9 @@ this folder. Applying it takes about five minutes.
 | `ServiceRequests.tsx` | The new page. Drop it into the staff project's `src/pages/` folder |
 | `ServiceRequests.css` | Its styling. Same folder |
 | `wiring.patch` | The three tiny edits that make the page reachable, as a patch |
+| `useIntakeCounts.ts` | Counts for the side menu. Goes in `src/hooks/` |
+| `useIntakeNotifications.ts` | The live alerts for the bell. Also `src/hooks/` |
+| `counts-and-alerts.patch` | The edits that put numbers on the menu and real alerts in the bell |
 
 **I compiled this against the real staff project before handing it over.** It passed
 the TypeScript check and the production build, so it is not guesswork. What I could
@@ -92,6 +95,55 @@ Add below it:
 ```
   "/service-requests": "service-requests",
 ```
+
+## Step 2b: numbers on the menu, and real alerts
+
+Two more small file copies, plus the patch.
+
+**Copies:**
+
+```
+laundry-app/src/hooks/useIntakeCounts.ts
+laundry-app/src/hooks/useIntakeNotifications.ts
+```
+
+**Then apply `counts-and-alerts.patch`,** which makes three small changes:
+
+| File | Change |
+| --- | --- |
+| `src/components/sidebar/Sidebar.tsx` | The menu numbers now come from the counts hook instead of the one order count, and every record page shows its own number |
+| `src/components/sidebar/NavItem.tsx` | The number now explains itself when the office hovers it, for example "8 waiting for Chapman to act" |
+| `src/components/topbar/Topbar.tsx` | The bell now listens to the two intake tables. The old listener watched orders filtered by a client id, which a staff member never has, so the bell silently delivered nothing |
+
+If you would rather make those three edits by hand, say so and I will write them out line
+by line.
+
+### What the numbers mean
+
+| Menu entry | The number means |
+| --- | --- |
+| Orders | Every order in the system |
+| Mobile Requests | Laundry requests still waiting for Chapman to act |
+| Service Requests | Cleaning and service enquiries that need a date from Chapman |
+| Staff | Staff records |
+| Clients | Client records |
+
+Every number updates by itself the moment a customer sends something or the office changes
+something. Nothing needs refreshing.
+
+### What the alerts mean
+
+The bell now tells the office, as it happens:
+
+- a customer sent a laundry request
+- a customer asked for cleaning, fumigation, detailing, polytank, or contract work
+- a customer accepted or rejected a date Chapman offered
+
+Clicking an alert opens the queue it belongs to, and the count is what is new since that
+staff member last looked, so it means something. It is kept per staff member in that
+browser.
+
+---
 
 ## Step 3: two database statements, one each
 

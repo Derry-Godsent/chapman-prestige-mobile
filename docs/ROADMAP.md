@@ -33,6 +33,7 @@ to you. That was my mistake. This document fixes it.
 | 6 | **Connect the website** | It's currently not connected to anything | TODO Waiting on your decision |
 | 7 | **Same features on the web** | Every app feature visible and usable in the browser | STARTED **Customer side already works, staff page written** |
 | 8 | **No more placeholders** | Every screen real, every tap does something | STARTED **First batch done: loyalty, updates, history, settings** |
+| 9 | **The office sees its work arrive** | Counts on the staff menu and live alerts | STARTED **Built and running in the preview** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -578,11 +579,14 @@ app, is to count completed jobs with smaller numbers:
 | Gold | 6 | 12% | 12% off, priority booking, and express care free |
 | VIP | Chapman's decision | 20% | 20% off, a named coordinator, first call on busy days |
 
-**Two honest notes.** First, I put a service on Bronze after one job because one cleaning
-job is worth more than thirty laundry visits. If that feels too generous, say a number and
-it changes. Second, your point about the money range is exactly why the numbers are low:
-with a floor of GH₵800 to GH₵1,500 a job, three jobs is already GH₵2,400 to GH₵4,500 of
-business, which is more than a Gold laundry customer spends across 30 visits.
+**You chose the counting above, not money bands**, so that is what the app does: services
+are counted in completed jobs, exactly as in the table above. No further change needed
+unless you want different numbers later.
+
+One honest note on why the numbers are small: with a floor of GH₵800 to GH₵1,500 a job,
+three jobs is already GH₵2,400 to GH₵4,500 of business, which is more than a Gold laundry
+customer spends across 30 visits. That is what makes counting jobs, rather than counting
+money, the fair way to do it.
 
 Both ladders live in one file, `lib/loyalty.ts`, one table each. Changing a number or a
 word there changes the home card, the profile card, and the whole Elite Patronage screen
@@ -598,6 +602,50 @@ together. Nothing else needs editing.
    laundry, cleaning, detailing and contract do. See the note in my message.
 3. **Workers and Chat tabs**, which you said we would do properly after this.
 4. Then the web app, so both sides match, and last the website.
+
+---
+
+## Phase 9, The office sees its work arrive STARTED, running in the preview
+
+**What you asked for:** the staff side menu should show how many records are waiting, and
+alerts should arrive the same way, live.
+
+### Numbers on the side menu
+
+The menu counts now come from the database and keep themselves current:
+
+| Menu entry | The number means |
+| --- | --- |
+| Orders | Every order in the system |
+| Mobile Requests | Laundry requests still waiting for Chapman to act |
+| Service Requests | Cleaning and service enquiries that need a date |
+| Staff | Staff records |
+| Clients | Client records |
+
+Hover a number and it explains itself, for example "8 waiting for Chapman to act". A
+number only appears when there is something to show, so the menu stays quiet on a calm day.
+
+### Alerts that are real
+
+**I found why the bell was silent.** It was listening to orders filtered by a client id,
+and a staff member never has a client id, so it delivered nothing at all, ever. The bell
+now listens to the two tables the office's work actually arrives in.
+
+The office is now told, as it happens:
+
+- a customer sent a laundry request
+- a customer asked for cleaning, fumigation, detailing, polytank, or contract work
+- a customer accepted or rejected a date Chapman offered
+
+Clicking an alert opens the queue it belongs to. The number on the bell is what is new
+since that staff member last looked, so it means something rather than resetting on every
+refresh, and it is kept per staff member.
+
+### Where it stands
+
+Both are built, compiled, and running in the staff preview in this chat. To put them into
+your own staff system: two files into `src/hooks/`, then one patch with three small edits.
+Step 2b of `docs/staff-web-app/README.md` writes it all out in plain words.
 
 ---
 
