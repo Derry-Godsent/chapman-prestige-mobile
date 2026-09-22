@@ -38,14 +38,16 @@ export async function submitMobileLaundryRequest(input: LaundryRequestInput): Pr
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
 
-  // DEBUG: This will print the exact IDs being sent to the database
-  const itemsToSend = input.items.map(i => ({
-    id: i.item.id,
-    name: i.item.name,
-    quantity: i.quantity,
-    price: i.item.price_wash || 0
+  // The staff system reads the item name and quantity straight out of what the
+  // app sends, and priced the request from the same list. So all four fields
+  // travel, exactly as they always have. The database remains the final word on
+  // the price it stores against the request.
+  const itemsToSend = input.items.map((line) => ({
+    id: line.item.id,
+    name: line.item.name,
+    quantity: line.quantity,
+    price: line.item.price_wash ?? 0,
   }));
-  console.log("🔍 DEBUG: Items being sent to RPC:", JSON.stringify(itemsToSend, null, 2));
 
   const { data: requestData, error: requestError } = await client.rpc("submit_mobile_laundry_request", {
     p_requested_for: input.requestedFor,
@@ -61,8 +63,7 @@ export async function submitMobileLaundryRequest(input: LaundryRequestInput): Pr
   });
 
   if (requestError) {
-    console.error('❌ Supabase RPC Error:', requestError);
-    throw new Error('Chapman could not receive this request. Please try again.');
+    throw new Error("Chapman could not receive this request. Please try again.");
   }
 
   return {
@@ -84,11 +85,16 @@ export async function getMobileLaundryRequest(requestId: string): Promise<Mobile
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
 
-  // FIX: Query 'mobile_requests' table, not 'orders'
+  const customerId = sessionData.session.user.id;
+
+  // The id alone is not enough. Asking for the customer as well means a request
+  // id belonging to somebody else returns nothing, instead of returning their
+  // address and pickup point.
   const { data, error } = await client
     .from('mobile_requests')
     .select('id, request_status, requested_for, confirmed_for, pickup_area, pickup_address, pickup_window, pickup_latitude, pickup_longitude, pickup_accuracy_meters, laundry_items, express, estimated_total, customer_note, staff_note, customer_response, created_at')
-    .eq('id', requestId) 
+    .eq('id', requestId)
+    .eq('customer_account_id', customerId)
     .maybeSingle();
 
   if (error) throw error;
@@ -121,10 +127,15 @@ export async function getMyMobileLaundryRequests(): Promise<MobileLaundryRequest
   if (sessionError) throw sessionError;
   if (!sessionData.session) throw new CustomerSignInRequiredError();
 
-  // FIX: Query 'mobile_requests' table, not 'orders'
+  const customerId = sessionData.session.user.id;
+
+  // Only this customer's own requests. The database also enforces this, but
+  // asking for the right rows here keeps a wrong row from ever being fetched
+  // in the first place.
   const { data, error } = await client
     .from('mobile_requests')
     .select('id, request_status, requested_for, confirmed_for, pickup_area, pickup_address, pickup_window, pickup_latitude, pickup_longitude, pickup_accuracy_meters, laundry_items, express, estimated_total, customer_note, staff_note, customer_response, created_at')
+    .eq('customer_account_id', customerId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;

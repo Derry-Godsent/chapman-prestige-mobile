@@ -8,6 +8,8 @@ import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
 import { cleanGhanaLocalEntry, cleanOtpCode, CustomerGender } from "@/lib/customer-auth-utils";
 import { completeCustomerOnboarding, continueAsGuest, sendCustomerOtp, verifyCustomerOtp } from "@/lib/customer-auth";
+import { hasCustomerPin, wasPinOffered } from "@/lib/customer-pin";
+import { supabase } from "@/lib/supabase";
 
 type Stage = "phone" | "code" | "profile";
 
@@ -22,7 +24,7 @@ export default function PhoneAuthScreen() {
   const [phoneInput, setPhoneInput] = useState("");
   const [verifiedPhone, setVerifiedPhone] = useState("");
   const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const otpInputRefs = useRef<Array<TextInput | null>>([]);
+  const otpInputRefs = useRef<(TextInput | null)[]>([]);
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -121,10 +123,14 @@ export default function PhoneAuthScreen() {
     } finally { setBusy(false); }
   };
 
+  // Intentionally depends only on the code and stage. `attemptedOtpRef` makes
+  // this run at most once per entered code, and `verifyOtp` is re-created on
+  // every render, so adding it here would re-trigger verification in a loop.
   useEffect(() => {
     if (stage !== "code" || busy || code.length !== 6 || attemptedOtpRef.current === code) return;
     attemptedOtpRef.current = code;
     void verifyOtp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, code, stage]);
 
   const finishOnboarding = async () => {
@@ -132,6 +138,16 @@ export default function PhoneAuthScreen() {
     setBusy(true); setError(null); setNotice(null);
     try {
       await completeCustomerOnboarding({ fullName: name.trim(), gender, email: email.trim() || undefined });
+      // Offer the 4 digit PIN once, so the next time they open the app they do
+      // not need another text message. The offer screen itself can be skipped.
+      const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
+      const userId = data.session?.user?.id ?? "";
+      const alreadyOffered = userId ? await wasPinOffered(userId) : true;
+      const alreadyHasPin = await hasCustomerPin();
+      if (!alreadyOffered && !alreadyHasPin) {
+        router.replace("/set-pin" as never);
+        return;
+      }
       router.replace("/(tabs)" as never);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Your number is verified, but your profile could not be saved yet.");

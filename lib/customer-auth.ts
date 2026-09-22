@@ -1,4 +1,5 @@
 import { CustomerGender, normalizeGhanaPhone } from "@/lib/customer-auth-utils";
+import { clearCustomerPin } from "@/lib/customer-pin";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -130,6 +131,10 @@ export async function signOutCustomer() {
   const { error } = await client.auth.signOut();
   if (error) throw error;
   await AsyncStorage.removeItem(CUSTOMER_GUEST_SESSION_KEY);
+  // The PIN unlocks a stored sign-in. With the sign-in gone the PIN has nothing
+  // to unlock, so it goes too. That also stops the PIN blocking the next person
+  // to sign in on a shared phone.
+  await clearCustomerPin();
 }
 
 export async function continueAsGuest() {

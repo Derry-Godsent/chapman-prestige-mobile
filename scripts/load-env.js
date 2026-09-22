@@ -1,7 +1,8 @@
 /**
- * Custom environment loader that prioritizes system environment variables
- * over .env file values. This ensures that Manus platform-injected variables
- * are not overridden by placeholder values in .env
+ * Environment loader used by app.config.ts.
+ *
+ * System environment variables always win over .env values, so a build machine
+ * or CI can override the committed defaults without editing files.
  */
 import fs from "fs";
 import path from "path";

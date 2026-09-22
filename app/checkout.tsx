@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -9,6 +9,7 @@ import { AppScreen } from "@/components/app-screen";
 import { DisplayText, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { formatGhs } from "@/lib/chapman-data";
+import { notify } from "@/lib/notify";
 import { useBookingStore } from "@/lib/booking-store";
 import { getCurrentCustomerAccount, getCustomerSession } from "@/lib/customer-auth";
 import { CustomerSignInRequiredError, submitMobileLaundryRequest } from "@/lib/mobile-requests";
@@ -84,12 +85,12 @@ export default function CheckoutScreen() {
     setLocationBusy(true);
     try {
       if (!await Location.hasServicesEnabledAsync()) {
-        Alert.alert("Location Services Off", "Please turn on GPS in your phone settings.");
+        notify("Location Services Off", "Please turn on GPS in your phone settings.");
         return;
       }
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") {
-        Alert.alert("Permission Denied", "Location permission is required to share your exact pickup point.");
+        notify("Permission Denied", "Location permission is required to share your exact pickup point.");
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
@@ -109,13 +110,13 @@ export default function CheckoutScreen() {
     setShowDatePicker(false);
     if (selectedDate) {
       if (selectedDate.getDay() === 0) {
-        Alert.alert("Closed on Sundays", "Chapman does not operate on Sundays. Please select another day.");
+        notify("Closed on Sundays", "Chapman does not operate on Sundays. Please select another day.");
         return;
       }
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (selectedDate < today) {
-        Alert.alert("Invalid Date", "Please select today or a future date.");
+        notify("Invalid Date", "Please select today or a future date.");
         return;
       }
       setRequestedFor(formatDateForDB(selectedDate));
@@ -233,7 +234,7 @@ export default function CheckoutScreen() {
 
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
               <Text style={styles.fieldLabel}>House, street, or landmark <Text style={styles.required}>*</Text></Text>
-              <TouchableOpacity onPress={() => Alert.alert("What to enter", "Enter the shortest identifier for your location. This can be a house number (e.g., '14'), a building name (e.g., 'Accra Mall'), or a short landmark (e.g., 'BP'). Minimum 2 characters.")}>
+              <TouchableOpacity onPress={() => notify("What to enter", "Enter the shortest identifier for your location. This can be a house number (e.g., '14'), a building name (e.g., 'Accra Mall'), or a short landmark (e.g., 'BP'). Minimum 2 characters.")}>
                 <Ionicons name="information-circle-outline" size={16} color={palette.blue} />
               </TouchableOpacity>
             </View>

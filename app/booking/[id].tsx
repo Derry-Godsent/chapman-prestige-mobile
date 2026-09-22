@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, OutlineButton, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { useBookingStore } from "@/lib/booking-store";
 import { getMobileLaundryRequest, getMobileRequestEvents, MobileLaundryRequest, MobileRequestEvent, respondToMobileRequestDate } from "@/lib/mobile-requests";
@@ -92,6 +92,7 @@ async function getQuoteRequestFromSupabase(quoteId: string): Promise<QuoteReques
       preference: data.preference || "",
       details: (data.details as QuoteDetails) ?? undefined,
       appointmentResponse: (data.appointment_response as any) || "awaiting-chapman",
+      declinedReason: (data as any).declined_reason ?? undefined,
       status: "quote-requested",
       createdAt: data.created_at || new Date().toISOString(),
     };
@@ -105,10 +106,17 @@ async function updateQuoteRequestInSupabase(quoteId: string, updates: Record<str
   const client = supabase;
   if (!client) return false;
   try {
+    const { data: session } = await client.auth.getSession();
+    const customerId = session?.session?.user?.id;
+    if (!customerId) return false;
+
+    // The customer id travels with the request id, so a quote number belonging
+    // to somebody else cannot be written to even if it is guessed.
     const { error } = await client
       .from("quote_requests")
       .update(updates)
-      .eq("id", quoteId);
+      .eq("id", quoteId)
+      .eq("customer_account_id", customerId);
     return !error;
   } catch {
     return false;
@@ -168,7 +176,7 @@ export default function BookingDetailScreen() {
         const data = await getQuoteRequestFromSupabase(id);
         if (data) setLiveQuote(data);
       } catch {
-        // Silently fail — local quote may still work
+        // Silently fail. A local quote may still work.
       } finally {
         setQuoteLoading(false);
       }
@@ -261,15 +269,36 @@ export default function BookingDetailScreen() {
   const liveAwaitingResponse = liveStatus === "needs_customer_confirmation";
   const liveIsBeingReviewed = liveStatus === "pending" || liveStatus === "under_review";
   const isDeclined = isDeclinedRequest(liveStatus);
+
+  // A cleaning or service request that Chapman could not take. The office writes
+  // one short reason in the staff system and the customer reads it here, so a
+  // request that cannot be done is answered instead of left silent.
+  const appointment = quote?.appointmentResponse;
+  const quoteDeclined = isQuote && appointment === "declined";
+  const quoteDeclinedReason = quote?.declinedReason;
+  const declinedView = isDeclined || quoteDeclined;
+
   const declinedByClient = isDeclined && liveRequest?.customer_response === "rejected";
-  const requestInReview = isQuote || localAwaitingChapman || liveAwaitingResponse || liveIsBeingReviewed;
+  const requestInReview = (isQuote && !quoteDeclined) || localAwaitingChapman || liveAwaitingResponse || liveIsBeingReviewed;
   const isApproved = liveStatus === "confirmed";
-  const title = booking?.serviceTitle ?? quote?.serviceTitle ?? "Laundry & Garment Care";
-  const status = isQuote ? "assessment requested" : liveRequest ? requestStatusLabel(liveRequest.request_status) : localAwaitingChapman ? "awaiting Chapman confirmation" : booking?.status.replace("-", " ") ?? "confirmed";
+
+  // Nothing at all was found for this id. Say so plainly rather than showing a
+  // confident screen about a request we cannot actually see.
+  const foundNothing = !booking && !quote && !liveRequest && !liveLoading && !quoteLoading;
+
+  const title = booking?.serviceTitle ?? quote?.serviceTitle ?? "Your service request";
+  const status = foundNothing
+    ? "unavailable"
+    : isQuote
+      ? quoteDeclined ? "declined" : "assessment requested"
+      : liveRequest
+        ? requestStatusLabel(liveRequest.request_status)
+        : localAwaitingChapman
+          ? "awaiting Chapman confirmation"
+          : booking?.status.replace("-", " ") ?? "confirmed";
   const currentStep = stepForStatus[isQuote ? "quote-requested" : liveStatus ?? booking?.status ?? "confirmed"] ?? 1;
   const measurement = quote?.details?.estimatedAreaM2;
   const contextUrl = `/(tabs)/chat?bookingId=${id}&service=${encodeURIComponent(title)}`;
-  const appointment = quote?.appointmentResponse;
   const reference = booking?.referenceCode ?? (id ? `CPL-${id.slice(0, 8).toUpperCase()}` : "CPL request");
   
   const serviceMeta = isQuote 
@@ -303,13 +332,13 @@ export default function BookingDetailScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <ScreenHeader title="Track your service" />
           <View style={styles.lead}>
-            <View style={[styles.leadIcon, requestInReview && styles.leadIconQuote, isDeclined && styles.leadIconDeclined, isApproved && styles.leadIconApproved]}>
+            <View style={[styles.leadIcon, requestInReview && styles.leadIconQuote, declinedView && styles.leadIconDeclined, isApproved && styles.leadIconApproved]}>
               {isApproved ? <Animated.View style={[styles.approvedHalo, { transform: [{ scale: approvedPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.24] }) }], opacity: approvedPulse.interpolate({ inputRange: [0, 1], outputRange: [0.52, 0] }) }]} /> : null}
-              <Ionicons name={isDeclined ? "close" : requestInReview ? "document-text-outline" : "checkmark"} size={28} color="#FFFFFF" />
+              <Ionicons name={declinedView ? "close" : requestInReview ? "document-text-outline" : "checkmark"} size={28} color="#FFFFFF" />
             </View>
-            <StatusPill label={status} tone={isDeclined ? "red" : requestInReview ? "orange" : "green"} />
-            <DisplayText style={styles.leadTitle}>{isDeclined ? declinedByClient ? "You declined this request." : "This request was declined." : isApproved ? "Date confirmed." : requestInReview ? "We have your request." : "Your service date is approved."}</DisplayText>
-            <BodyText style={styles.leadBody}>{isDeclined ? declinedByClient ? "You rejected the proposed date, so this request is now closed. Message Chapman when you are ready to start a new request." : "Chapman could not approve this request. Use Message Chapman for a clear next step or another service option." : isApproved ? "Chapman has confirmed your service date. Your service team and arrival updates will appear here next." : liveAwaitingResponse ? "Chapman has proposed a date. Accept it to approve your service, or reject it to close this request." : requestInReview ? "Chapman will check the details and keep you updated here." : "Chapman has approved this service date. We will share each practical update here."}</BodyText>
+            <StatusPill label={status} tone={foundNothing ? "gray" : declinedView ? "red" : requestInReview ? "orange" : "green"} />
+            <DisplayText style={styles.leadTitle}>{foundNothing ? "We could not find this request." : quoteDeclined ? "Chapman cannot take this request." : isDeclined ? declinedByClient ? "You declined this request." : "This request was declined." : isApproved ? "Date confirmed." : requestInReview ? "We have your request." : "Your request is underway."}</DisplayText>
+            <BodyText style={styles.leadBody}>{foundNothing ? "This request is not on your account, or it has been removed. Open My bookings to see everything you have asked for, or message Chapman and we will find it for you." : quoteDeclined ? (quoteDeclinedReason ? `Chapman could not take this request: ${quoteDeclinedReason}` : "Chapman could not take this request. Message Chapman and we will explain, or send a new request with different dates.") : isDeclined ? declinedByClient ? "You rejected the proposed date, so this request is now closed. Message Chapman when you are ready to start a new request." : "Chapman could not approve this request. Use Message Chapman for a clear next step or another service option." : isApproved ? "Chapman has confirmed your service date. Your service team and arrival updates will appear here next." : liveAwaitingResponse ? "Chapman has proposed a date. Accept it to approve your service, or reject it to close this request." : requestInReview ? "Chapman will check the details and keep you updated here." : "We have your request and will share each practical update here."}</BodyText>
             <Text style={styles.reference}>{reference}</Text>
           </View>
           
@@ -382,15 +411,25 @@ export default function BookingDetailScreen() {
           ) : null}
           
           {isQuote ? (
-            <View style={styles.appointmentCard}>
+            <View style={[styles.appointmentCard, quoteDeclined && styles.declinedCard]}>
               <View style={styles.appointmentHeader}>
-                <View style={styles.appointmentIcon}><Ionicons name="calendar-outline" size={20} color={palette.blue} /></View>
+                <View style={[styles.appointmentIcon, quoteDeclined && styles.declinedAppointmentIcon]}>
+                  <Ionicons name={quoteDeclined ? "close-outline" : "calendar-outline"} size={20} color={quoteDeclined ? palette.error : palette.blue} />
+                </View>
                 <View style={styles.appointmentCopy}>
-                  <Text style={styles.appointmentTitle}>{appointment === "awaiting-customer" ? "Chapman has proposed a date" : appointment === "accepted" ? "Appointment accepted" : appointment === "rejected" ? "You asked for another date" : "Preferred date received"}</Text>
-                  <Text style={styles.appointmentDate}>{readableDate(quote?.details?.proposedDate ?? quote?.details?.requestedDate)}</Text>
+                  <Text style={styles.appointmentTitle}>{quoteDeclined ? "Chapman could not take this request" : appointment === "awaiting-customer" ? "Chapman has proposed a date" : appointment === "accepted" ? "Appointment accepted" : appointment === "rejected" ? "You asked for another date" : "Preferred date received"}</Text>
+                  <Text style={[styles.appointmentDate, quoteDeclined && styles.declinedAppointmentDate]}>{quoteDeclined ? "No service date was offered" : readableDate(quote?.details?.proposedDate ?? quote?.details?.requestedDate)}</Text>
                 </View>
               </View>
-              {appointment === "awaiting-customer" ? (
+              {quoteDeclined ? (
+                <>
+                  <View style={styles.declineReasonCard}>
+                    <Text style={styles.declineReasonLabel}>WHY</Text>
+                    <Text style={styles.declineReasonText}>{quoteDeclinedReason || "No reason was written. Message Chapman and we will explain."}</Text>
+                  </View>
+                  <Text style={styles.appointmentText}>You can send a new request with other dates, or message Chapman and we will find a service that fits.</Text>
+                </>
+              ) : appointment === "awaiting-customer" ? (
                 <>
                   <Text style={styles.appointmentText}>Please accept this date or reject it so Chapman can offer another time.</Text>
                   <View style={styles.appointmentActions}>
@@ -442,6 +481,7 @@ export default function BookingDetailScreen() {
             </View>
           ) : null}
           
+          {foundNothing ? null : (
           <View style={styles.progressSection}>
             <View style={styles.progressHeader}>
               <View>
@@ -453,9 +493,9 @@ export default function BookingDetailScreen() {
               </TouchableOpacity>
             </View>
             {progressSteps.map((step, index) => { 
-              const failed = isDeclined && index >= 1; 
-              const completed = (isDeclined && index === 0) || (!isDeclined && index < currentStep); 
-              const active = !isDeclined && index === currentStep; 
+              const failed = declinedView && index >= 1; 
+              const completed = (declinedView && index === 0) || (!declinedView && index < currentStep); 
+              const active = !declinedView && index === currentStep; 
               return (
                 <View key={step} style={styles.progressRow}>
                   <View style={styles.progressRail}>
@@ -481,7 +521,7 @@ export default function BookingDetailScreen() {
               ); 
             })}
           </View>
-          
+          )}
           {events.length ? (
             <View style={styles.activityCard}>
               <Text style={styles.label}>REQUEST ACTIVITY</Text>
@@ -497,21 +537,24 @@ export default function BookingDetailScreen() {
             </View>
           ) : null}
           
-          <View style={[styles.specialistCard, isDeclined && styles.declinedCard]}>
-            <View style={[styles.specialistIcon, isDeclined && styles.declinedAppointmentIcon]}>
-              <Ionicons name={isDeclined ? "chatbubble-ellipses-outline" : "person-outline"} size={20} color={isDeclined ? palette.error : palette.blue} />
+          {foundNothing ? null : (
+          <View style={[styles.specialistCard, declinedView && styles.declinedCard]}>
+            <View style={[styles.specialistIcon, declinedView && styles.declinedAppointmentIcon]}>
+              <Ionicons name={declinedView ? "chatbubble-ellipses-outline" : "person-outline"} size={20} color={declinedView ? palette.error : palette.blue} />
             </View>
             <View style={styles.specialistCopy}>
-              <Text style={styles.specialistTitle}>{booking?.specialistName ? booking.specialistName : isDeclined ? "Need another option?" : requestInReview ? "Chapman coordinator" : "Specialist to be assigned"}</Text>
-              <Text style={styles.specialistText}>{booking?.specialistName ? "Your assigned specialist is responsible for this service update." : isDeclined ? "Message Chapman for help with another date or a different service option." : requestInReview ? "A coordinator is checking your request before sharing a date for your approval." : "We show the person, arrival update, and service details here after confirmation."}</Text>
+              <Text style={styles.specialistTitle}>{booking?.specialistName ? booking.specialistName : declinedView ? "Need another option?" : requestInReview ? "Chapman coordinator" : "Specialist to be assigned"}</Text>
+              <Text style={styles.specialistText}>{booking?.specialistName ? "Your assigned specialist is responsible for this service update." : declinedView ? "Message Chapman for help with another date or a different service option." : requestInReview ? "A coordinator is checking your request before sharing a date for your approval." : "We show the person, arrival update, and service details here after confirmation."}</Text>
             </View>
           </View>
+          )}
         </ScrollView>
         
         <View style={styles.bottom}>
+          {foundNothing ? null : (
           <PrimaryButton 
-            label={isDeclined ? "Message Chapman for help" : isApproved ? "Make Payment" : "Message Chapman"} 
-            icon={isDeclined ? "chatbubble-ellipses-outline" : isApproved ? "card-outline" : "chatbubble-outline"} 
+            label={declinedView ? "Message Chapman for help" : isApproved ? "Make Payment" : "Message Chapman"} 
+            icon={declinedView ? "chatbubble-ellipses-outline" : isApproved ? "card-outline" : "chatbubble-outline"} 
             onPress={() => {
               if (isApproved) {
                 alert("Payment gateway will open here. (e.g., Paystack/Hubtel)");
@@ -520,6 +563,17 @@ export default function BookingDetailScreen() {
               }
             }} 
           />
+          )}
+          {/* Messaging is not the only sensible next step, so the customer can
+              always leave this screen for the home screen or their bookings. */}
+          <View style={styles.secondaryActions}>
+            <View style={styles.secondarySlot}>
+              <OutlineButton label="Back to home" onPress={() => router.replace("/(tabs)" as never)} />
+            </View>
+            <View style={styles.secondarySlot}>
+              <OutlineButton label="My bookings" onPress={() => router.push("/(tabs)/bookings" as never)} />
+            </View>
+          </View>
         </View>
       </View>
     </AppScreen>
@@ -528,11 +582,14 @@ export default function BookingDetailScreen() {
 
 const styles = StyleSheet.create({ 
   page: { flex: 1, backgroundColor: palette.canvas }, 
-  content: { padding: 20, paddingTop: 12, paddingBottom: 106, gap: 17 }, 
+  content: { padding: 20, paddingTop: 12, paddingBottom: 172, gap: 17 }, 
   lead: { alignItems: "center", paddingHorizontal: 17, paddingTop: 4, gap: 9 }, 
   leadIcon: { width: 55, height: 55, borderRadius: 20, backgroundColor: palette.green, alignItems: "center", justifyContent: "center", marginBottom: 2, overflow: "visible" }, 
   leadIconQuote: { backgroundColor: palette.orange }, 
-  leadIconDeclined: { backgroundColor: palette.error }, 
+  leadIconDeclined: { backgroundColor: palette.error },
+  declineReasonCard: { marginTop: 4, padding: 12, borderRadius: 12, backgroundColor: "rgba(244,63,94,0.08)", borderWidth: 1, borderColor: "rgba(244,63,94,0.25)", gap: 4 },
+  declineReasonLabel: { fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2, color: palette.error },
+  declineReasonText: { fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 19, color: palette.ink }, 
   leadIconApproved: { shadowColor: palette.green, shadowOpacity: 0.28, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, 
   approvedHalo: { position: "absolute", width: 55, height: 55, borderRadius: 22, borderWidth: 3, borderColor: "#9AE6B4" }, 
   leadTitle: { textAlign: "center", fontSize: 24, lineHeight: 30 }, 
@@ -616,5 +673,7 @@ const styles = StyleSheet.create({
   specialistCopy: { flex: 1, gap: 2 }, 
   specialistTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   specialistText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16 }, 
-  bottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: "rgba(248,249,250,0.98)", borderTopWidth: 1, borderTopColor: palette.border } 
+  bottom: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: "rgba(248,249,250,0.98)", borderTopWidth: 1, borderTopColor: palette.border, gap: 9 }, 
+  secondaryActions: { flexDirection: "row", gap: 9 }, 
+  secondarySlot: { flex: 1 } 
 });

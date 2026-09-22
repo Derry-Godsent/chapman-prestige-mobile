@@ -1,5 +1,7 @@
 import { supabase } from "./supabase";
 
+export { formatGhs } from "./chapman-format";
+
 export type ServiceKind =
   | "laundry"
   | "cleaning"
@@ -89,7 +91,8 @@ export type AppointmentResponse =
   | "awaiting-chapman"
   | "awaiting-customer"
   | "accepted"
-  | "rejected";
+  | "rejected"
+  | "declined";
 
 export interface QuoteRequest {
   id: string;
@@ -99,6 +102,8 @@ export interface QuoteRequest {
   preference: string;
   details?: QuoteDetails;
   appointmentResponse: AppointmentResponse;
+  /** Why Chapman could not take this request, written by the office in the staff system. */
+  declinedReason?: string;
   status: "quote-requested";
   createdAt: string;
 }
@@ -453,5 +458,3 @@ export const WORKERS = [
 
 export const getService = (id: string | undefined) =>
   SERVICES.find((service) => service.id === id) ?? SERVICES[0];
-
-export const formatGhs = (amount: number) => `₵${amount.toFixed(0)}`;

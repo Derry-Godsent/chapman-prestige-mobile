@@ -5,10 +5,40 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, DisplayText, IconOrb, StatusPill, palette } from "@/components/chapman-ui";
+import { useNow } from "@/hooks/use-now";
 import { useBookingStore } from "@/lib/booking-store";
+import { newestFirst, timeAgo } from "@/lib/chapman-format";
 import { CustomerSignInRequiredError, getMyMobileLaundryRequests, MobileLaundryRequest } from "@/lib/mobile-requests";
 import { supabase } from "@/lib/supabase";
 import type { QuoteRequest } from "@/lib/chapman-data";
+
+/**
+ * Every card on this screen, whichever kind of record it came from, reduced to
+ * one shape so they can be listed together, most recent first, rather than in
+ * three separate blocks.
+ */
+type BookingCard = {
+  key: string;
+  serviceId: string;
+  status?: string;
+  title: string;
+  meta: string;
+  pillLabel: string;
+  pillTone: "blue" | "orange" | "green" | "gray" | "red";
+  rightText: string;
+  trailingIcon: "chevron-forward" | "time-outline";
+  createdAt: string;
+  href: string;
+};
+
+type PillTone = BookingCard["pillTone"];
+
+function laundryPillTone(status: MobileLaundryRequest["request_status"]): PillTone {
+  if (status === "needs_customer_confirmation") return "orange";
+  if (status === "confirmed") return "green";
+  if (status === "declined") return "red";
+  return "blue";
+}
 
 function requestLabel(request: MobileLaundryRequest) {
   const status = request.request_status;
@@ -66,6 +96,8 @@ function formatQuoteRef(id: string) {
 
 export default function BookingsScreen() {
   const { bookings, quotes } = useBookingStore();
+  const [tab, setTab] = useState<"upcoming" | "history">("upcoming");
+  const now = useNow();
   const [liveRequests, setLiveRequests] = useState<MobileLaundryRequest[]>([]);
   const [loadingLive, setLoadingLive] = useState(false);
   
@@ -92,7 +124,11 @@ export default function BookingsScreen() {
 
     const setupRealtime = async () => {
       const { data: sessionData } = await client.auth.getSession();
-      const userId = sessionData?.session?.user?.id || '057b4ebf-cbe3-44fc-bd53-781026d50a14';
+      const userId = sessionData?.session?.user?.id;
+
+      // Guests have no customer records to watch. Subscribing without a real
+      // signed-in id would either leak nothing or, worse, watch another account.
+      if (!userId) return;
 
       await client.removeChannel(client.channel(`customer-mobile-${userId}`));
 
@@ -141,6 +177,67 @@ export default function BookingsScreen() {
   const localBookings = bookings.filter((booking) => !liveIds.has(booking.id));
   const hasActivity = localBookings.length > 0 || quotes.length > 0 || liveRequests.length > 0;
 
+  // Live laundry requests, saved bookings and quote requests all become cards,
+  // then one sort puts the newest request at the top of the screen.
+  const cards: BookingCard[] = [
+    ...liveRequests.map((request) => ({
+      key: request.id,
+      serviceId: "laundry",
+      status: request.request_status,
+      title: "Laundry & Garment Care",
+      meta:
+        request.request_status === "declined"
+          ? request.customer_response === "rejected"
+            ? "You rejected the proposed date. This request is closed."
+            : "Chapman declined this request"
+          : `${requestDate(request)} \u00B7 ${request.pickup_window ?? "time to be confirmed"}`,
+      pillLabel: requestLabel(request),
+      pillTone: laundryPillTone(request.request_status),
+      rightText: request.estimated_total === null ? "Estimate pending" : `\u20B5${Number(request.estimated_total).toFixed(0)}`,
+      trailingIcon: "chevron-forward" as const,
+      createdAt: request.created_at,
+      href: `/booking/${request.id}`,
+    })),
+    ...localBookings.map((booking) => ({
+      key: booking.id,
+      serviceId: booking.serviceId,
+      title: booking.serviceTitle,
+      meta: booking.scheduledFor,
+      pillLabel: booking.status.replace("-", " "),
+      pillTone: "blue" as const,
+      rightText: booking.totalLabel,
+      trailingIcon: "chevron-forward" as const,
+      createdAt: booking.createdAt,
+      href: `/booking/${booking.id}`,
+    })),
+    ...quotes.map((quote: QuoteRequest) => ({
+      key: quote.id,
+      serviceId: quote.serviceId,
+      title: quote.serviceTitle,
+      meta: `${quote.propertyType} \u00B7 ${quote.preference}`,
+      status: quote.appointmentResponse === "declined" ? "declined" : quote.appointmentResponse === "accepted" ? "accepted" : "quote-requested",
+      pillLabel: quote.appointmentResponse === "declined" ? "not taken" : quote.appointmentResponse === "accepted" ? "accepted" : "assessment requested",
+      pillTone: (quote.appointmentResponse === "declined" ? "red" : quote.appointmentResponse === "accepted" ? "green" : "orange") as "red" | "orange" | "green",
+      rightText: formatQuoteRef(quote.id),
+      trailingIcon: "time-outline" as const,
+      createdAt: quote.createdAt,
+      href: `/booking/${quote.id}`,
+    })),
+  ];
+
+  // Upcoming holds anything still moving. History holds anything that has ended:
+  // work Chapman completed or converted to an order, a request the customer
+  // declined, a request Chapman could not take, and anything cancelled.
+  const finishedStatuses = ["completed", "converted", "declined", "cancelled"];
+  const withTab: Array<Record<string, any>> = (cards as Array<Record<string, any>>).map((card) => ({
+    ...card,
+    tab: finishedStatuses.includes(String(card.status)) ? "history" : "upcoming",
+  }));
+  const orderedCards = newestFirst(withTab, (card) => String(card.createdAt ?? "")) as Array<Record<string, any>>;
+  const upcomingCards = orderedCards.filter((card) => card.tab === "upcoming");
+  const historyCards = orderedCards.filter((card) => card.tab === "history");
+  const shownCards = tab === "upcoming" ? upcomingCards : historyCards;
+
   return (
     <AppScreen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -154,12 +251,12 @@ export default function BookingsScreen() {
           </TouchableOpacity>
         </View>
         <View style={styles.filters}>
-          <View style={styles.filterSelected}>
-            <Text style={styles.filterTextSelected}>Upcoming</Text>
-          </View>
-          <View style={styles.filter}>
-            <Text style={styles.filterText}>History</Text>
-          </View>
+          <TouchableOpacity onPress={() => setTab("upcoming")} style={tab === "upcoming" ? styles.filterSelected : styles.filter} accessibilityRole="button">
+            <Text style={tab === "upcoming" ? styles.filterTextSelected : styles.filterText}>Upcoming{upcomingCards.length ? ` (${upcomingCards.length})` : ""}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setTab("history")} style={tab === "history" ? styles.filterSelected : styles.filter} accessibilityRole="button">
+            <Text style={tab === "history" ? styles.filterTextSelected : styles.filterText}>History{historyCards.length ? ` (${historyCards.length})` : ""}</Text>
+          </TouchableOpacity>
         </View>
         {loadingLive ? (
           <View style={styles.liveLoading}>
@@ -168,90 +265,39 @@ export default function BookingsScreen() {
           </View>
         ) : null}
 
-        {/* Live laundry requests */}
-        {liveRequests.map((request) => {
-          // FIX: Extract actual service info from customer_note or use metadata
-          // For now, use the pickup_area as a hint, but ideally this should come from the DB
-          const serviceTitle = "Laundry & Garment Care"; // Laundry always uses this title
-          const serviceId = "laundry";
-          
-          return (
-            <TouchableOpacity 
-              key={request.id} 
-              onPress={() => router.push(`/booking/${request.id}` as never)} 
-              style={styles.bookingCard} 
-              activeOpacity={0.82}
-            >
-              <View style={styles.cardTop}>
-                <IconOrb icon={getServiceIcon(serviceId, request.request_status)} color={getServiceColor(serviceId, request.request_status)} />
-                <View style={styles.cardCopy}>
-                  <Text style={styles.bookingTitle}>{serviceTitle}</Text>
-                  <Text style={styles.bookingMeta}>
-                    {request.request_status === "declined" 
-                      ? request.customer_response === "rejected" 
-                        ? "You rejected the proposed date. This request is closed." 
-                        : "Chapman declined this request" 
-                      : `${requestDate(request)} \u00B7 ${request.pickup_window ?? "time to be confirmed"}`}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#7A7E8D" />
-              </View>
-              <View style={styles.cardFoot}>
-                <StatusPill 
-                  label={requestLabel(request)} 
-                  tone={request.request_status === "needs_customer_confirmation" ? "orange" : request.request_status === "confirmed" ? "green" : request.request_status === "declined" ? "red" : "blue"} 
-                />
-                <Text style={styles.price}>
-                  {request.estimated_total === null ? "Estimate pending" : `\u20B5${Number(request.estimated_total).toFixed(0)}`}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {!loadingLive && shownCards.length === 0 ? (
+          <View style={styles.emptyHistory}>
+            <Ionicons name={tab === "history" ? "time-outline" : "calendar-clear-outline"} size={24} color={palette.blue} />
+            <Text style={styles.emptyHistoryTitle}>{tab === "history" ? "No finished work yet" : "Nothing in progress"}</Text>
+            <Text style={styles.emptyHistoryText}>
+              {tab === "history"
+                ? "Completed services, requests you declined, and requests Chapman could not take all stay here as your record."
+                : "Send a request and it appears here from the moment Chapman receives it."}
+            </Text>
+            <TouchableOpacity onPress={() => router.push("/services" as never)} style={styles.emptyHistoryAction}><Text style={styles.emptyHistoryActionText}>See services</Text></TouchableOpacity>
+          </View>
+        ) : null}
 
-        {/* Local bookings (non-laundry, created locally) */}
-        {localBookings.map((booking) => (
-          <TouchableOpacity 
-            key={booking.id} 
-            onPress={() => router.push(`/booking/${booking.id}` as never)} 
-            style={styles.bookingCard} 
+        {shownCards.map((card) => (
+          <TouchableOpacity
+            key={String(card.key)}
+            onPress={() => router.push(String(card.href) as never)}
+            style={styles.bookingCard}
             activeOpacity={0.82}
           >
             <View style={styles.cardTop}>
-              <IconOrb icon={getServiceIcon(booking.serviceId)} color={getServiceColor(booking.serviceId)} />
+              <IconOrb icon={getServiceIcon(card.serviceId, card.status)} color={getServiceColor(card.serviceId, card.status)} />
               <View style={styles.cardCopy}>
-                <Text style={styles.bookingTitle}>{booking.serviceTitle}</Text>
-                <Text style={styles.bookingMeta}>{booking.scheduledFor}</Text>
+                <Text style={styles.bookingTitle}>{card.title}</Text>
+                <Text style={styles.bookingMeta}>{card.meta}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#7A7E8D" />
+              <Ionicons name={card.trailingIcon} size={20} color="#7A7E8D" />
             </View>
             <View style={styles.cardFoot}>
-              <StatusPill label={booking.status.replace("-", " ")} tone="blue" />
-              <Text style={styles.price}>{booking.totalLabel}</Text>
+              <StatusPill label={card.pillLabel} tone={card.pillTone} />
+              <Text style={styles.price}>{card.rightText}</Text>
             </View>
-          </TouchableOpacity>
-        ))}
-
-        {/* Quote requests (Deep Cleaning, Fumigation, etc.) */}
-        {quotes.map((quote: QuoteRequest) => (
-          <TouchableOpacity 
-            key={quote.id} 
-            onPress={() => router.push(`/booking/${quote.id}` as never)} 
-            style={styles.bookingCard} 
-            activeOpacity={0.82}
-          >
-            <View style={styles.cardTop}>
-              <IconOrb icon={getServiceIcon(quote.serviceId)} color={getServiceColor(quote.serviceId)} />
-              <View style={styles.cardCopy}>
-                <Text style={styles.bookingTitle}>{quote.serviceTitle}</Text>
-                <Text style={styles.bookingMeta}>{quote.propertyType} \u00B7 {quote.preference}</Text>
-              </View>
-              <Ionicons name="time-outline" size={20} color="#7A7E8D" />
-            </View>
-            <View style={styles.cardFoot}>
-              <StatusPill label="assessment requested" tone="orange" />
-              <Text style={styles.quoteRef}>{formatQuoteRef(quote.id)}</Text>
-            </View>
+            <Text style={styles.bookingAge}>Requested {timeAgo(card.createdAt, now)}</Text>
           </TouchableOpacity>
         ))}
 
@@ -281,7 +327,12 @@ const styles = StyleSheet.create({
   eyebrow: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2 }, 
   title: { fontSize: 30, marginTop: 2 }, 
   addButton: { width: 43, height: 43, borderRadius: 14, backgroundColor: palette.blue, alignItems: "center", justifyContent: "center" }, 
-  filters: { flexDirection: "row", gap: 8 }, 
+  filters: { flexDirection: "row", gap: 8 },
+  emptyHistory: { padding: 24, borderRadius: 21, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, alignItems: "center", gap: 9 },
+  emptyHistoryTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15, textAlign: "center" },
+  emptyHistoryText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, textAlign: "center" },
+  emptyHistoryAction: { marginTop: 4, paddingVertical: 11, paddingHorizontal: 20, borderRadius: 14, backgroundColor: palette.blue },
+  emptyHistoryActionText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 12 }, 
   filterSelected: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: palette.blue, borderRadius: 999 }, 
   filter: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: "#FFFFFF", borderRadius: 999, borderWidth: 1, borderColor: palette.border }, 
   filterTextSelected: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 12 }, 
@@ -294,6 +345,7 @@ const styles = StyleSheet.create({
   bookingTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   bookingMeta: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17 }, 
   cardFoot: { paddingTop: 12, borderTopWidth: 1, borderTopColor: "#EEF0F4", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, 
+  bookingAge: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 10 }, 
   price: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   quoteRef: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingTop: 85, gap: 12 }, 

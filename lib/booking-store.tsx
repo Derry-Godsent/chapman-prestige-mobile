@@ -16,7 +16,7 @@ interface BookingStoreValue {
   expressFee: number;
   cartCount: number;
   createLaundryBooking: (request?: MobileLaundryRequest) => Booking;
-  createQuoteRequest: (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => QuoteRequest;
+  createQuoteRequest: (service: Service, propertyType: string, preference: string, details?: QuoteDetails) => Promise<QuoteRequest>;
   setProposedAppointment: (quoteId: string, proposedDate: string) => void;
   respondToAppointment: (quoteId: string, response: Extract<AppointmentResponse, "accepted" | "rejected">) => void;
   saveRoutine: (service: Service, cadence: string) => void;
@@ -33,10 +33,17 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [routines, setRoutines] = useState<SavedRoutine[]>([]);
 
-  // Load quotes from Supabase on mount
+  // Load this customer's cleaning and specialist requests.
+  //
+  // The signed-in customer is read from storage rather than being available
+  // straight away, so this runs again whenever the session arrives or changes.
+  // Without that, a customer who reopens the app can be left looking at an
+  // empty list until they sign in again.
   useEffect(() => {
     const client = supabase;
     if (!client) return;
+
+    let cancelled = false;
 
     const loadQuotes = async () => {
       try {
@@ -50,26 +57,36 @@ export function BookingProvider({ children }: { children: ReactNode }) {
           .eq("customer_account_id", userId)
           .order("created_at", { ascending: false });
 
-        if (data) {
-          const mapped: QuoteRequest[] = data.map((row: any) => ({
-            id: row.id,
-            serviceId: row.service_id as any,
-            serviceTitle: row.service_title || "",
-            propertyType: row.property_type || "",
-            preference: row.preference || "",
-            details: row.details ?? undefined,
-            appointmentResponse: (row.appointment_response as AppointmentResponse) || "awaiting-chapman",
-            status: "quote-requested" as const,
-            createdAt: row.created_at || new Date().toISOString(),
-          }));
-          setQuotes(mapped);
-        }
+        if (cancelled || !data) return;
+
+        const mapped: QuoteRequest[] = data.map((row: any) => ({
+          id: row.id,
+          serviceId: row.service_id as any,
+          serviceTitle: row.service_title || "",
+          propertyType: row.property_type || "",
+          preference: row.preference || "",
+          details: row.details ?? undefined,
+          appointmentResponse: (row.appointment_response as AppointmentResponse) || "awaiting-chapman",
+          declinedReason: row.declined_reason ?? undefined,
+          status: "quote-requested" as const,
+          createdAt: row.created_at || new Date().toISOString(),
+        }));
+        setQuotes(mapped);
       } catch (error) {
         console.error("Failed to load quotes from Supabase:", error);
       }
     };
 
     void loadQuotes();
+    const { data: subscription } = client.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") void loadQuotes();
+      if (event === "SIGNED_OUT") setQuotes([]);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.subscription.unsubscribe();
+    };
   }, []);
 
   const updateLaundryQuantity = (item: LaundryItem, quantity: number) => {
@@ -109,30 +126,27 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return booking;
   };
 
-  const createQuoteRequest = useCallback((service: Service, propertyType: string, preference: string, details?: QuoteDetails) => {
-    const localId = `QTE-${String(quotes.length + 301).padStart(4, "0")}`;
-    const request: QuoteRequest = { 
-      id: localId, 
-      serviceId: service.id, 
-      serviceTitle: service.title, 
-      propertyType, 
-      preference, 
-      details, 
-      appointmentResponse: "awaiting-chapman", 
-      status: "quote-requested", 
-      createdAt: new Date().toISOString() 
-    };
-    setQuotes((current) => [request, ...current]);
-
-    // Save to Supabase
+  /**
+   * Saves the request to Supabase first, then returns the saved record.
+   *
+   * This order matters. The record used to be created with a temporary local id
+   * (QTE-0301) and the database id swapped in afterwards, while the screen had
+   * already navigated to the temporary id. For a moment the request existed at
+   * neither id, and the tracking page would open with nothing to show.
+   *
+   * If the database cannot be reached, the request is still created locally so
+   * the customer keeps their place and can see it on this device.
+   */
+  const createQuoteRequest = useCallback(async (service: Service, propertyType: string, preference: string, details?: QuoteDetails): Promise<QuoteRequest> => {
     const client = supabase;
-    if (client) {
-      void (async () => {
-        try {
-          const { data: session } = await client.auth.getSession();
-          const userId = session?.session?.user?.id;
-          if (!userId) return;
+    let savedId: string | null = null;
 
+    if (client) {
+      try {
+        const { data: session } = await client.auth.getSession();
+        const userId = session?.session?.user?.id;
+
+        if (userId) {
           const { data, error } = await client
             .from("quote_requests")
             .insert({
@@ -148,17 +162,26 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             .select()
             .single();
 
-          if (data && !error) {
-            // Update local state with the real Supabase ID
-            setQuotes((current) => 
-              current.map((q) => q.id === localId ? { ...q, id: data.id } : q)
-            );
-          }
-        } catch (error) {
-          console.error("Failed to save quote to Supabase:", error);
+          if (data && !error) savedId = data.id as string;
+          if (error) console.error("Failed to save quote to Supabase:", error);
         }
-      })();
+      } catch (error) {
+        console.error("Failed to save quote to Supabase:", error);
+      }
     }
+
+    const request: QuoteRequest = {
+      id: savedId ?? `QTE-${String(quotes.length + 301).padStart(4, "0")}`,
+      serviceId: service.id,
+      serviceTitle: service.title,
+      propertyType,
+      preference,
+      details,
+      appointmentResponse: "awaiting-chapman",
+      status: "quote-requested",
+      createdAt: new Date().toISOString(),
+    };
+    setQuotes((current) => [request, ...current]);
 
     return request;
   }, [quotes.length]);
@@ -171,13 +194,25 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     if (client) {
       void (async () => {
         try {
+          const { data: session } = await client.auth.getSession();
+          const customerId = session?.session?.user?.id;
+          if (!customerId) return;
+
+          const { data: existing } = await client
+            .from("quote_requests")
+            .select("details")
+            .eq("id", quoteId)
+            .eq("customer_account_id", customerId)
+            .maybeSingle();
+
           await client
             .from("quote_requests")
-            .update({ 
+            .update({
               appointment_response: "awaiting-customer",
-              details: { ...(await client.from("quote_requests").select("details").eq("id", quoteId).single()).data?.details ?? {}, proposedDate }
+              details: { ...(existing?.details ?? {}), proposedDate },
             })
-            .eq("id", quoteId);
+            .eq("id", quoteId)
+            .eq("customer_account_id", customerId);
         } catch (error) {
           console.error("Failed to update proposed appointment in Supabase:", error);
         }
@@ -193,10 +228,15 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     if (client) {
       void (async () => {
         try {
+          const { data: session } = await client.auth.getSession();
+          const customerId = session?.session?.user?.id;
+          if (!customerId) return;
+
           await client
             .from("quote_requests")
             .update({ appointment_response: response })
-            .eq("id", quoteId);
+            .eq("id", quoteId)
+            .eq("customer_account_id", customerId);
         } catch (error) {
           console.error("Failed to update appointment response in Supabase:", error);
         }

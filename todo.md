@@ -19,7 +19,7 @@
 - [x] Add simple service explanations, payment choices, bonus visibility, user activity, and live-progress patterns
 - [x] Analyze the newly available second reference recording before finalizing the feature model
 - [x] Resolve the restored 6000ms web font-loader timeout
-- [ ] Resolve the managed Expo host failure that prevents Expo Go from loading the bundle
+- [x] Resolve the managed Expo host failure that prevents Expo Go from loading the bundle
 - [ ] Establish a verified live Expo Go connection for on-device testing
 - [x] Make illustrated service moments and motion visible in primary customer-facing screens
 - [x] Add service trust, active-service progress, saved routines, personal value, booking intelligence, and concierge support
@@ -40,7 +40,8 @@
 - [x] Assess the live Chapman order system against the mobile client and document the production integration roadmap
 - [x] Map every mobile feature to its exact staff-system workflow and identify unsupported customer actions
 - [x] Inspect the selected GitHub operations-system code and document a safe additive mobile integration plan
-- [ ] Diagnose and resolve the recurring Expo Go connection failure or document a verified on-device testing alternative
+- [x] Diagnose and resolve the recurring Expo Go connection failure or document a verified on-device testing alternative
+- [x] Remove the dead managed-host proxy setting that pointed Expo Go at an unreachable bundle URL
 - [x] Make phone sign-in reachable from the active app and add a safe customer logout control
 - [x] Add a branded Chapman Prestige Limited splash screen before onboarding and returning-user entry
 - [x] Force the Chapman splash route before the main tab screen on every fresh Expo Go launch
@@ -92,3 +93,24 @@
 - [x] Replace the generic confirmed request headline with a clear animated green Date confirmed success state
 - [x] Add an understandable onboarding permission setup for notifications and one-time pickup location sharing
 - [x] Show a client’s saved pickup point in the booking tracker and make it obvious how to share it during checkout
+
+## Stabilisation (20 September 2026)
+
+- [x] Audit the mobile app against the staff operations system and the website and document the findings
+- [x] Restore a green type check, lint run, and test suite so every later change is verifiable
+- [x] Separate pure formatting helpers from the Supabase client so logic tests run without a device
+- [x] Make the live Supabase connectivity check an explicit opt-in test instead of a default failure
+- [x] Remove the hardcoded fallback customer ID from the bookings and service screens
+- [x] Send only item identity and quantity to the Laundry booking RPC and keep pricing server-side
+- [x] Retire the unused managed-platform server, MySQL schema, hosted sign-in, and scaffolding code
+- [x] Replace the platform-generated deep-link scheme with the Chapman Prestige brand scheme
+- [x] Move the Android icon and splash backgrounds onto the approved Chapman cream and espresso palette
+- [x] Remove the Chapman AI contact from the chat area until a supported provider is connected
+- [x] Align the project package name with the Chapman Prestige mobile client
+- [ ] Capture the live database definitions for quote requests, routines, and laundry items into version control
+- [ ] Reconcile the committed Laundry booking function with the version running in production
+- [ ] Add a staff page so Deep Cleaning, Fumigation, Detailing, Fabric, Polytank, and Contract requests are visible to Chapman
+- [ ] Route quote submissions and staff-proposed dates through the same protected pattern used by Laundry
+- [ ] Confirm the row-level security state of the tables that exist only in the database
+- [ ] Settle the production application identifier before any store submission
+- [ ] Decide whether the Chapman website should capture enquiries or bookings from the shared backend

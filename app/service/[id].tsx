@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -52,8 +52,14 @@ export default function ServiceDetailScreen() {
       setLoadingRoutines(true);
       try {
         const { data: session } = await client.auth.getSession();
-        const clientId = session?.session?.user?.id || '057b4ebf-cbe3-44fc-bd53-781026d50a14';
-        
+        const clientId = session?.session?.user?.id;
+
+        // Routines are stored against the signed-in customer only.
+        if (!clientId) {
+          setSavedCadences(routines.filter((r) => r.serviceId === service.id).map((r) => r.cadence));
+          return;
+        }
+
         const { data } = await client
           .from('routines')
           .select('cadence, id')
@@ -83,7 +89,21 @@ export default function ServiceDetailScreen() {
     
     try {
       const { data: session } = await client.auth.getSession();
-      const clientId = session?.session?.user?.id || '057b4ebf-cbe3-44fc-bd53-781026d50a14';
+      const clientId = session?.session?.user?.id;
+
+      // Guests can save a routine on this device only; it is never written
+      // under another customer's account.
+      if (!clientId) {
+        if (isSaved) {
+          const routineToRemove = routines.find((r) => r.serviceId === service.id && r.cadence === cadence);
+          if (routineToRemove) removeRoutine(routineToRemove.id);
+          setSavedCadences((prev) => prev.filter((c) => c !== cadence));
+        } else {
+          saveRoutine(service, cadence);
+          setSavedCadences((prev) => [...prev, cadence]);
+        }
+        return;
+      }
 
       if (isSaved) {
         await client.from('routines').delete().eq('client_id', clientId).eq('service_id', service.id).eq('cadence', cadence);

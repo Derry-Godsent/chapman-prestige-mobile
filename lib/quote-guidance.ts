@@ -1,4 +1,4 @@
-import { formatGhs } from "./chapman-data";
+import { formatGhs } from "./chapman-format";
 
 export function calculateAreaSquareMetres(lengthInput: string, widthInput: string) {
   const length = Number.parseFloat(lengthInput.replace(",", "."));

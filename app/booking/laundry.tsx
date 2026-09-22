@@ -33,7 +33,7 @@ const quickBaskets = [
 ];
 
 export default function LaundryBookingScreen() {
-  const { cart, express, setExpress, updateLaundryQuantity, cartCount, laundrySubtotal, expressFee } = useBookingStore();
+  const { cart, express, setExpress, updateLaundryQuantity, cartCount } = useBookingStore();
   const [items, setItems] = useState<LaundryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState<Record<string, ServiceType>>({});

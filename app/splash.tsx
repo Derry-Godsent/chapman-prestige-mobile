@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, palette } from "@/components/chapman-ui";
 import { getLaunchDestination } from "@/lib/customer-auth";
+import { hasCustomerPin } from "@/lib/customer-pin";
 
 const SPLASH_DURATION_MS = 3500;
 
@@ -33,7 +34,16 @@ export default function ChapmanSplashScreen() {
     let cancelled = false;
     const timer = setTimeout(() => {
       void getLaunchDestination()
-        .then((destination) => { if (!cancelled) router.replace(destination as never); })
+        .then(async (destination) => {
+          if (cancelled) return;
+          // A stored sign-in plus a PIN means the customer can open the app
+          // without waiting for another text message.
+          if (destination === "/(tabs)" && (await hasCustomerPin())) {
+            if (!cancelled) router.replace("/lock" as never);
+            return;
+          }
+          if (!cancelled) router.replace(destination as never);
+        })
         .catch(() => { if (!cancelled) router.replace("/onboarding" as never); });
     }, SPLASH_DURATION_MS);
     return () => { cancelled = true; entrance.stop(); clearTimeout(timer); };

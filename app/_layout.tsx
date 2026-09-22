@@ -9,7 +9,6 @@ import * as SplashScreen from "expo-splash-screen";
 
 import { BookingProvider } from "@/lib/booking-store";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { ChapmanTRPCProvider } from "@/components/trpc-provider";
 import { MobileRequestUpdateListener } from "@/components/mobile-request-update-listener";
 
 if (Platform.OS !== "web") void SplashScreen.preventAutoHideAsync();
@@ -35,15 +34,18 @@ export default function RootLayout() {
   if (Platform.OS !== "web" && !loaded && !error) return null;
 
   return (
-    <ChapmanTRPCProvider>
-      <ThemeProvider>
-        <BookingProvider>
-          <View style={{ flex: 1 }}>
-            <Stack initialRouteName="splash" screenOptions={{ headerShown: false, animation: "fade" }}>
+    <ThemeProvider>
+      <BookingProvider>
+        <View style={{ flex: 1 }}>
+          <Stack initialRouteName="splash" screenOptions={{ headerShown: false, animation: "fade" }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="splash" options={{ gestureEnabled: false }} />
             <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
             <Stack.Screen name="permissions" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="lock" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="set-pin" options={{ gestureEnabled: false }} />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="loyalty" />
             <Stack.Screen name="welcome" />
             <Stack.Screen name="auth/phone" />
             <Stack.Screen name="account" />
@@ -55,11 +57,10 @@ export default function RootLayout() {
             <Stack.Screen name="checkout" />
             <Stack.Screen name="booking/[id]" />
             <Stack.Screen name="notifications" />
-            </Stack>
-            <MobileRequestUpdateListener />
-          </View>
-        </BookingProvider>
-      </ThemeProvider>
-    </ChapmanTRPCProvider>
+          </Stack>
+          <MobileRequestUpdateListener />
+        </View>
+      </BookingProvider>
+    </ThemeProvider>
   );
 }

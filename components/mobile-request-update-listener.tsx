@@ -36,7 +36,13 @@ export function MobileRequestUpdateListener() {
       const customerId = sessionData.session?.user.id;
       if (!active || currentRun !== subscriptionRun || !customerId) return;
 
-      const { data } = await client.from("mobile_requests").select("id, request_status").eq("service_code", "laundry");
+      // Only this customer's requests, so the status map cannot hold rows
+      // belonging to somebody else.
+      const { data } = await client
+        .from("mobile_requests")
+        .select("id, request_status")
+        .eq("service_code", "laundry")
+        .eq("customer_account_id", customerId);
       if (!active || currentRun !== subscriptionRun) return;
       for (const request of (data ?? []) as LiveRequestRow[]) knownStatuses.current.set(request.id, request.request_status);
 

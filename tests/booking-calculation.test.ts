@@ -3,11 +3,28 @@ import { describe, expect, it } from "vitest";
 import { asNumber, toBooking, toLaundryItem } from "../lib/chapman-transformers";
 
 describe("Chapman service and order adapters", () => {
-  it("converts database numeric strings into a mobile laundry item", () => {
+  it("converts database numeric strings into a bookable mobile laundry item", () => {
     const item = toLaundryItem({
       id: "service-1", name: "Shirt", category: "Tops", price_wash: "7.00", super_cat: "Everyday", base_price: "7.00",
     });
-    expect(item).toEqual({ id: "service-1", name: "Shirt", price: 7, category: "Everyday" });
+    expect(item).toEqual({
+      id: "service-1",
+      name: "Shirt",
+      category: "Everyday",
+      price: 7,
+      price_wash: 7,
+      price_iron: null,
+      price_fold: null,
+      price_hang: null,
+    });
+  });
+
+  it("falls back to the base price when no wash price is published", () => {
+    const item = toLaundryItem({
+      id: "service-2", name: "Bed Sheet", category: "Bedding", price_wash: null, super_cat: null, base_price: "25.00",
+    });
+    expect(item.price_wash).toBe(25);
+    expect(item.category).toBe("Bedding");
   });
 
   it("preserves an order total and normalizes a status for the booking UI", () => {

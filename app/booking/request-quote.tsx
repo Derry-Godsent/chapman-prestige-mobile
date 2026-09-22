@@ -181,6 +181,7 @@ export default function QuoteRequestScreen() {
   const [requestedDate, setRequestedDate] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // Dynamic space breakdown state
   const [spaceValues, setSpaceValues] = useState<Record<string, string>>({});
@@ -227,7 +228,10 @@ export default function QuoteRequestScreen() {
   } : undefined;
 
   const submit = () => {
-    const request = createQuoteRequest(service, property, `${formatDate(requestedDate)} \u00B7 ${timing}`, { 
+    if (submitting) return;
+    setSubmitting(true);
+    void (async () => {
+    const request = await createQuoteRequest(service, property, `${formatDate(requestedDate)} \u00B7 ${timing}`, { 
       primaryLabel: choice.primaryLabel, 
       primaryValue: primarySelection.join(", ") || undefined, 
       secondaryLabel: choice.secondaryLabel, 
@@ -244,8 +248,11 @@ export default function QuoteRequestScreen() {
       concerns: selectedConcerns.length > 0 ? selectedConcerns : undefined,
       spaceBreakdown: spaceBreakdown as any,
     });
+    // The saved record is now in hand, so the tracking page opens on an id that
+    // really exists.
     setSubmitted(true);
     setTimeout(() => router.replace(`/booking/${request.id}` as never), 650);
+    })();
   };
 
   if (submitted) return <AppScreen><View style={styles.success}><View style={styles.successIcon}><Ionicons name="checkmark" size={43} color="#FFFFFF" /></View><DisplayText style={styles.successTitle}>Request received.</DisplayText><BodyText style={styles.successBody}>We will review your preferred date and send a service confirmation for you to accept or reject.</BodyText></View></AppScreen>;
@@ -321,7 +328,7 @@ export default function QuoteRequestScreen() {
   {/* Disclaimer */}
   <View style={styles.note}><Ionicons name="information-circle-outline" size={20} color={palette.blue} /><BodyText style={styles.noteText}>This request does not agree to a final price. Chapman confirms scope, appointment, price, and payment before service begins.</BodyText></View>
   
-  </ScrollView><View style={styles.bottom}><PrimaryButton label="Request assessment" icon="arrow-forward" onPress={submit} /></View></View></AppScreen>;
+  </ScrollView><View style={styles.bottom}><PrimaryButton label={submitting ? "Sending your request\u2026" : "Request assessment"} icon="arrow-forward" onPress={submit} disabled={submitting} /></View></View></AppScreen>;
 }
 
 const styles = StyleSheet.create({ 

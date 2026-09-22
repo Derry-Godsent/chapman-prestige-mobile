@@ -11,6 +11,11 @@ import { DailyAnnouncement } from "@/components/daily-announcement";
 import { SERVICES, Service } from "@/lib/chapman-data";
 import { useBookingStore } from "@/lib/booking-store";
 import { haptic } from "@/lib/haptics";
+import { greetingForHour, useCustomerSummary } from "@/hooks/use-customer-summary";
+import { useNotifications } from "@/hooks/use-notifications";
+import { laundryStanding, serviceStanding, trackProgressLine } from "@/lib/loyalty";
+import { quoteStatusLabel, requestStatusLabel } from "@/lib/customer-activity";
+import { timeAgo } from "@/lib/chapman-format";
 
 const quickServiceIds = ["laundry", "cleaning", "fumigation", "detailing", "fabric", "polytank", "workers", "contract"];
 
@@ -18,33 +23,80 @@ export default function HomeScreen() {
   const { bookings } = useBookingStore();
   const quickServices = useMemo(() => quickServiceIds.map((id) => SERVICES.find((service) => service.id === id)).filter(Boolean) as Service[], []);
   const activeBooking = bookings[0];
+  const { account, activity, firstName, initials, loading } = useCustomerSummary();
+  const laundryTrack = activity ? laundryStanding(activity) : null;
+  const serviceTrack = activity ? serviceStanding(activity) : null;
+  const { unread } = useNotifications();
+
+  // "Your care schedule" is about the customer's real account, not about what is
+  // saved on this phone. The newest live request or enquiry leads, and anything
+  // waiting for the customer's answer is called out, because that is the thing
+  // that actually needs their attention.
+  const waitingForAnswer = activity?.requests.find((request) => request.status === "needs_customer_confirmation")
+    ?? activity?.quotes.find((quote) => quote.appointmentResponse === "awaiting-customer")
+    ?? null;
+  const liveRequest = activity?.requests[0] ?? null;
+  const liveQuote = activity?.quotes[0] ?? null;
+  const scheduleTitle = waitingForAnswer
+    ? "A date needs your answer"
+    : activeBooking
+      ? activeBooking.serviceTitle
+      : liveRequest
+        ? `Laundry, ${liveRequest.itemCount} item${liveRequest.itemCount === 1 ? "" : "s"}`
+        : liveQuote
+          ? liveQuote.serviceTitle
+          : null;
+  const scheduleMeta = waitingForAnswer
+    ? "Chapman proposed a date. Open it to accept or ask for another day."
+    : activeBooking
+      ? activeBooking.scheduledFor
+      : liveRequest
+        ? `${requestStatusLabel(liveRequest.status)} · sent ${timeAgo(liveRequest.createdAt)}`
+        : liveQuote
+          ? `${quoteStatusLabel(liveQuote.appointmentResponse)} · sent ${timeAgo(liveQuote.createdAt)}`
+          : null;
+  const scheduleHref = waitingForAnswer
+    ? `/booking/${waitingForAnswer.id}`
+    : activeBooking
+      ? `/booking/${activeBooking.id}`
+      : liveRequest
+        ? `/booking/${liveRequest.id}`
+        : liveQuote
+          ? `/booking/${liveQuote.id}`
+          : "/services";
 
   return (
     <AppScreen>
       <DailyAnnouncement onOpen={() => router.push("/notifications" as never)} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.brandRow}>
+          <TouchableOpacity
+            style={styles.brandRow}
+            activeOpacity={0.75}
+            onPress={() => { haptic.light(); router.push("/services" as never); }}
+            accessibilityRole="button"
+            accessibilityLabel="Open the full Chapman care directory"
+          >
             <ChapmanMark size={45} />
             <View style={styles.brandCopy}>
               <Text style={styles.brandName}>Chapman Prestige</Text>
               <Text style={styles.brandSub}>LIMITED</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => router.push("/notifications" as never)} style={styles.bellButton} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => router.push("/notifications" as never)} style={styles.bellButton} activeOpacity={0.7} accessibilityLabel={unread > 0 ? `${unread} new updates` : "Updates"}>
               <Ionicons name="notifications-outline" size={22} color={palette.ink} />
-              <View style={styles.notificationDot} />
+              {unread > 0 ? <View style={styles.notificationDot}><Text style={styles.notificationDotText}>{unread > 9 ? "9+" : unread}</Text></View> : null}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/profile" as never)} style={styles.avatar} activeOpacity={0.8}>
-              <Text style={styles.avatarText}>AE</Text>
+            <TouchableOpacity onPress={() => router.push("/profile" as never)} style={styles.avatar} activeOpacity={0.8} accessibilityLabel="Open your profile">
+              <Text style={styles.avatarText}>{initials}</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.greeting}>
-          <Text style={styles.eyebrow}>GOOD MORNING</Text>
-          <DisplayText style={styles.greetingTitle}>Make your space work better for you.</DisplayText>
+          <Text style={styles.eyebrow}>{greetingForHour(new Date().getHours())}{firstName ? `, ${firstName.toUpperCase()}` : ""}</Text>
+          <DisplayText style={styles.greetingTitle}>{firstName ? `Welcome back, ${firstName}.` : "Make your space work better for you."}</DisplayText>
         </View>
 
         <TouchableOpacity onPress={() => router.push("/service/laundry" as never)} activeOpacity={0.9} style={styles.storyMoment}>
@@ -52,19 +104,37 @@ export default function HomeScreen() {
           <View style={styles.storyArt}><AnimatedServiceScene serviceId="laundry" height={136} /></View>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/profile" as never)} activeOpacity={0.92} style={styles.loyaltyPress}>
+        <TouchableOpacity onPress={() => router.push("/loyalty" as never)} activeOpacity={0.92} style={styles.loyaltyPress} accessibilityLabel="Open Chapman Elite Patronage">
           <LinearGradient colors={["#047857", "#059669", "#1C1208"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.loyaltyCard}>
             <View style={styles.loyaltyGlowOne} />
             <View style={styles.loyaltyGlowTwo} />
             <View style={styles.loyaltyTop}>
               <View>
                 <Text style={styles.loyaltyLabel}>ELITE PATRONAGE</Text>
-                <Text style={styles.loyaltyTier}>Bronze Member</Text>
+                <Text style={styles.loyaltyTier}>{loading ? "Reading your account" : `${laundryTrack ? laundryTrack.tier.name : "Standard"} laundry`}</Text>
+                <Text style={styles.loyaltySub}>{loading ? " " : `${serviceTrack ? serviceTrack.tier.name : "Standard"} services`}</Text>
               </View>
-              <View style={styles.discountBubble}><Text style={styles.discountValue}>5%</Text><Text style={styles.discountLabel}>OFF</Text></View>
+              <View style={styles.discountBubble}>
+                <Text style={styles.discountValue}>{laundryTrack ? `${laundryTrack.tier.discount}%` : "0%"}</Text>
+                <Text style={styles.discountLabel}>LAUNDRY</Text>
+              </View>
             </View>
             <View style={styles.loyaltyBottom}>
-              <View style={styles.progressCopy}><Text style={styles.progressLabel}>₵180 to Silver rewards</Text><View style={styles.progressTrack}><View style={styles.progressFill} /></View></View>
+              <View style={styles.progressCopy}>
+                <Text style={styles.progressLabel}>
+                  {loading
+                    ? "Checking your ladders"
+                    : laundryTrack
+                      ? `Laundry: ${trackProgressLine(laundryTrack)}`
+                      : "Send your first collection to start the laundry ladder"}
+                </Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: `${laundryTrack ? Math.round(laundryTrack.progress * 100) : 0}%` }]} />
+                </View>
+                <Text style={styles.progressHint}>
+                  {loading || !serviceTrack ? " " : `Services: ${trackProgressLine(serviceTrack)}`}
+                </Text>
+              </View>
               <Ionicons name="arrow-forward-circle" size={26} color="#FFFFFF" />
             </View>
           </LinearGradient>
@@ -89,21 +159,28 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <SectionHeading eyebrow="YOUR ACTIVITY" title="Booking updates" action="Bookings" onAction={() => router.push("/bookings" as never)} />
-        {activeBooking ? (
-          <TouchableOpacity onPress={() => router.push(`/booking/${activeBooking.id}` as never)} activeOpacity={0.88} style={styles.activeBooking}>
+        <SectionHeading eyebrow="YOUR ACTIVITY" title="Care schedule" action="Bookings" onAction={() => router.push("/bookings" as never)} />
+        {scheduleTitle ? (
+          <TouchableOpacity onPress={() => router.push(scheduleHref as never)} activeOpacity={0.88} style={styles.activeBooking}>
             <View style={styles.activeBookingTop}>
-              <IconOrb icon="calendar-outline" color={palette.blue} />
-              <View style={styles.activeBookingCopy}><StatusPill label={activeBooking.status.replace("-", " ")} tone="blue" /><Text style={styles.activeTitle}>{activeBooking.serviceTitle}</Text><Text style={styles.activeMeta}>{activeBooking.scheduledFor}</Text></View>
+              <IconOrb icon={waitingForAnswer ? "calendar-outline" : "cube-outline"} color={waitingForAnswer ? palette.orange : palette.blue} />
+              <View style={styles.activeBookingCopy}>
+                <StatusPill label={waitingForAnswer ? "answer needed" : "in progress"} tone={waitingForAnswer ? "orange" : "blue"} />
+                <Text style={styles.activeTitle}>{scheduleTitle}</Text>
+                <Text style={styles.activeMeta}>{scheduleMeta}</Text>
+              </View>
               <Ionicons name="chevron-forward" size={20} color="#7A7E8D" />
             </View>
-            <View style={styles.trackButton}><Ionicons name="navigate-outline" size={16} color={palette.blue} /><Text style={styles.trackText}>Track live</Text></View>
+            <View style={styles.trackButton}><Ionicons name="navigate-outline" size={16} color={palette.blue} /><Text style={styles.trackText}>{waitingForAnswer ? "Open and answer" : "Track live"}</Text></View>
           </TouchableOpacity>
         ) : (
           <View style={styles.emptyBooking}>
             <View style={styles.emptyIcon}><Ionicons name="calendar-clear-outline" size={22} color={palette.blue} /></View>
-            <View style={styles.emptyCopy}><Text style={styles.emptyTitle}>Your care schedule is clear</Text><BodyText style={styles.emptyBody}>Book a service today and follow every step from pickup to completion.</BodyText></View>
-            <TouchableOpacity onPress={() => router.push("/services" as never)} style={styles.emptyAction}><Ionicons name="add" size={21} color="#FFFFFF" /></TouchableOpacity>
+            <View style={styles.emptyCopy}>
+              <Text style={styles.emptyTitle}>{loading ? "Reading your schedule" : "Your care schedule is clear"}</Text>
+              <BodyText style={styles.emptyBody}>{loading ? "One moment while we check your account." : "Book a service today and follow every step from pickup to completion."}</BodyText>
+            </View>
+            <TouchableOpacity onPress={() => router.push("/services" as never)} style={styles.emptyAction} accessibilityLabel="Book a service"><Ionicons name="add" size={21} color="#FFFFFF" /></TouchableOpacity>
           </View>
         )}
 
@@ -119,10 +196,13 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: palette.canvas }, content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 36, gap: 23 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 8 }, brandCopy: { justifyContent: "center", paddingTop: 1 }, brandName: { color: palette.deep, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 14, letterSpacing: -0.35 }, brandSub: { color: palette.orange, fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 2.7, marginTop: 1 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 10 }, bellButton: { width: 41, height: 41, borderRadius: 14, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }, notificationDot: { position: "absolute", top: 9, right: 10, width: 7, height: 7, backgroundColor: "#D97706", borderWidth: 1.5, borderColor: "#FFFFFF", borderRadius: 4 }, avatar: { width: 41, height: 41, borderRadius: 15, backgroundColor: "#E4F4E9", alignItems: "center", justifyContent: "center" }, avatarText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 8 }, brandCopy: { justifyContent: "center", paddingTop: 1 }, brandName: { color: palette.deep, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 14, letterSpacing: -0.35 }, brandSub: { color: palette.orange, fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 2.7, marginTop: 1 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 10 }, bellButton: { width: 41, height: 41, borderRadius: 14, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }, notificationDot: { position: "absolute", top: 5, right: 5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#D97706", borderWidth: 1.5, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, avatar: { width: 41, height: 41, borderRadius: 15, backgroundColor: "#E4F4E9", alignItems: "center", justifyContent: "center" }, avatarText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 },
+  notificationDotText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 9 },
   greeting: { gap: 4 }, eyebrow: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3 }, greetingTitle: { maxWidth: 315, fontSize: 28, lineHeight: 35 },
   storyMoment: { minHeight: 151, borderRadius: 22, backgroundColor: "#EEF7F1", overflow: "hidden", flexDirection: "row", alignItems: "center", paddingLeft: 17 }, storyCopy: { flex: 1, zIndex: 2, gap: 7, paddingVertical: 15 }, storyLabel: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.05 }, storyTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 17, lineHeight: 23, maxWidth: 175 }, storyAction: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 11, flexDirection: "row" }, storyArt: { width: 154, height: 151, marginRight: -5, justifyContent: "center" },
   loyaltyPress: { borderRadius: 24, overflow: "hidden", shadowColor: palette.deep, shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 4 }, loyaltyCard: { minHeight: 162, borderRadius: 24, padding: 20, overflow: "hidden", justifyContent: "space-between" }, loyaltyGlowOne: { position: "absolute", width: 180, height: 180, borderRadius: 90, backgroundColor: "rgba(250,246,238,0.14)", right: -48, top: -84 }, loyaltyGlowTwo: { position: "absolute", width: 110, height: 110, borderRadius: 55, backgroundColor: "rgba(245,158,11,0.13)", left: 120, bottom: -70 }, loyaltyTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, loyaltyLabel: { color: "#FCE7B2", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.35 }, loyaltyTier: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 21, marginTop: 5 }, discountBubble: { width: 50, height: 50, borderRadius: 25, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)", alignItems: "center", justifyContent: "center" }, discountValue: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 15 }, discountLabel: { color: "#FCE7B2", fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 0.8 }, loyaltyBottom: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }, progressCopy: { flex: 1, gap: 8, paddingRight: 16 }, progressLabel: { color: "#FCE7B2", fontFamily: "Inter_500Medium", fontSize: 11 }, progressTrack: { height: 6, backgroundColor: "rgba(255,255,255,0.23)", borderRadius: 99, overflow: "hidden" }, progressFill: { width: "57%", height: "100%", borderRadius: 99, backgroundColor: "#FFFFFF" },
+  loyaltySub: { color: "#D1FAE5", fontFamily: "Inter_600SemiBold", fontSize: 11, marginTop: 1 },
+  progressHint: { color: "#BFE7CF", fontFamily: "Inter_500Medium", fontSize: 10, marginTop: 5 },
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, quickCard: { width: "22.7%", minHeight: 104, borderRadius: 19, backgroundColor: "#FFFFFF", padding: 10, justifyContent: "space-between", borderWidth: 1, borderColor: "#E9E1D5" }, quickLabel: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 11, lineHeight: 14 },
   activeBooking: { padding: 15, backgroundColor: "#FFFFFF", borderRadius: 20, gap: 14, borderWidth: 1, borderColor: palette.border }, activeBookingTop: { flexDirection: "row", alignItems: "center", gap: 11 }, activeBookingCopy: { flex: 1, gap: 4 }, activeTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14, marginTop: 2 }, activeMeta: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12 }, trackButton: { height: 37, borderRadius: 11, backgroundColor: "#EEF7F1", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 }, trackText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 13 },
   emptyBooking: { minHeight: 104, padding: 15, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 12 }, emptyIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: "#EEF7F1", alignItems: "center", justifyContent: "center" }, emptyCopy: { flex: 1, gap: 3 }, emptyTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, emptyBody: { fontSize: 12, lineHeight: 17 }, emptyAction: { width: 35, height: 35, borderRadius: 12, backgroundColor: palette.blue, alignItems: "center", justifyContent: "center" },
