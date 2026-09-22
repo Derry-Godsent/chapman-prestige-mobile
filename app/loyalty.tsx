@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, DisplayText, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
-import { getCurrentCustomerAccount } from "@/lib/customer-auth";
+import { useCustomerAccount } from "@/hooks/use-customer-account";
 import { CustomerActivity, loadCustomerActivity } from "@/lib/customer-activity";
 import { laundryStanding, serviceStanding, trackProgressLine, TrackStanding } from "@/lib/loyalty";
 import { timeAgo } from "@/lib/chapman-format";
@@ -23,19 +23,27 @@ import { timeAgo } from "@/lib/chapman-format";
  */
 export default function LoyaltyScreen() {
   const [activity, setActivity] = useState<CustomerActivity | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [reading, setReading] = useState(true);
+  const { account, checking } = useCustomerAccount();
+  const clientId = account?.client_id ?? null;
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setReading(true);
     try {
-      const account = await getCurrentCustomerAccount().catch(() => null);
-      setActivity(await loadCustomerActivity(account?.client_id ?? null));
+      setActivity(await loadCustomerActivity(clientId));
     } finally {
-      setLoading(false);
+      setReading(false);
     }
-  }, []);
+  }, [clientId]);
 
-  useEffect(() => { void load(); }, [load]);
+  // Read only once the account is known, so a signed-in customer is never shown
+  // the sign-in card while their own records are on the way.
+  useEffect(() => {
+    if (checking) return;
+    void load();
+  }, [checking, load]);
+
+  const loading = checking || reading;
 
   const laundry = activity ? laundryStanding(activity) : null;
   const services = activity ? serviceStanding(activity) : null;

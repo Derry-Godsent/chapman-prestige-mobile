@@ -8,7 +8,8 @@ import { AppScreen } from "@/components/app-screen";
 import { BodyText, DisplayText, palette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { useThemeContext } from "@/lib/theme-provider";
-import { CustomerAccount, getCurrentCustomerAccount, signOutCustomer } from "@/lib/customer-auth";
+import { signOutCustomer } from "@/lib/customer-auth";
+import { useCustomerAccount } from "@/hooks/use-customer-account";
 import { disableDailyChapmanUpdates, enableDailyChapmanUpdates, requestChapmanNotificationPermission } from "@/lib/chapman-notifications";
 import { hasCustomerPin } from "@/lib/customer-pin";
 import { confirmAction, notify } from "@/lib/notify";
@@ -21,14 +22,13 @@ import { confirmAction, notify } from "@/lib/notify";
  */
 export default function SettingsScreen() {
   const { colorScheme, setColorScheme } = useThemeContext();
-  const [account, setAccount] = useState<CustomerAccount | null | undefined>(undefined);
   const [pinSet, setPinSet] = useState(false);
   const [dailyOn, setDailyOn] = useState(false);
   const [dailyBusy, setDailyBusy] = useState(false);
   const [serviceAlerts, setServiceAlerts] = useState(true);
+  const { account } = useCustomerAccount();
 
   useEffect(() => {
-    void getCurrentCustomerAccount().then(setAccount).catch(() => setAccount(null));
     void hasCustomerPin().then(setPinSet);
   }, []);
 
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
             <Switch value={serviceAlerts} onValueChange={toggleServiceAlerts} trackColor={{ false: "#D7D1C7", true: "#81C5A7" }} thumbColor={palette.blue} />
           </View>
           <View style={styles.divider} />
-          <TouchableOpacity onPress={() => router.push("/permissions" as never)} style={styles.row}>
+          <TouchableOpacity onPress={() => router.push("/permissions?from=settings" as never)} style={styles.row}>
             <View style={styles.rowIcon}><Ionicons name="options-outline" size={19} color={palette.blue} /></View>
             <View style={styles.rowCopy}><Text style={styles.rowTitle}>Permissions</Text><Text style={styles.rowMeta}>Camera, location, and alerts for the whole app.</Text></View>
             <Ionicons name="chevron-forward" size={18} color={palette.muted} />
@@ -130,7 +130,7 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={18} color={palette.muted} />
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity onPress={() => router.push("/permissions" as never)} style={styles.row}>
+          <TouchableOpacity onPress={() => router.push("/permissions?from=settings" as never)} style={styles.row}>
             <View style={styles.rowIcon}><Ionicons name="location-outline" size={19} color={palette.blue} /></View>
             <View style={styles.rowCopy}><Text style={styles.rowTitle}>Location sharing</Text><Text style={styles.rowMeta}>Choose when the app may use your area for pickups.</Text></View>
             <Ionicons name="chevron-forward" size={18} color={palette.muted} />

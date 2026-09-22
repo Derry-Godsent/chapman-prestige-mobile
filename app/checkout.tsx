@@ -11,7 +11,8 @@ import { ScreenHeader } from "@/components/screen-header";
 import { formatGhs } from "@/lib/chapman-data";
 import { notify } from "@/lib/notify";
 import { useBookingStore } from "@/lib/booking-store";
-import { getCurrentCustomerAccount, getCustomerSession } from "@/lib/customer-auth";
+import { getCustomerSession } from "@/lib/customer-auth";
+import { loadCustomerAccount } from "@/hooks/use-customer-account";
 import { CustomerSignInRequiredError, submitMobileLaundryRequest } from "@/lib/mobile-requests";
 import { PICKUP_WINDOWS, PickupLocation, PickupWindow } from "@/lib/mobile-request-contract";
 import { haptic } from "@/lib/haptics";
@@ -144,7 +145,7 @@ export default function CheckoutScreen() {
     setError(null);
     setBusy(true);
     try {
-      const account = await getCurrentCustomerAccount();
+      const account = await loadCustomerAccount();
       if (!account?.profile_completed_at) throw new Error("Please finish your profile before sending this Laundry request.");
 
       const finalArea = pickupArea === "Outside Kumasi" ? `Outside Kumasi: ${outsideKumasiTown}` : pickupArea;

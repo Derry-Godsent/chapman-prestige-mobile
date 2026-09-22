@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getCurrentCustomerAccount } from "@/lib/customer-auth";
+import { loadCustomerAccount } from "@/hooks/use-customer-account";
 import { loadCustomerActivity } from "@/lib/customer-activity";
 import {
   buildNotifications,
@@ -23,7 +23,7 @@ export function useNotifications() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const account = await getCurrentCustomerAccount().catch(() => null);
+      const account = await loadCustomerAccount();
       const activity = await loadCustomerActivity(account?.client_id ?? null);
       setSignedIn(activity.signedIn);
       setNotifications(buildNotifications(activity));

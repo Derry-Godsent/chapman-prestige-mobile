@@ -605,6 +605,24 @@ together. Nothing else needs editing.
 
 ---
 
+## Two bugs you found, both fixed (22 Sep)
+
+**Location in Settings sent you back to sign in.** The permissions screen was written as a
+first-time setup screen: its button said Continue and it went on to the sign-in welcome page.
+Opening it later from Settings, which is what the gear and the Location row do, put a
+signed-in customer back into setup. It now knows how it was opened. From Settings it has a
+back arrow and a Done button that returns you to Settings, and the sign-in journey is only
+ever reached during first-time setup.
+
+**Profile showed "Sign in with phone" for a moment before your own details appeared.** Six
+screens each fetched the account separately, and while that was happening the screen could not
+tell "still checking" from "signed out", so it showed the sign-in prompt. There is now one
+shared account for the whole app: the first screen asks, every other screen reads the answer
+instantly, and signing out clears it. A slow or failed request can no longer sign a customer
+out by mistake, which is now covered by tests.
+
+---
+
 ## Phase 9, The office sees its work arrive STARTED, running in the preview
 
 **What you asked for:** the staff side menu should show how many records are waiting, and

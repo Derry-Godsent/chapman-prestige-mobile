@@ -5,12 +5,13 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
-import { CustomerAccount, getCurrentCustomerAccount, signOutCustomer } from "@/lib/customer-auth";
+import { signOutCustomer } from "@/lib/customer-auth";
+import { useCustomerAccount } from "@/hooks/use-customer-account";
 import { clearCustomerPin, hasCustomerPin, setCustomerPin } from "@/lib/customer-pin";
 import { isValidPin } from "@/lib/pin-policy";
 
 export default function AccountScreen() {
-  const [account, setAccount] = useState<CustomerAccount | null | undefined>(undefined);
+  const { account, checking } = useCustomerAccount();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pinSet, setPinSet] = useState(false);
@@ -20,7 +21,6 @@ export default function AccountScreen() {
   const [pinNotice, setPinNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    void getCurrentCustomerAccount().then(setAccount).catch(() => setAccount(null));
     void hasCustomerPin().then(setPinSet).catch(() => setPinSet(false));
   }, []);
 
@@ -62,7 +62,7 @@ export default function AccountScreen() {
     <AppScreen>
       <View style={styles.page}>
         <View style={styles.top}><TouchableOpacity onPress={() => router.back()} style={styles.back} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={21} color={palette.ink} /></TouchableOpacity><Text style={styles.topLabel}>ACCOUNT</Text><View style={styles.spacer} /></View>
-        {account === undefined ? <View style={styles.loading}><ActivityIndicator color={palette.blue} /></View> : account ? <View style={styles.content}>
+        {checking ? <View style={styles.loading}><ActivityIndicator color={palette.blue} /></View> : account ? <View style={styles.content}>
           <View style={styles.avatar}><Ionicons name={account.avatar_style === "female" ? "woman-outline" : account.avatar_style === "male" ? "man-outline" : "person-outline"} size={32} color={palette.blue} /></View>
           <DisplayText style={styles.title}>{account.full_name || "Your Chapman account"}</DisplayText>
           <BodyText style={styles.phone}>{account.phone}</BodyText>

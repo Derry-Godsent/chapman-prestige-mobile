@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { CustomerAccount, getCurrentCustomerAccount } from "@/lib/customer-auth";
+import { useCustomerAccount } from "@/hooks/use-customer-account";
+import { readCustomerAccount } from "@/hooks/use-customer-account";
 import { CustomerActivity, loadCustomerActivity } from "@/lib/customer-activity";
 import { laundryStanding, serviceStanding, TrackStanding } from "@/lib/loyalty";
 
@@ -10,22 +11,28 @@ import { laundryStanding, serviceStanding, TrackStanding } from "@/lib/loyalty";
  * the loyalty screen all use this, so they can never disagree with each other.
  */
 export function useCustomerSummary() {
-  const [account, setAccount] = useState<CustomerAccount | null>(null);
+  const { account, checking } = useCustomerAccount();
   const [activity, setActivity] = useState<CustomerActivity | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    setActivityLoading(true);
     try {
-      const current = await getCurrentCustomerAccount().catch(() => null);
-      setAccount(current);
-      setActivity(await loadCustomerActivity(current?.client_id ?? null));
+      setActivity(await loadCustomerActivity(readCustomerAccount()?.client_id ?? null));
     } finally {
-      setLoading(false);
+      setActivityLoading(false);
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  // Wait for the account before reading activity, so the first read is the
+  // signed-in customer's own records rather than a guess.
+  const clientId = account?.client_id ?? null;
+  useEffect(() => {
+    if (checking) return;
+    void load();
+  }, [checking, clientId, load]);
+
+  const loading = checking || activityLoading;
 
   const laundry: TrackStanding | null = activity ? laundryStanding(activity) : null;
   const services: TrackStanding | null = activity ? serviceStanding(activity) : null;

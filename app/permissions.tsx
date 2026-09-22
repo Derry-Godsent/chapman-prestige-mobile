@@ -1,23 +1,30 @@
 import { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
+import { ScreenHeader } from "@/components/screen-header";
 import { requestChapmanNotificationPermission } from "@/lib/chapman-notifications";
 
 type PermissionState = "ready" | "working" | "allowed" | "not-now";
 
 export default function PermissionsScreen() {
+  // This screen is reached two ways: during first-time setup, and from Settings
+  // when a customer wants to change a choice. Opened from Settings it is a normal
+  // settings page: it has a back arrow and a Done button that returns to Settings.
+  // Only first-time setup continues into the sign-in flow.
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const openedFromSettings = from === "settings";
   const [notifications, setNotifications] = useState<PermissionState>("ready");
   const [location, setLocation] = useState<PermissionState>("ready");
   const [message, setMessage] = useState("");
   const askNotifications = async () => { setNotifications("working"); const outcome = await requestChapmanNotificationPermission(); setNotifications(outcome.enabled ? "allowed" : "not-now"); setMessage(outcome.message); };
   const askLocation = async () => { setLocation("working"); try { const permission = await Location.requestForegroundPermissionsAsync(); const allowed = permission.status === "granted"; setLocation(allowed ? "allowed" : "not-now"); setMessage(allowed ? "Pickup location can now be shared when you send a booking." : "Location was not enabled. You can still use your house or landmark when booking."); } catch { setLocation("not-now"); setMessage("Location could not be enabled just now. You can try again later."); } };
-  return <AppScreen edges={["top", "bottom", "left", "right"]}><LinearGradient colors={[palette.canvas, "#F1F7F0", "#FFF1CD"]} locations={[0, 0.48, 1]} style={styles.page}><View style={styles.brand}><ChapmanMark size={46} /></View><View style={styles.content}><View style={styles.icon}><Ionicons name="shield-checkmark-outline" size={34} color={palette.green} /></View><Text style={styles.eyebrow}>YOUR CHOICE</Text><DisplayText style={styles.title}>A few helpful permissions.</DisplayText><Text style={styles.body}>Choose what makes booking and service updates easier. Nothing is required, and you can change these choices later.</Text><View style={styles.cards}><PermissionCard icon="notifications-outline" title="Service updates" text="Receive an alert when Chapman confirms, changes, or responds to your request." state={notifications} onPress={() => void askNotifications()} /><PermissionCard icon="location-outline" title="Pickup location" text="Share one pickup point with a booking, so the Chapman team can find you without guessing." state={location} onPress={() => void askLocation()} /></View>{message ? <Text style={styles.message}>{message}</Text> : null}</View><View style={styles.actions}><PrimaryButton label="Continue" icon="arrow-forward" onPress={() => router.replace("/welcome" as never)} /><Text style={styles.note}>We ask only for features you use. Chapman does not continuously track your location.</Text></View></LinearGradient></AppScreen>;
+  return <AppScreen edges={["top", "bottom", "left", "right"]}><LinearGradient colors={[palette.canvas, "#F1F7F0", "#FFF1CD"]} locations={[0, 0.48, 1]} style={styles.page}>{openedFromSettings ? <ScreenHeader title="Permissions" subtitle="Choose what Chapman may use" onBack={() => router.back()} /> : <View style={styles.brand}><ChapmanMark size={46} /></View>}<View style={styles.content}><View style={styles.icon}><Ionicons name="shield-checkmark-outline" size={34} color={palette.green} /></View><Text style={styles.eyebrow}>YOUR CHOICE</Text><DisplayText style={styles.title}>A few helpful permissions.</DisplayText><Text style={styles.body}>Choose what makes booking and service updates easier. Nothing is required, and you can change these choices later.</Text><View style={styles.cards}><PermissionCard icon="notifications-outline" title="Service updates" text="Receive an alert when Chapman confirms, changes, or responds to your request." state={notifications} onPress={() => void askNotifications()} /><PermissionCard icon="location-outline" title="Pickup location" text="Share one pickup point with a booking, so the Chapman team can find you without guessing." state={location} onPress={() => void askLocation()} /></View>{message ? <Text style={styles.message}>{message}</Text> : null}</View><View style={styles.actions}><PrimaryButton label={openedFromSettings ? "Done" : "Continue"} icon={openedFromSettings ? "checkmark" : "arrow-forward"} onPress={() => openedFromSettings ? router.back() : router.replace("/welcome" as never)} /><Text style={styles.note}>We ask only for features you use. Chapman does not continuously track your location.</Text></View></LinearGradient></AppScreen>;
 }
 
 function PermissionCard({ icon, title, text, state, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; text: string; state: PermissionState; onPress: () => void }) { const allowed = state === "allowed"; return <View style={[styles.permissionCard, allowed && styles.permissionCardAllowed]}><View style={[styles.cardIcon, allowed && styles.cardIconAllowed]}><Ionicons name={allowed ? "checkmark" : icon} size={20} color={allowed ? "#FFFFFF" : palette.blue} /></View><View style={styles.cardCopy}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.cardText}>{text}</Text></View><TouchableOpacity onPress={onPress} disabled={state === "working" || allowed} style={[styles.cardAction, allowed && styles.cardActionAllowed]}><Text style={[styles.cardActionText, allowed && styles.cardActionTextAllowed]}>{state === "working" ? "Checking" : allowed ? "Allowed" : state === "not-now" ? "Try again" : "Allow"}</Text></TouchableOpacity></View>; }
