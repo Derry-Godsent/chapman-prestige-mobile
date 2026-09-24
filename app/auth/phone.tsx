@@ -9,6 +9,7 @@ import { cleanGhanaLocalEntry, cleanOtpCode, CustomerGender } from "@/lib/custom
 import { completeCustomerOnboarding, continueAsGuest, getCurrentCustomerAccount, linkCustomerToChapmanClients, sendCustomerOtp, verifyCustomerOtp } from "@/lib/customer-auth";
 import { clearCustomerPin, hasCustomerPin, pinOwnerId, wasPinOffered } from "@/lib/customer-pin";
 import { supabase } from "@/lib/supabase";
+import { recordSecurityEvent } from "@/lib/app-security-log";
 type Stage = "phone" | "code" | "profile";
 const genderOptions: { value: CustomerGender; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: "female", label: "Female", icon: "woman-outline" },
@@ -106,6 +107,9 @@ export default function PhoneAuthScreen() {
     try {
       const verified = await verifyCustomerOtp(verifiedPhone, code);
       Keyboard.dismiss();
+      // A quiet note that this number signed in, so unusual sign-ins are visible
+      // to the customer and to Chapman. It never blocks the sign-in.
+      void recordSecurityEvent("sign_in");
 
       // A customer who has signed in before already gave Chapman their details,
       // so they go straight in rather than being asked for them all over again.

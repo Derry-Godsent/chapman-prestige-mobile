@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pinBelongsTo, MAX_PIN_ATTEMPTS, PIN_LENGTH, attemptsLeft, isValidPin, shouldForgetPin, wrongPinMessage } from "../lib/pin-policy";
+import { pinRecoveryRoute, pinBelongsTo, MAX_PIN_ATTEMPTS, PIN_LENGTH, attemptsLeft, isValidPin, shouldForgetPin, wrongPinMessage } from "../lib/pin-policy";
 
 describe("app PIN rules", () => {
   it("accepts exactly four digits", () => {
@@ -57,5 +57,21 @@ describe("whose PIN it is", () => {
 
   it("ignores spaces around an id", () => {
     expect(pinBelongsTo("  user-a  ", "user-a")).toBe(true);
+  });
+});
+
+describe("what a forgotten PIN means", () => {
+  it("sends a customer who is opening the app back to their phone number", () => {
+    expect(pinRecoveryRoute("opening-the-app")).toBe("sign-in-again");
+  });
+
+  it("lets a customer who has just been texted keep their sign-in", () => {
+    expect(pinRecoveryRoute("finishing-sign-in")).toBe("carry-on-without-pin");
+  });
+
+  it("never lets opening the app be waved through without the PIN", () => {
+    // The whole point of the lock. If this ever changes, a locked app could be
+    // opened by anyone holding the phone, which is what the rule exists to stop.
+    expect(pinRecoveryRoute("opening-the-app")).not.toBe("carry-on-without-pin");
   });
 });

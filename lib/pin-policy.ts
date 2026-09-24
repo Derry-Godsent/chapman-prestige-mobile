@@ -55,3 +55,27 @@ export function wrongPinMessage(failedAttempts: number): string {
   if (left === 1) return "Wrong PIN. 1 try left before you need a new text message.";
   return `Wrong PIN. ${left} tries left.`;
 }
+
+/**
+ * Where a forgotten PIN sends the customer, which depends on why they are being
+ * asked for it at all. This is the single most important rule in this file, so it
+ * is written out and tested rather than left inside a screen.
+ *
+ * "opening-the-app": the app was closed and opened again. Nothing has proved who
+ * is holding the phone, so a forgotten PIN cannot simply be waved through. The
+ * only way past is to prove the phone number again with a fresh text message,
+ * which also means the old PIN is thrown away.
+ *
+ * "finishing-sign-in": the customer has just entered the six digit code that was
+ * texted to this phone seconds ago. Their identity is already proved, so the PIN
+ * at this point is a confirmation, not a second lock, and a forgotten one must not
+ * undo a sign-in that has already succeeded.
+ *
+ * The rule is one-sided on purpose: opening the app can never answer
+ * "carry-on-without-pin".
+ */
+export type PinRecoverySituation = "opening-the-app" | "finishing-sign-in";
+
+export function pinRecoveryRoute(situation: PinRecoverySituation): "sign-in-again" | "carry-on-without-pin" {
+  return situation === "finishing-sign-in" ? "carry-on-without-pin" : "sign-in-again";
+}

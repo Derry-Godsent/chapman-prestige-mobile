@@ -336,6 +336,37 @@ create policy "staff marks ideas"
   using (public.is_chapman_staff())
   with check (public.is_chapman_staff());
 
+-- 6. A quiet record of account security moments: a PIN set, a PIN removed, a PIN
+--    used up, and a sign-in. No four digits are ever written here, only which kind
+--    of moment it was and when. The customer reads their own; Chapman staff read
+--    all of them. A guest reads none and cannot write at all.
+create table if not exists public.chapman_app_security_events (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid not null default auth.uid(),
+  kind text not null check (kind in ('pin_set', 'pin_removed', 'pin_used_up', 'sign_in')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists chapman_app_security_events_owner_idx
+  on public.chapman_app_security_events (auth_user_id, created_at desc);
+
+alter table public.chapman_app_security_events enable row level security;
+
+drop policy if exists "customer writes own security note" on public.chapman_app_security_events;
+create policy "customer writes own security note"
+  on public.chapman_app_security_events for insert to authenticated
+  with check (auth_user_id = auth.uid());
+
+drop policy if exists "customer reads own security notes" on public.chapman_app_security_events;
+create policy "customer reads own security notes"
+  on public.chapman_app_security_events for select to authenticated
+  using (auth_user_id = auth.uid());
+
+drop policy if exists "staff reads all security notes" on public.chapman_app_security_events;
+create policy "staff reads all security notes"
+  on public.chapman_app_security_events for select to authenticated
+  using (public.is_chapman_staff());
+
 -- Permissions, written out instead of assumed. Supabase is tightening this:
 -- from 30 October a brand new table is not reachable through the app until it is
 -- granted, so every table this file creates is granted here, on purpose.
@@ -349,8 +380,13 @@ grant select, insert, update, delete on public.clients to authenticated;
 grant select, insert, update on public.chapman_app_ideas to authenticated;
 grant select on public.chapman_app_ideas to anon;
 
+-- The security notes: a signed-in customer may write their own and read their own.
+-- Nothing is granted to a guest, so a stranger is refused outright.
+grant select, insert on public.chapman_app_security_events to authenticated;
+
 -- The service role is the office's own key. It is never put in the mobile app.
 grant select, insert, update, delete on public.chapman_app_ideas to service_role;
+grant select, insert, update, delete on public.chapman_app_security_events to service_role;
 grant select on public.customer_accounts to service_role;
 grant select, insert, update, delete on public.clients to service_role;
 
@@ -360,6 +396,7 @@ commit;
 --   birth_day and birth_month on customer_accounts
 --   link_customer_to_chapman_client in the function list
 --   chapman_app_ideas with four rules
+--   chapman_app_security_events with three rules
 select 'birthday columns' as what, count(*)::text as how_many
 from information_schema.columns
 where table_schema = 'public' and table_name = 'customer_accounts'
@@ -370,4 +407,7 @@ from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.proname = 'link_customer_to_chapman_client'
 union all
 select 'idea rules', count(*)::text
-from pg_policies where tablename = 'chapman_app_ideas';
+from pg_policies where tablename = 'chapman_app_ideas'
+union all
+select 'security note rules', count(*)::text
+from pg_policies where tablename = 'chapman_app_security_events';

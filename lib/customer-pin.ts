@@ -153,6 +153,30 @@ export async function markPinOffered(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Drops the "already offered" flag for an account.
+ *
+ * Used only when a PIN is lost rather than declined: it was forgotten, or the
+ * five tries were used up. Without this the customer would sign back in with a
+ * text message and never be invited to set a new PIN, because the app remembers
+ * it already asked them once. Declining the offer on purpose is not forgotten
+ * here, because that decision should stand.
+ */
+export async function forgetPinOffer(userId: string | null | undefined): Promise<void> {
+  if (!userId) return;
+  try {
+    const stored = await wasPinOffered(userId);
+    if (!stored) return;
+    if (isWeb) {
+      if (hasWindow()) await AsyncStorage.removeItem(PROMPT_KEY);
+      return;
+    }
+    await SecureStore.deleteItemAsync(PROMPT_KEY);
+  } catch {
+    // Worst case the offer does not appear again. Not worth failing over.
+  }
+}
+
 /** How many wrong tries have been made since the last correct one. */
 export async function getPinFailedAttempts(): Promise<number> {
   return (await readStored())?.failedAttempts ?? 0;

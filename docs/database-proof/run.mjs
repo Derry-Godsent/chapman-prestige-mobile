@@ -391,6 +391,13 @@ let ideasSeenByOther = -1;
 let ideasSeenByStaff = -1;
 let ideasSeenByStranger = -1;
 let anonIdeaRefused = false;
+let securityNoteRules = 0;
+let notesSeenByOwner = -1;
+let notesSeenByOther = -1;
+let notesSeenByStaff = -1;
+let notesSeenByStranger = -1;
+let anonNoteRefused = false;
+let customerCannotWriteOthersNote = false;
 try {
   await db.exec(stripComments(customers));
 
@@ -441,7 +448,8 @@ try {
   const grid = await db.query(`select
     (select count(*)::int from public.clients) as clients,
     (select count(*)::int from public.customer_accounts where birth_day is not null) as birthdays,
-    (select count(*)::int from pg_policies where tablename = 'chapman_app_ideas') as rules`);
+    (select count(*)::int from pg_policies where tablename = 'chapman_app_ideas') as rules,
+    (select count(*)::int from pg_policies where tablename = 'chapman_app_security_events') as note_rules`);
   say(`the file's own grid reads: ${JSON.stringify(grid.rows[0])}`);
 
   // An idea sent from the app, and who can read it.
@@ -463,6 +471,52 @@ try {
     say(`a stranger sending an idea is refused: ${error.message.split('\n')[0]}`);
   }
   if (!anonIdeaRefused) say('A STRANGER COULD SEND AN IDEA, that must not happen');
+
+  // The security notes: written by the app when a PIN is set, removed, used up, or
+  // when a customer signs in. No four digits ever reach here, which is checked too.
+  const noteRules = await db.query(`select policyname from pg_policies where tablename = 'chapman_app_security_events' order by policyname`);
+  securityNoteRules = noteRules.rows.length;
+  say(`security note rules: ${noteRules.rows.map((row) => row.policyname).join(' | ') || 'NONE'}`);
+  const noteColumns = await db.query(`select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'chapman_app_security_events' order by column_name`);
+  say(`security note columns: ${noteColumns.rows.map((row) => row.column_name).join(', ')}`);
+
+  await asRoleCommit('authenticated', customerA, `insert into public.chapman_app_security_events (kind) values ('pin_set'), ('pin_used_up')`);
+  const ownNotes = await asRole('authenticated', customerA, `select kind from public.chapman_app_security_events order by kind`);
+  notesSeenByOwner = ownNotes.length;
+  say(`the customer reads their own notes: ${ownNotes.map((row) => row.kind).join(', ')}`);
+  notesSeenByOther = (await asRole('authenticated', customerB, `select count(*)::int as n from public.chapman_app_security_events`))[0].n;
+  notesSeenByStaff = (await asRole('authenticated', staffA, `select count(*)::int as n from public.chapman_app_security_events`))[0].n;
+  say(`notes seen by: owner ${notesSeenByOwner}, another customer ${notesSeenByOther}, the office ${notesSeenByStaff}`);
+
+  let notesForStranger = 0;
+  try {
+    notesForStranger = (await asRole('anon', null, `select count(*)::int as n from public.chapman_app_security_events`))[0].n;
+  } catch {
+    notesSeenByStranger = -1;
+  }
+  if (notesSeenByStranger !== -1) notesSeenByStranger = notesForStranger;
+  say(`a stranger reading the notes: ${notesSeenByStranger === -1 ? 'refused' : notesSeenByStranger + ' rows'}`);
+
+  try {
+    await asRoleCommit('anon', null, `insert into public.chapman_app_security_events (kind) values ('sign_in')`);
+  } catch {
+    anonNoteRefused = true;
+    say('a stranger writing a note is refused');
+  }
+
+  // One customer must not be able to write a note against another customer.
+  try {
+    await asRoleCommit('authenticated', customerB, `insert into public.chapman_app_security_events (auth_user_id, kind) values ('${customerA}', 'sign_in')`);
+  } catch {
+    customerCannotWriteOthersNote = true;
+  }
+  if (!customerCannotWriteOthersNote) {
+    const othersNote = (await db.query(`select count(*)::int as n from public.chapman_app_security_events where auth_user_id = '${customerA}'`)).rows[0].n;
+    if (othersNote > 2) customerCannotWriteOthersNote = false;
+    else customerCannotWriteOthersNote = true;
+  }
+  say(`a customer writing a note against somebody else: ${customerCannotWriteOthersNote ? 'refused' : 'ALLOWED, that must not happen'}`);
 
   const staffMark = await asRoleCommit('authenticated', staffA, `update public.chapman_app_ideas set status = 'planned' where true`);
   const marks = (await db.query(`select count(*)::int as n from public.chapman_app_ideas where status = 'planned'`)).rows[0].n;
@@ -706,7 +760,7 @@ try {
 
   // A stranger must see nothing except the price list. A table that refuses the
   // request outright counts as nothing seen, which is the strongest answer.
-  for (const table of ['mobile_requests', 'routines', 'quote_requests', 'orders', 'order_items', 'clients', 'customer_accounts', 'chapman_app_ideas', 'mobile_request_events', 'chapman_security_log']) {
+  for (const table of ['mobile_requests', 'routines', 'quote_requests', 'orders', 'order_items', 'clients', 'customer_accounts', 'chapman_app_ideas', 'mobile_request_events', 'chapman_security_log', 'chapman_app_security_events']) {
     let rows = 0;
     try {
       rows = (await asRole('anon', null, `select count(*)::int as n from public.${table}`))[0].n;
@@ -827,6 +881,13 @@ if (ideasSeenByOther !== 0) failed.push(`another customer could read the idea, s
 if (ideasSeenByStaff !== 1) failed.push(`the office should read the idea, read ${ideasSeenByStaff}`);
 if (ideasSeenByStranger !== 0) failed.push(`a stranger could read ideas, saw ${ideasSeenByStranger}`);
 if (!anonIdeaRefused) failed.push('a stranger could send an idea');
+if (securityNoteRules !== 3) failed.push(`the security notes should have 3 rules, saw ${securityNoteRules}`);
+if (notesSeenByOwner !== 2) failed.push(`the customer should read their own 2 notes, read ${notesSeenByOwner}`);
+if (notesSeenByOther !== 0) failed.push(`another customer could read security notes, saw ${notesSeenByOther}`);
+if (notesSeenByStaff !== 2) failed.push(`the office should read the notes, read ${notesSeenByStaff}`);
+if (notesSeenByStranger > 0) failed.push(`a stranger could read security notes, saw ${notesSeenByStranger}`);
+if (!anonNoteRefused) failed.push('a stranger could write a security note');
+if (!customerCannotWriteOthersNote) failed.push('a customer could write a security note against somebody else');
 if (openAfterLock !== 0) failed.push(`${openAfterLock} tables are still unlocked after the lock everything file`);
 if (lockedByFile < 5) failed.push(`the lock everything file only locked ${lockedByFile} tables`);
 const strangerLeaks = strangerSeesAfterLock.filter((line) => !line.endsWith(' 0') && !line.endsWith(' refused'));

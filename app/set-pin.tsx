@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { setCustomerPin, markPinOffered } from "@/lib/customer-pin";
+import { getCurrentCustomerAccount } from "@/lib/customer-auth";
+import { recordSecurityEvent } from "@/lib/app-security-log";
 import { supabase } from "@/lib/supabase";
 import { isValidPin } from "@/lib/pin-policy";
 import { haptic } from "@/lib/haptics";
@@ -21,12 +23,32 @@ export default function SetPinScreen() {
   const [confirm, setConfirm] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const params = useLocalSearchParams<{ from?: string }>();
+  // Arriving here from a forgotten PIN, the customer should be told that the old
+  // one is gone rather than silently finding themselves on this screen.
+  const cameFromForgotten = params?.from === "forgot";
+  useEffect(() => {
+    if (cameFromForgotten) setNotice("Your old PIN has been removed. Choose a new 4 digit PIN.");
+  }, [cameFromForgotten]);
+  /**
+   * Marks the offer as made and returns the account this PIN belongs to.
+   *
+   * The account id matters: a PIN with no owner can never be asked for, so if the
+   * session cannot be read here the customer record is asked instead. If both
+   * fail, the caller is told, and the PIN is not saved as an orphan.
+   */
   const rememberOffered = async (): Promise<string> => {
     try {
       const { data } = await supabase!.auth.getSession();
-      const userId = data.session?.user?.id ?? "";
-      if (userId) await markPinOffered(userId);
-      return userId;
+      const fromSession = data.session?.user?.id ?? "";
+      if (fromSession) {
+        await markPinOffered(fromSession);
+        return fromSession;
+      }
+      const account = await getCurrentCustomerAccount().catch(() => null);
+      const fromAccount = account?.auth_user_id ?? "";
+      if (fromAccount) await markPinOffered(fromAccount);
+      return fromAccount;
     } catch {
       // The offer flag is a convenience. Failing to store it must not block the customer.
       return "";
@@ -42,10 +64,12 @@ export default function SetPinScreen() {
     try {
       const userId = await rememberOffered();
       if (setIt) {
+        if (!userId) throw new Error("An account is required before a PIN can be saved.");
         // The PIN remembers whose it is, so it can never be asked of a different
         // person who signs in on this phone.
         await setCustomerPin(pin, userId);
         haptic.success();
+        void recordSecurityEvent("pin_set");
       }
     } catch {
       // If the PIN cannot be saved we still let the customer in rather than

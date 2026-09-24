@@ -8,6 +8,7 @@ import { signOutCustomer } from "@/lib/customer-auth";
 import { useCustomerAccount } from "@/hooks/use-customer-account";
 import { clearCustomerPin, hasCustomerPin, setCustomerPin, verifyCustomerPin } from "@/lib/customer-pin";
 import { isValidPin, wrongPinMessage } from "@/lib/pin-policy";
+import { recordSecurityEvent } from "@/lib/app-security-log";
 export default function AccountScreen() {
   const { styles, palette } = useChapmanStyles(makeStyles);
   const { account, checking } = useCustomerAccount();
@@ -78,6 +79,7 @@ export default function AccountScreen() {
     if (pinAction === "remove") {
       await clearCustomerPin();
       setPinSet(false);
+      void recordSecurityEvent("pin_removed");
       resetPinForm();
       return;
     }

@@ -42,6 +42,8 @@ to you. That was my mistake. This document fixes it.
 | 15 | **The company logo as the app icon** | The droplet on the Chapman navy, replacing the blue placeholder | DONE **Ready for the next build** |
 | 16 | **The two Supabase emails, and the Vercel one** | Every remaining open table closed, new tables closed on arrival, website moved off a dead Node | DONE **One paste and one line from you** |
 | 17 | **The dark mode switch, and the PIN after signing in** | The switch now answers at once, and a returning customer is asked for their own PIN | DONE **Ready to test on your phone** |
+| 18 | **The PIN rules, written down and tightened** | A forgotten PIN handled properly in both places, a record of every PIN moment, and the honest limits stated | DONE **Open the rules: docs/pin-rules.md** |
+| 19 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -628,6 +630,60 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 18, The PIN rules, written down and tightened DONE
+
+### The rules are now in one place
+
+`docs/pin-rules.md` says what the PIN is for, every rule it follows, what happens
+after the text message when it is forgotten, what it honestly cannot protect, and
+what I recommend next. It is written for you rather than for a developer.
+
+### A forgotten PIN, handled properly in both places
+
+There are two moments a PIN can be forgotten, and they deserve different answers.
+
+**Finishing a sign-in.** The phone number was proved by a text code seconds
+earlier, so the PIN is a confirmation, not a second lock. Forgetting it now offers
+two honest choices: set a new PIN immediately, or carry on without one and set it
+later from the profile. Nobody is sent back to the start over four digits they set
+themselves.
+
+**Opening the app.** Nothing has proved who is holding the phone, so this path is
+strict: the app explains what is about to happen, and only then signs the customer
+out, removes the PIN, and sends a fresh code to the number. A forgotten PIN can
+never be tapped through. That rule now lives in `lib/pin-policy.ts` where it is
+tested, rather than inside a screen where it could be changed by accident.
+
+### Two things that were quietly wrong, now fixed
+
+1. **A lost PIN was never offered again.** The app remembered that it had already
+   offered a PIN once, so a customer who lost theirs signed back in and was never
+   invited to set a new one. That flag is now cleared when a PIN is lost, and left
+   alone when a customer declines the offer on purpose, because that decision
+   should stand.
+2. **A PIN could be saved without an owner.** If the sign-in could not be read at
+   that moment, the PIN was saved belonging to nobody, which meant it would never
+   be asked for. The account is now always resolved first, and a PIN is never saved
+   without one.
+
+### Every PIN moment is recorded
+
+Setting, removing, and using up a PIN, and every sign-in, now write one short line
+to `chapman_app_security_events`, with the time. No digits are ever written, only
+which kind of moment it was. The customer reads their own, Chapman staff read all,
+and a stranger is refused outright and cannot write one. Proved in the harness.
+
+### What I will not do without your say so
+
+The honest gap is written at the bottom of `docs/pin-rules.md`: the PIN guards the
+screens, while the saved sign-in itself sits on the phone. Scrambling that saved
+sign-in under the PIN is the biggest security gain left, and it changes how the app
+keeps you signed in, so it is a structural change and it waits for your yes. Face ID
+and Touch ID, and locking the app again after a few minutes in the background, are
+the other two candidates, both written up in the same file.
 
 ---
 
@@ -1225,6 +1281,7 @@ Skip this unless a term is bugging you.
 | `SECURITY-FINDINGS.md` | If you want the proof behind the security fix |
 | `audit-2026-09-20.md` | If you want the original full audit |
 | `BETA.md` | When you are ready to put the app on the boss and staff phones |
+| `pin-rules.md` | When you want the PIN rules, and what happens if you forget it |
 | Everything else in `docs/` | Background from earlier in the project |
 
 ---

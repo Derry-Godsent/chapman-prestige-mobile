@@ -4,11 +4,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
-import { clearCustomerPin, hasCustomerPin, verifyCustomerPin } from "@/lib/customer-pin";
+import { clearCustomerPin, forgetPinOffer, hasCustomerPin, pinOwnerId, verifyCustomerPin } from "@/lib/customer-pin";
 import { getCustomerSession, signOutCustomer } from "@/lib/customer-auth";
-import { PIN_LENGTH, wrongPinMessage } from "@/lib/pin-policy";
+import { PIN_LENGTH, pinRecoveryRoute, wrongPinMessage } from "@/lib/pin-policy";
 import { haptic } from "@/lib/haptics";
-import { notify } from "@/lib/notify";
+import { confirmAction, notify } from "@/lib/notify";
+import { recordSecurityEvent } from "@/lib/app-security-log";
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 /**
  * The PIN screen, which does two jobs.
@@ -66,24 +67,46 @@ export default function AppLockScreen() {
     return () => { cancelled = true; };
   }, []);
   /**
-   * The PIN is gone and there is no session left to unlock, so the customer goes
-   * back to the phone sign-in for a fresh text message.
+   * Throws the PIN away, and records that it happened, so the customer and the
+   * Chapman office can both see it rather than it vanishing silently. The owner is
+   * read before the PIN is cleared, because afterwards there is nobody to blame
+   * the loss on.
+   *
+   * "inviteAgain" is for a PIN that was lost rather than declined: it clears the
+   * "already offered" flag, so the next sign-in invites the customer to set a new
+   * one. A customer who removed their own PIN on purpose is not invited again.
+   */
+  const dropPin = useCallback(async ({ reason, inviteAgain }: { reason: string; inviteAgain: boolean }) => {
+    const owner = await pinOwnerId().catch(() => null);
+    await clearCustomerPin().catch(() => undefined);
+    if (inviteAgain) await forgetPinOffer(owner).catch(() => undefined);
+    void recordSecurityEvent("pin_used_up");
+    return { owner, reason };
+  }, []);
+
+  /**
+   * Opening the app, and the PIN is gone: the sign-in on this phone goes too, so
+   * the only way back in is proving the phone number again with a text message.
+   * This is the rule for opening the app, and it cannot be waved through.
    */
   const leaveForSignIn = useCallback(async (reason: string) => {
-    await clearCustomerPin().catch(() => undefined);
+    await dropPin({ reason, inviteAgain: true });
     await signOutCustomer().catch(() => undefined);
     notify("Sign in again", reason);
     router.replace("/auth/phone" as never);
-  }, []);
+  }, [dropPin]);
+
   /**
-   * The PIN is gone, but the customer has just proved this phone by text message,
-   * so they keep their sign-in and simply carry on. Used only at the end of a
-   * sign-in, never when opening the app.
+   * Finishing a sign-in, and the PIN is gone: the phone number was proved by text
+   * message moments ago, so the sign-in stands and the customer keeps it. They are
+   * invited to set a new PIN straight away, or to carry on and set one later from
+   * their profile.
    */
-  const carryOnWithoutPin = useCallback((reason: string) => {
-    notify("PIN removed", reason);
+  const carryOnWithoutPin = useCallback(async (reason: string) => {
+    await dropPin({ reason, inviteAgain: false });
+    notify("PIN removed", `${reason}\n\nYou can set a new 4 digit PIN now, or later from your profile.`);
     router.replace("/(tabs)" as never);
-  }, []);
+  }, [dropPin]);
   const submit = useCallback(async (pin: string) => {
     if (submitted.current) return;
     submitted.current = true;
@@ -100,9 +123,11 @@ export default function AppLockScreen() {
       setDigits("");
       setMessage(wrongPinMessage(result.failedAttempts));
       if (result.forgotten) {
-        if (afterSignIn) {
-          await clearCustomerPin().catch(() => undefined);
-          carryOnWithoutPin("The PIN has been removed after too many wrong tries. You can set a new one in your profile.");
+        // Five wrong tries: the PIN is thrown away either way. Where the customer
+        // goes next is decided by lib/pin-policy.ts, not here, and opening the app
+        // can never answer "carry on".
+        if (pinRecoveryRoute(afterSignIn ? "finishing-sign-in" : "opening-the-app") === "carry-on-without-pin") {
+          await carryOnWithoutPin("The PIN has been removed after too many wrong tries.");
           return;
         }
         await leaveForSignIn("The PIN has been used up, so we need to confirm your number again.");
@@ -142,7 +167,7 @@ export default function AppLockScreen() {
               <View key={index} style={[styles.dot, index < digits.length && styles.dotFilled]} />
             ))}
           </View>
-          {message ? <Text style={styles.message}>{message}</Text> : <Text style={styles.hint}>Your PIN stays on this phone.</Text>}
+          {message ? <Text style={styles.message}>{message}</Text> : <Text style={styles.hint}>{afterSignIn ? "Your name on the sign-in was proved by text message. The PIN is kept on this phone only." : "Your PIN stays on this phone. Five wrong tries remove it."}</Text>}
         </View>
         <View style={styles.keypad}>
           {KEYS.map((key, index) => {
@@ -166,17 +191,37 @@ export default function AppLockScreen() {
         </View>
         <TouchableOpacity
           onPress={() => {
-            if (afterSignIn) {
-              // The phone number was proved moments ago, so a fresh text message
-              // would be pointless. The PIN is dropped and the customer is in.
-              void clearCustomerPin().then(() => carryOnWithoutPin("Your PIN has been removed. You can set a new one in your profile."));
-              return;
-            }
-            void leaveForSignIn("Sign in with your phone number and choose a new PIN.");
+            void (async () => {
+              if (afterSignIn) {
+                // The phone number was proved moments ago, so a second text
+                // message would prove nothing new. The customer chooses: set a
+                // new PIN now, or carry on without one.
+                const wantsNewPin = await confirmAction(
+                  "Set a new PIN?",
+                  "Choose Continue to pick a new 4 digit PIN now, or Cancel to carry on without one and set it later from your profile.",
+                  "Choose a new PIN",
+                );
+                if (wantsNewPin) {
+                  await dropPin({ reason: "The old PIN was forgotten.", inviteAgain: false });
+                  router.replace("/set-pin?from=forgot" as never);
+                  return;
+                }
+                await carryOnWithoutPin("Your PIN has been removed.");
+                return;
+              }
+              // Opening the app: this is the strict path. Say plainly what is
+              // about to happen, because it costs a text message and the PIN.
+              const sure = await confirmAction(
+                "Forgotten PIN",
+                "We will sign you out and text a new six digit code to your number. The old PIN will be removed, and after the code you can set a new one.",
+                "Sign out and text me a code",
+              );
+              if (sure) await leaveForSignIn("Sign in with your phone number and choose a new PIN.");
+            })();
           }}
           style={styles.forgot}
         >
-          <Text style={styles.forgotText}>{afterSignIn ? "Forgot your PIN? Continue without it" : "Forgot your PIN?"}</Text>
+          <Text style={styles.forgotText}>Forgot your PIN?</Text>
         </TouchableOpacity>
       </View>
     </AppScreen>
