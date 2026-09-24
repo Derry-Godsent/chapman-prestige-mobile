@@ -32,6 +32,9 @@ create table if not exists public.chapman_daily_messages (
 grant usage on schema public to anon, authenticated;
 grant select on public.chapman_daily_messages to anon, authenticated;
 grant insert, update, delete on public.chapman_daily_messages to authenticated;
+-- The Supabase service role is the office's own key, used by the staff web app
+-- and by server-side work. It is never put in the mobile app.
+grant select, insert, update, delete on public.chapman_daily_messages to service_role;
 
 -- 3. Lock the table, then open only the two doors that are wanted.
 alter table public.chapman_daily_messages enable row level security;

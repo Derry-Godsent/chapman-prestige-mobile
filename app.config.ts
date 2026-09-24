@@ -30,6 +30,9 @@ const config: ExpoConfig = {
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+  // The home screen icon and the launch screen, both drawn from the Chapman
+  // Prestige logo: the droplet on the company navy, with no text, because the
+  // name under an icon is too small to read on a phone.
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
@@ -39,10 +42,10 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#FBF7F0",
-      foregroundImage: "./assets/images/android-icon-foreground.png",
-      backgroundImage: "./assets/images/android-icon-background.png",
-      monochromeImage: "./assets/images/android-icon-monochrome.png",
+      backgroundColor: "#1C2A5E",
+      foregroundImage: "./assets/images/adaptive-icon-foreground.png",
+      backgroundImage: "./assets/images/adaptive-icon-background.png",
+      monochromeImage: "./assets/images/adaptive-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
@@ -115,7 +118,7 @@ const config: ExpoConfig = {
         resizeMode: "contain",
         backgroundColor: "#FBF7F0",
         dark: {
-          backgroundColor: "#1C1208",
+          backgroundColor: "#111318",
         },
       },
     ],

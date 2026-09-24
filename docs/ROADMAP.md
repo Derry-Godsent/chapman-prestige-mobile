@@ -39,6 +39,8 @@ to you. That was my mistake. This document fixes it.
 | 12 | **Signing back in, birthdays, and the client list** | Returning customers go straight in, optional birthday, app sign-ups appear as clients | DONE **Waiting on one SQL** |
 | 13 | **The team page, your ideas, and the bonus box** | Every Chapman person as a bubble you can open, a form for app ideas, a bonus box that explains itself | DONE **Waiting on the same SQL** |
 | 14 | **The beta test, boss and staff** | One Android file, one iPhone route, and the checks before anyone installs | READY **The plan is in docs/BETA.md** |
+| 15 | **The company logo as the app icon** | The droplet on the Chapman navy, replacing the blue placeholder | DONE **Ready for the next build** |
+| 16 | **The two Supabase emails, and the Vercel one** | Every remaining open table closed, new tables closed on arrival, website moved off a dead Node | DONE **One paste and one line from you** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -625,6 +627,60 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 16, What the three emails asked for DONE
+
+### Supabase, "new tables will need permission"
+
+From 30 October, a brand new table is no longer reachable until somebody grants
+permission on purpose. Every file we are adding already grants its own tables, to
+the guest, the signed-in customer, and the office role. The lock file below goes
+one step further and withdraws the automatic permission for future tables, and
+installs a rule on the database itself so any table created afterwards gets its
+lock switched on the moment it is created. Their deadline cannot surprise us.
+
+### Supabase, "critical, table publicly accessible"
+
+This is the one that matters. A file in `docs/security-lock-everything.sql` closes
+it for good. It finds every table that still has its lock off, switches the lock
+on, gives each one a single rule that only Chapman staff may touch it, writes down
+what it changed so the undo is exact, and leaves every existing customer rule
+alone. It is proved here first, on a copy of your database:
+
+- tables still unlocked afterwards: 0
+- a stranger sees 0 rows everywhere, and is refused outright on the log table
+- guests can still browse the 36 prices
+- the customer keeps their own requests, routines, enquiries, and ideas, and can
+  still send one
+- the office keeps every request and the client list
+- a table created afterwards arrives locked, and a stranger is refused
+- safe to run twice, and the undo puts everything back
+
+### Vercel, "move to Node 24"
+
+Your website pins `"node": "20.x"` in its own `package.json`, which is exactly the
+case Vercel's dashboard button cannot fix. The change is one line in that file, and
+because my access covers the app repository rather than the website one, you make
+it in the browser: open `package.json` on GitHub, press the pencil, change `20.x`
+to `24.x`, commit. `docs/what-the-emails-mean.md` has the five steps written out.
+
+### The new app icon
+
+The app icon was a blue shield and flame that had nothing to do with Chapman. It is
+now the Chapman Prestige droplet on the company navy, at 1024 by 1024, which is
+what Expo asks for. The same art is used for the Android adaptive icon, the themed
+(monochrome) icon, the launch screen, and the browser tab. The wording under the
+droplet was left out on purpose: at the size a phone draws an icon it would be a
+grey smear, so the icon carries the mark alone and the name lives on the screen.
+
+### And the answer about the UK
+
+Does your boss have to use Expo Go? No. See `docs/BETA.md`. An iPhone can get the
+app properly installed through TestFlight, which needs the paid Apple account, or
+through Expo Go for a first look. An Android phone needs no account at all: one
+file, sent to the phone, tapped.
 
 ---
 

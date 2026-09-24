@@ -336,9 +336,23 @@ create policy "staff marks ideas"
   using (public.is_chapman_staff())
   with check (public.is_chapman_staff());
 
-grant usage on schema public to anon, authenticated;
+-- Permissions, written out instead of assumed. Supabase is tightening this:
+-- from 30 October a brand new table is not reachable through the app until it is
+-- granted, so every table this file creates is granted here, on purpose.
+grant usage on schema public to anon, authenticated, service_role;
+
+-- The Chapman client list is used by the staff system, which signs in as
+-- authenticated and is then filtered by its own rules.
+grant select, insert, update, delete on public.clients to authenticated;
+
+-- Ideas sent from the app: a signed-in customer may send one and read their own.
 grant select, insert, update on public.chapman_app_ideas to authenticated;
 grant select on public.chapman_app_ideas to anon;
+
+-- The service role is the office's own key. It is never put in the mobile app.
+grant select, insert, update, delete on public.chapman_app_ideas to service_role;
+grant select on public.customer_accounts to service_role;
+grant select, insert, update, delete on public.clients to service_role;
 
 commit;
 

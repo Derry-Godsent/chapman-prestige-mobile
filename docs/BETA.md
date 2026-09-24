@@ -95,9 +95,30 @@ account.
 - The app runs inside Expo Go on the iPhone, by scanning a QR code from the
   development window on a computer that has the project running.
 - The stored steps are in `README.md`.
-- What it cannot do: a real installed icon, and the daily 9:00 message depends on
-  Expo Go staying installed and the project server being on. It is a testing
-  route, not a beta route, and it is right for one or two people.
+- What it cannot do: a real installed icon. That is the honest answer to the icon
+  question. Inside Expo Go, the icon on the phone belongs to Expo Go, and no
+  setting of ours can change that, because Expo Go is one container holding every
+  developer's app. Only an installed build shows the Chapman icon, which is what
+  the APK and TestFlight give you.
+- It also cannot hold the 9:00 message the way an installed app does, because it
+  depends on Expo Go staying installed and the project server being on.
+- It is a testing route, not a beta route, and it is right for one or two people.
+
+**Does anyone abroad need Expo Go?** No. Your boss in the UK does not have to
+install Expo Go, and he does not have to be in Ghana either. There are two ways
+that work for a phone in the UK:
+
+1. **If he is on an iPhone:** TestFlight, after the one-time Apple Developer
+   account. He installs Apple's TestFlight app, opens the invite email, and taps
+   Install. That is a real install with the Chapman icon and working alerts.
+2. **If he is on Android:** the same one file as everyone else. Send it to him by
+   link or WhatsApp, he taps it and allows the install once. Nothing else, no
+   account, no computer, and the country makes no difference.
+
+Expo Go is only needed if you want him to look today, before the Apple account
+exists. Even then, the QR code has to be reachable from his phone, which means a
+computer here running the project and reachable from outside, which is more work
+than sending him the Android file or buying the Apple account once.
 
 **Recommendation:** start the beta with the Android APK and the boss on
 TestFlight if he uses an iPhone, and use Expo Go for staff on iPhone only during
@@ -117,6 +138,11 @@ TestFlight covers everyone from then on.
 | Supabase | The database, sign-in, and files | Free plan is enough for a beta |
 
 No Apple fee is needed to finish a working beta if the iPhone testers use Expo Go.
+
+**About the icon.** The Chapman icon shows on a phone only when the app is
+installed as its own app, which is what the APK gives Android and TestFlight gives
+iPhone. Inside Expo Go the icon is Expo Go's own, and that cannot be changed by
+us. The new icon art is already in the project and is described in the roadmap.
 
 ---
 

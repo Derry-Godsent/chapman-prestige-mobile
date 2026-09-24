@@ -35,6 +35,7 @@ const fix = fs.readFileSync(DOCS + 'security-fix.sql', 'utf8');
 const decline = fs.readFileSync(DOCS + 'decline-with-reason.sql', 'utf8');
 const daily = fs.readFileSync(DOCS + 'daily-messages.sql', 'utf8');
 const customers = fs.readFileSync(DOCS + 'customers-birthdays-and-ideas.sql', 'utf8');
+const lockAll = fs.readFileSync(DOCS + 'security-lock-everything.sql', 'utf8');
 
 const db = new PGlite();
 
@@ -44,6 +45,8 @@ const say = (text) => { lines.push(text); console.log(text); };
 const schema = `
 create role anon nologin;
 create role authenticated nologin;
+-- The service role exists in every Supabase project, so the stand-in has it too.
+create role service_role nologin bypassrls;
 create schema auth;
 create table auth.users (id uuid primary key, phone text, raw_user_meta_data jsonb);
 create function auth.uid() returns uuid language sql stable as $$
@@ -220,6 +223,12 @@ await db.exec(schema);
 await db.exec(`
 alter table public.staff enable row level security;
 alter table public.clients enable row level security;
+-- The staff system's own rule for the client list, exactly as the live project
+-- has it: staff sign in and manage clients, customers have no business here.
+drop policy if exists "staff manages clients" on public.clients;
+create policy "staff manages clients"
+  on public.clients for all to authenticated
+  using (public.is_chapman_staff()) with check (public.is_chapman_staff());
 alter table public.customer_accounts enable row level security;
 alter table public.role_permissions enable row level security;
 alter table public.mobile_request_events enable row level security;
@@ -370,6 +379,7 @@ try {
   process.exit(1);
 }
 
+const stripComments = (sql) => sql.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
 say('=== 3d. The customers, birthdays and ideas file, run from its own file ===');
 let birthdayColumns = 0;
 let linkFunction = 0;
@@ -381,7 +391,6 @@ let ideasSeenByOther = -1;
 let ideasSeenByStaff = -1;
 let ideasSeenByStranger = -1;
 let anonIdeaRefused = false;
-const stripComments = (sql) => sql.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
 try {
   await db.exec(stripComments(customers));
 
@@ -666,6 +675,112 @@ try {
 }
 
 say('');
+say('=== 7b. Locking every drawer, and keeping new ones locked ===');
+let lockedByFile = -1;
+let openAfterLock = -1;
+let strangerSeesAfterLock = [];
+let customerStillWorks = null;
+let staffStillWorks = null;
+let newTableLocked = null;
+let ideasAfterLock = -1;
+let undoRestored = -1;
+try {
+  await db.exec(stripComments(lockAll));
+
+  const openNow = await db.query(`select count(*)::int as n from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity = false`);
+  openAfterLock = openNow.rows[0].n;
+  say(`tables still unlocked after the file: ${openAfterLock}`);
+
+  lockedByFile = (await db.query(`select count(*)::int as n from public.chapman_security_log
+    where action = 'row security switched on' and reversed = false`)).rows[0].n;
+  const names = await db.query(`select table_name from public.chapman_security_log
+    where action = 'row security switched on' and reversed = false order by id`);
+  say(`locked by this file: ${lockedByFile} (${names.rows.map((row) => row.table_name).join(', ')})`);
+
+  // The check file must now agree that nothing is left open.
+  const afterLockCheck = await db.query(check);
+  const stillOpenRows = afterLockCheck.rows.filter((row) => String(row.detail).includes('protection OFF'));
+  say(`the check file now reports ${stillOpenRows.length} tables without protection`);
+
+  // A stranger must see nothing except the price list. A table that refuses the
+  // request outright counts as nothing seen, which is the strongest answer.
+  for (const table of ['mobile_requests', 'routines', 'quote_requests', 'orders', 'order_items', 'clients', 'customer_accounts', 'chapman_app_ideas', 'mobile_request_events', 'chapman_security_log']) {
+    let rows = 0;
+    try {
+      rows = (await asRole('anon', null, `select count(*)::int as n from public.${table}`))[0].n;
+    } catch {
+      strangerSeesAfterLock.push(`${table} refused`);
+      continue;
+    }
+    strangerSeesAfterLock.push(`${table} ${rows}`);
+  }
+  say(`a stranger now sees: ${strangerSeesAfterLock.join(', ')}`);
+  const pricesStillOpen = (await asRole('anon', null, 'select count(*)::int as n from public.laundry_items'))[0].n;
+  say(`the price list stays readable for guests: ${pricesStillOpen}`);
+
+  // The app must still work for the customer and for the office.
+  const ownRequests = (await asRole('authenticated', customerA, 'select count(*)::int as n from public.mobile_requests'))[0].n;
+  const ownRoutines = (await asRole('authenticated', customerA, 'select count(*)::int as n from public.routines'))[0].n;
+  const ownQuotes = (await asRole('authenticated', customerA, 'select count(*)::int as n from public.quote_requests'))[0].n;
+  const ownIdeas = (await asRole('authenticated', customerA, 'select count(*)::int as n from public.chapman_app_ideas'))[0].n;
+  customerStillWorks = { ownRequests, ownRoutines, ownQuotes, ownIdeas };
+  say(`the customer still sees: ${ownRequests} requests, ${ownRoutines} routines, ${ownQuotes} enquiries, ${ownIdeas} own idea`);
+
+  // The only table the app writes that is brand new: sending an idea must still
+  // work now that Supabase's automatic permission is withdrawn.
+  await asRoleCommit('authenticated', customerA, `insert into public.chapman_app_ideas (author_name, idea)
+    values ('Kofi Boateng', 'An idea sent after the locks went on.')`);
+  ideasAfterLock = (await asRole('authenticated', customerA, `select count(*)::int as n from public.chapman_app_ideas`))[0].n;
+  say(`a customer can still send an idea after locking: ${ideasAfterLock} own idea(s)`);
+
+  const allRequests = (await asRole('authenticated', staffA, 'select count(*)::int as n from public.mobile_requests'))[0].n;
+  const allClients = (await asRole('authenticated', staffA, 'select count(*)::int as n from public.clients'))[0].n;
+  staffStillWorks = { allRequests, allClients };
+  say(`the office still sees: ${allRequests} requests, ${allClients} clients`);
+
+  // A table created from now on must arrive closed.
+  await db.exec('create table public.chapman_probe_table (id uuid primary key default gen_random_uuid(), note text)');
+  newTableLocked = (await db.query(`select relrowsecurity from pg_class where relname = 'chapman_probe_table'`)).rows[0].relrowsecurity;
+  say(`a brand new table arrives locked: ${newTableLocked ? 'yes' : 'NO'}`);
+  let probeSeen = 'refused';
+  try {
+    probeSeen = (await asRole('anon', null, 'select count(*)::int as n from public.chapman_probe_table'))[0].n;
+  } catch {
+    // Refused outright is the answer we want: it is the permission rule and the
+    // row rule both holding.
+  }
+  say(`a stranger reading the brand new table: ${probeSeen}`);
+  await db.exec('drop table public.chapman_probe_table');
+
+  // Running the whole file a second time must not lock anything again.
+  await db.exec(stripComments(lockAll));
+  const again = (await db.query(`select count(*)::int as n from public.chapman_security_log where action = 'row security switched on' and reversed = false`)).rows[0].n;
+  say(`running it twice is safe: locks recorded stay at ${again}`);
+
+  // And the undo, exactly as written at the bottom of the file, puts it back.
+  const undoStart = lockAll.indexOf('-- begin;');
+  const undoEnd = lockAll.indexOf('-- commit;') + '-- commit;'.length;
+  const undoText = lockAll.slice(undoStart, undoEnd).split('\n').map((line) => line.replace(/^-- ?/, '')).join('\n');
+  await db.exec(undoText);
+  undoRestored = (await db.query(`select count(*)::int as n from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity = false`)).rows[0].n;
+  say(`the undo switches the lock back off on ${undoRestored} tables`);
+
+  // Leave the database in the state the file asks for.
+  await db.exec(stripComments(lockAll));
+  const finalOpen = (await db.query(`select count(*)::int as n from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity = false`)).rows[0].n;
+  say(`after running it once more, tables still unlocked: ${finalOpen}`);
+} catch (error) {
+  say(`THE LOCK EVERYTHING FILE FAILED: ${error.message}`);
+  process.exit(1);
+}
+
+say('');
 say('=== 8. Shape rules for both files ===');
 for (const [name, text] of [['the check file', check], ['the security fix', fix]]) {
   const nonAscii = [...text].filter((character) => character.codePointAt(0) > 126);
@@ -712,6 +827,16 @@ if (ideasSeenByOther !== 0) failed.push(`another customer could read the idea, s
 if (ideasSeenByStaff !== 1) failed.push(`the office should read the idea, read ${ideasSeenByStaff}`);
 if (ideasSeenByStranger !== 0) failed.push(`a stranger could read ideas, saw ${ideasSeenByStranger}`);
 if (!anonIdeaRefused) failed.push('a stranger could send an idea');
+if (openAfterLock !== 0) failed.push(`${openAfterLock} tables are still unlocked after the lock everything file`);
+if (lockedByFile < 5) failed.push(`the lock everything file only locked ${lockedByFile} tables`);
+const strangerLeaks = strangerSeesAfterLock.filter((line) => !line.endsWith(' 0') && !line.endsWith(' refused'));
+if (strangerLeaks.length) failed.push(`a stranger can still read: ${strangerLeaks.join(', ')}`);
+if (customerStillWorks && (customerStillWorks.ownRequests < 1 || customerStillWorks.ownRoutines < 1 || customerStillWorks.ownQuotes < 1)) failed.push('the customer lost access to their own records after locking');
+if (!staffStillWorks || staffStillWorks.allRequests < 8) failed.push(`the office lost sight of the requests after locking, saw ${staffStillWorks?.allRequests}`);
+if (!staffStillWorks || staffStillWorks.allClients < 2) failed.push(`the office lost sight of the client list after locking, saw ${staffStillWorks?.allClients}`);
+if (typeof ideasAfterLock !== 'number' || ideasAfterLock < 2) failed.push(`sending an idea stopped working after locking, the customer sees ${ideasAfterLock}`);
+if (newTableLocked !== true) failed.push('a brand new table did not arrive locked');
+if (undoRestored !== 5) failed.push(`the undo should leave 5 tables unlocked, it left ${undoRestored}`);
 
 say('');
 say(failed.length === 0 ? 'RESULT: every check passed' : `RESULT: FAILED -> ${failed.join('; ')}`);
