@@ -21,13 +21,15 @@ export default function SetPinScreen() {
   const [confirm, setConfirm] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const rememberOffered = async () => {
+  const rememberOffered = async (): Promise<string> => {
     try {
       const { data } = await supabase!.auth.getSession();
-      const userId = data.session?.user?.id;
+      const userId = data.session?.user?.id ?? "";
       if (userId) await markPinOffered(userId);
+      return userId;
     } catch {
       // The offer flag is a convenience. Failing to store it must not block the customer.
+      return "";
     }
   };
   const finish = async (setIt: boolean) => {
@@ -38,11 +40,13 @@ export default function SetPinScreen() {
     }
     setBusy(true);
     try {
+      const userId = await rememberOffered();
       if (setIt) {
-        await setCustomerPin(pin);
+        // The PIN remembers whose it is, so it can never be asked of a different
+        // person who signs in on this phone.
+        await setCustomerPin(pin, userId);
         haptic.success();
       }
-      await rememberOffered();
     } catch {
       // If the PIN cannot be saved we still let the customer in rather than
       // trapping them on this screen.

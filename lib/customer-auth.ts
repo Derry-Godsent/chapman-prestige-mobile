@@ -1,5 +1,4 @@
 import { CustomerGender, normalizeGhanaPhone } from "@/lib/customer-auth-utils";
-import { clearCustomerPin } from "@/lib/customer-pin";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -161,10 +160,16 @@ export async function signOutCustomer() {
   const { error } = await client.auth.signOut();
   if (error) throw error;
   await AsyncStorage.removeItem(CUSTOMER_GUEST_SESSION_KEY);
-  // The PIN unlocks a stored sign-in. With the sign-in gone the PIN has nothing
-  // to unlock, so it goes too. That also stops the PIN blocking the next person
-  // to sign in on a shared phone.
-  await clearCustomerPin();
+  // The PIN stays on this phone, and that is deliberate.
+  //
+  // It is the customer's own habit here, and the saved PIN now remembers which
+  // account set it, so it can never be asked of somebody else who signs in on a
+  // shared phone. Keeping it is what makes the next sign-in end with the PIN
+  // rather than starting over: the number is proved by text message, then the PIN
+  // confirms it is the same person holding the phone.
+  //
+  // It is still thrown away when a customer removes it on purpose, or when the
+  // five wrong tries are used up.
 }
 
 export async function continueAsGuest() {

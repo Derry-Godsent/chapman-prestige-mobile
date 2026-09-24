@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
@@ -11,11 +11,19 @@ import { haptic } from "@/lib/haptics";
 import { notify } from "@/lib/notify";
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 /**
- * The PIN screen shown when the app opens and a PIN is set for this device.
+ * The PIN screen, which does two jobs.
  *
- * Uses a stored sign-in, so no text message is sent. If the PIN is wrong too
- * many times, or if the stored sign-in has gone, it sends the customer back to
- * the phone sign-in rather than leaving them stuck.
+ * 1. Opening the app. Arrived at from the splash screen, and it unlocks the
+ *    sign-in already stored on this phone, so no text message is needed.
+ * 2. Finishing a sign-in. Arrived at from /auth/phone?after=signin, straight
+ *    after the six digit code, for a customer who set a PIN here before. The
+ *    number has just been proved by text message, so the PIN is a confirmation,
+ *    not a second lock: if it is forgotten or used up at this point, the PIN is
+ *    thrown away and the customer carries on into the app rather than being sent
+ *    back to the start.
+ *
+ * The PIN only ever answers for the account that set it, so a PIN left on a
+ * shared phone cannot be asked of the next person who signs in.
  */
 export default function AppLockScreen() {
   const { styles, palette } = useChapmanStyles(makeStyles);
@@ -24,39 +32,65 @@ export default function AppLockScreen() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
   const submitted = useRef(false);
+  const params = useLocalSearchParams<{ after?: string }>();
+  // True when this screen is the last step of a sign-in rather than the lock on
+  // an app that is already open.
+  const afterSignIn = params?.after === "signin";
   // This screen only makes sense when there is both a PIN and a stored sign-in
   // for it to unlock. If either has gone, there is nothing to unlock, so the
   // customer goes straight to the phone sign-in instead of being stuck here.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [present, session] = await Promise.all([
-        hasCustomerPin().catch(() => false),
-        getCustomerSession().catch(() => null),
-      ]);
+      const session = await getCustomerSession().catch(() => null);
+      const userId = session?.user?.id ?? null;
+      // A PIN only counts when this device also holds the sign-in it unlocks.
+      const present = await hasCustomerPin(userId).catch(() => false);
       if (cancelled) return;
-      if (!present) { router.replace("/(tabs)" as never); return; }
       if (!session) {
         await clearCustomerPin().catch(() => undefined);
-        if (!cancelled) router.replace("/auth/phone" as never);
+        // Straight after a sign-in the number was proved seconds ago, so the
+        // customer carries on rather than being sent through a second text
+        // message for a session that is simply not there.
+        if (!cancelled) router.replace(afterSignIn ? ("/(tabs)" as never) : ("/auth/phone" as never));
+        return;
+      }
+      if (!present) {
+        // Nothing of this customer's to answer. After a sign-in that means they
+        // simply carry on into the app; on opening the app it means the same.
+        if (!cancelled) router.replace("/(tabs)" as never);
         return;
       }
       setChecking(false);
     })();
     return () => { cancelled = true; };
   }, []);
+  /**
+   * The PIN is gone and there is no session left to unlock, so the customer goes
+   * back to the phone sign-in for a fresh text message.
+   */
   const leaveForSignIn = useCallback(async (reason: string) => {
     await clearCustomerPin().catch(() => undefined);
     await signOutCustomer().catch(() => undefined);
     notify("Sign in again", reason);
     router.replace("/auth/phone" as never);
   }, []);
+  /**
+   * The PIN is gone, but the customer has just proved this phone by text message,
+   * so they keep their sign-in and simply carry on. Used only at the end of a
+   * sign-in, never when opening the app.
+   */
+  const carryOnWithoutPin = useCallback((reason: string) => {
+    notify("PIN removed", reason);
+    router.replace("/(tabs)" as never);
+  }, []);
   const submit = useCallback(async (pin: string) => {
     if (submitted.current) return;
     submitted.current = true;
     setBusy(true);
     try {
-      const result = await verifyCustomerPin(pin);
+      const session = await getCustomerSession().catch(() => null);
+      const result = await verifyCustomerPin(pin, session?.user?.id ?? null);
       if (result.ok) {
         haptic.success();
         router.replace("/(tabs)" as never);
@@ -66,6 +100,11 @@ export default function AppLockScreen() {
       setDigits("");
       setMessage(wrongPinMessage(result.failedAttempts));
       if (result.forgotten) {
+        if (afterSignIn) {
+          await clearCustomerPin().catch(() => undefined);
+          carryOnWithoutPin("The PIN has been removed after too many wrong tries. You can set a new one in your profile.");
+          return;
+        }
         await leaveForSignIn("The PIN has been used up, so we need to confirm your number again.");
       }
     } catch {
@@ -96,8 +135,8 @@ export default function AppLockScreen() {
       <View style={styles.page}>
         <View style={styles.top}>
           <ChapmanMark size={54} />
-          <DisplayText style={styles.title}>Welcome back.</DisplayText>
-          <Text style={styles.subtitle}>Enter your 4 digit PIN to open Chapman. No text message needed.</Text>
+          <DisplayText style={styles.title}>{afterSignIn ? "One more step." : "Welcome back."}</DisplayText>
+          <Text style={styles.subtitle}>{afterSignIn ? "Enter your 4 digit PIN to finish signing in. Chapman will remember this phone." : "Enter your 4 digit PIN to open Chapman. No text message needed."}</Text>
           <View style={styles.dots}>
             {Array.from({ length: PIN_LENGTH }).map((_, index) => (
               <View key={index} style={[styles.dot, index < digits.length && styles.dotFilled]} />
@@ -126,10 +165,18 @@ export default function AppLockScreen() {
           })}
         </View>
         <TouchableOpacity
-          onPress={() => void leaveForSignIn("Sign in with your phone number and choose a new PIN.")}
+          onPress={() => {
+            if (afterSignIn) {
+              // The phone number was proved moments ago, so a fresh text message
+              // would be pointless. The PIN is dropped and the customer is in.
+              void clearCustomerPin().then(() => carryOnWithoutPin("Your PIN has been removed. You can set a new one in your profile."));
+              return;
+            }
+            void leaveForSignIn("Sign in with your phone number and choose a new PIN.");
+          }}
           style={styles.forgot}
         >
-          <Text style={styles.forgotText}>Forgot your PIN?</Text>
+          <Text style={styles.forgotText}>{afterSignIn ? "Forgot your PIN? Continue without it" : "Forgot your PIN?"}</Text>
         </TouchableOpacity>
       </View>
     </AppScreen>

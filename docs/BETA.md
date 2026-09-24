@@ -190,8 +190,11 @@ Send this list with the APK:
    shows correctly.
 7. Tap the people button beside the settings gear, read the team, and send one
    idea for the app using the form at the bottom.
-8. Turn dark mode on in Settings and look at the home screen, the profile, and
-   each service page.
+8. Set the app lock PIN when the app offers it. Then sign out from your account
+   screen and sign back in with your number: after the six digit code, the app
+   should ask for your PIN, and let you in with it.
+9. Turn dark mode on in Settings and look at the home screen, the profile, and
+   each service page. It should change as soon as you tap.
 
 Report anything that looks wrong, in the app idea form or straight to the office.
 One line is enough: what you did, what you expected, what happened.

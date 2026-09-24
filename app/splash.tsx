@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
-import { getLaunchDestination } from "@/lib/customer-auth";
+import { getCustomerSession, getLaunchDestination } from "@/lib/customer-auth";
 import { hasCustomerPin } from "@/lib/customer-pin";
 const SPLASH_DURATION_MS = 3500;
 export default function ChapmanSplashScreen() {
@@ -35,9 +35,14 @@ export default function ChapmanSplashScreen() {
           if (cancelled) return;
           // A stored sign-in plus a PIN means the customer can open the app
           // without waiting for another text message.
-          if (destination === "/(tabs)" && (await hasCustomerPin())) {
-            if (!cancelled) router.replace("/lock" as never);
-            return;
+          if (destination === "/(tabs)") {
+            // Only lock the app for the customer whose PIN this is. A PIN left by
+            // somebody else must not stand between this person and their app.
+            const session = await getCustomerSession().catch(() => null);
+            if (await hasCustomerPin(session?.user?.id ?? null)) {
+              if (!cancelled) router.replace("/lock" as never);
+              return;
+            }
           }
           if (!cancelled) router.replace(destination as never);
         })

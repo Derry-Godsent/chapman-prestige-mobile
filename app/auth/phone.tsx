@@ -7,7 +7,7 @@ import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { cleanGhanaLocalEntry, cleanOtpCode, CustomerGender } from "@/lib/customer-auth-utils";
 import { completeCustomerOnboarding, continueAsGuest, getCurrentCustomerAccount, linkCustomerToChapmanClients, sendCustomerOtp, verifyCustomerOtp } from "@/lib/customer-auth";
-import { hasCustomerPin, wasPinOffered } from "@/lib/customer-pin";
+import { clearCustomerPin, hasCustomerPin, pinOwnerId, wasPinOffered } from "@/lib/customer-pin";
 import { supabase } from "@/lib/supabase";
 type Stage = "phone" | "code" | "profile";
 const genderOptions: { value: CustomerGender; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -122,11 +122,26 @@ export default function PhoneAuthScreen() {
           birthMonth: account?.birth_month ?? null,
         }).catch(() => undefined);
 
-        const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };
-        const userId = data.session?.user?.id ?? "";
-        const alreadyOffered = userId ? await wasPinOffered(userId) : true;
-        const alreadyHasPin = await hasCustomerPin();
+        const userId = verified?.user?.id ?? (await supabase?.auth.getSession())?.data?.session?.user?.id ?? "";
         setNotice("Welcome back.");
+
+        // The order from here is the order the customer expects:
+        //   their own PIN, if they set one on this phone,
+        //   otherwise the one-time offer to set one,
+        //   otherwise straight in.
+        const owner = await pinOwnerId();
+        if (owner && owner !== userId) {
+          // A PIN was left behind by a different account. It is not this
+          // customer's to answer, and it is not theirs to keep, so it goes.
+          await clearCustomerPin().catch(() => undefined);
+        }
+        if (userId && owner === userId) {
+          router.replace("/lock?after=signin" as never);
+          return;
+        }
+
+        const alreadyOffered = userId ? await wasPinOffered(userId) : true;
+        const alreadyHasPin = await hasCustomerPin(userId);
         if (!alreadyOffered && !alreadyHasPin) { router.replace("/set-pin" as never); return; }
         router.replace("/(tabs)" as never);
         return;

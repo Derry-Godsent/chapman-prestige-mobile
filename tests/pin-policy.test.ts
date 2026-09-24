@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_PIN_ATTEMPTS, PIN_LENGTH, attemptsLeft, isValidPin, shouldForgetPin, wrongPinMessage } from "../lib/pin-policy";
+import { pinBelongsTo, MAX_PIN_ATTEMPTS, PIN_LENGTH, attemptsLeft, isValidPin, shouldForgetPin, wrongPinMessage } from "../lib/pin-policy";
 
 describe("app PIN rules", () => {
   it("accepts exactly four digits", () => {
@@ -38,5 +38,24 @@ describe("app PIN rules", () => {
     expect(wrongPinMessage(1)).toBe("Wrong PIN. 4 tries left.");
     expect(wrongPinMessage(MAX_PIN_ATTEMPTS - 1)).toBe("Wrong PIN. 1 try left before you need a new text message.");
     expect(wrongPinMessage(MAX_PIN_ATTEMPTS)).toContain("last try");
+  });
+});
+
+describe("whose PIN it is", () => {
+  it("says yes only for the account that set the PIN", () => {
+    expect(pinBelongsTo("user-a", "user-a")).toBe(true);
+    expect(pinBelongsTo("user-a", "user-b")).toBe(false);
+  });
+
+  it("says no when either side is missing, so a shared phone never asks the wrong person", () => {
+    expect(pinBelongsTo("", "user-a")).toBe(false);
+    expect(pinBelongsTo("user-a", "")).toBe(false);
+    expect(pinBelongsTo(null, "user-a")).toBe(false);
+    expect(pinBelongsTo("user-a", null)).toBe(false);
+    expect(pinBelongsTo(undefined, undefined)).toBe(false);
+  });
+
+  it("ignores spaces around an id", () => {
+    expect(pinBelongsTo("  user-a  ", "user-a")).toBe(true);
   });
 });

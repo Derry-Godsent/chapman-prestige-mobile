@@ -19,6 +19,22 @@ export function isValidPin(pin: string): boolean {
   return new RegExp(`^[0-9]{${PIN_LENGTH}}$`).test(pin);
 }
 
+/**
+ * True when the PIN saved on this phone belongs to the account signing in.
+ *
+ * The PIN is kept on the phone, and it is kept when a customer signs out, so that
+ * signing back in with a text message is followed by the PIN rather than by a
+ * stranger's PIN. That only works if the PIN remembers whose it is. A PIN set by
+ * someone else on a shared phone answers false, and the caller leaves it alone and
+ * lets the new person through, which is also why the check is written here rather
+ * than buried in the storage code.
+ */
+export function pinBelongsTo(pinOwner: string | null | undefined, accountId: string | null | undefined): boolean {
+  const owner = (pinOwner ?? "").trim();
+  const account = (accountId ?? "").trim();
+  return owner.length > 0 && owner === account;
+}
+
 /** How many tries are left after this many wrong answers. Never below zero. */
 export function attemptsLeft(failedAttempts: number): number {
   return Math.max(0, MAX_PIN_ATTEMPTS - Math.max(0, failedAttempts));

@@ -24,15 +24,19 @@ export default function AccountScreen() {
   const [pinAction, setPinAction] = useState<"change" | "remove">("change");
   const [currentEntry, setCurrentEntry] = useState("");
   const [currentNotice, setCurrentNotice] = useState<string | null>(null);
+  // The PIN belongs to the signed-in account, so every answer here is asked
+  // about that account and no other.
+  const accountId = account?.auth_user_id ?? null;
   useEffect(() => {
-    void hasCustomerPin().then(setPinSet).catch(() => setPinSet(false));
-  }, []);
+    if (checking) return;
+    void hasCustomerPin(accountId).then(setPinSet).catch(() => setPinSet(false));
+  }, [accountId, checking]);
   const savePin = async () => {
     setPinNotice(null);
     if (!isValidPin(pinEntry)) { setPinNotice("Choose exactly 4 digits, for example 2 0 4 8."); return; }
     if (pinEntry !== pinConfirm) { setPinNotice("The two entries do not match. Please try again."); return; }
     try {
-      await setCustomerPin(pinEntry);
+      await setCustomerPin(pinEntry, accountId);
       setPinSet(true);
       resetPinForm();
     } catch {
@@ -56,7 +60,7 @@ export default function AccountScreen() {
   const verifyCurrentPin = async () => {
     setCurrentNotice(null);
     if (!isValidPin(currentEntry)) { setCurrentNotice("Enter your current 4 digits."); return; }
-    const check = await verifyCustomerPin(currentEntry);
+    const check = await verifyCustomerPin(currentEntry, accountId);
     if (check.forgotten) {
       setPinSet(false);
       setCurrentEntry("");

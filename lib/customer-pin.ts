@@ -3,7 +3,7 @@ import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-import { isValidPin, shouldForgetPin } from "./pin-policy";
+import { isValidPin, pinBelongsTo, shouldForgetPin } from "./pin-policy";
 
 /**
  * The 4 digit app PIN, kept on this device only.
@@ -33,6 +33,12 @@ type StoredPin = {
   hash: string;
   failedAttempts: number;
   createdAt: string;
+  /**
+   * Which account this PIN was set by. A PIN is the customer's own habit, so it
+   * stays on the phone when they sign out, and this is what stops it being asked
+   * of somebody else who signs in on the same phone.
+   */
+  ownerId: string;
 };
 
 const isWeb = Platform.OS === "web";
@@ -86,6 +92,7 @@ async function readStored(): Promise<StoredPin | null> {
       hash: parsed.hash,
       failedAttempts: typeof parsed.failedAttempts === "number" ? parsed.failedAttempts : 0,
       createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
+      ownerId: typeof parsed.ownerId === "string" ? parsed.ownerId : "",
     };
   } catch {
     return null;
@@ -96,9 +103,24 @@ async function hashPin(pin: string, salt: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${pin}`);
 }
 
-/** True when this device has a PIN to unlock with. */
-export async function hasCustomerPin(): Promise<boolean> {
-  return (await readStored()) !== null;
+/**
+ * True when this device has a PIN to unlock with.
+ *
+ * Given an account id, the answer is true only when the PIN on this phone was set
+ * by that account, which is what the sign-in flow asks: "did this person leave a
+ * PIN here?", not "is there any PIN on this phone?".
+ */
+export async function hasCustomerPin(accountId?: string | null): Promise<boolean> {
+  const stored = await readStored();
+  if (!stored) return false;
+  if (accountId === undefined) return true;
+  return pinBelongsTo(stored.ownerId, accountId);
+}
+
+/** Which account, if any, left a PIN on this phone. */
+export async function pinOwnerId(): Promise<string | null> {
+  const stored = await readStored();
+  return stored?.ownerId || null;
 }
 
 /**
@@ -140,11 +162,17 @@ export async function getPinFailedAttempts(): Promise<number> {
  * Saves a new PIN, replacing any existing one and clearing the try counter.
  * Rejects a PIN that is not exactly four digits.
  */
-export async function setCustomerPin(pin: string): Promise<void> {
+export async function setCustomerPin(pin: string, accountId: string | null = null): Promise<void> {
   if (!isValidPin(pin)) throw new Error("Choose exactly 4 digits.");
   const salt = Crypto.randomUUID();
   const hash = await hashPin(pin, salt);
-  const record: StoredPin = { salt, hash, failedAttempts: 0, createdAt: new Date().toISOString() };
+  const record: StoredPin = {
+    salt,
+    hash,
+    failedAttempts: 0,
+    createdAt: new Date().toISOString(),
+    ownerId: (accountId ?? "").trim(),
+  };
   await writeRaw(JSON.stringify(record));
 }
 
@@ -164,9 +192,14 @@ export type PinCheck = {
  * deleted and the caller is told, so the app can send the customer back to a
  * fresh sign-in rather than leaving them stuck on a screen they cannot pass.
  */
-export async function verifyCustomerPin(pin: string): Promise<PinCheck> {
+export async function verifyCustomerPin(pin: string, accountId?: string | null): Promise<PinCheck> {
   const stored = await readStored();
   if (!stored) return { ok: false, failedAttempts: 0, forgotten: true };
+  // A PIN left by a different account is not this customer's to answer, and a
+  // wrong entry must not count against it either.
+  if (accountId !== undefined && !pinBelongsTo(stored.ownerId, accountId)) {
+    return { ok: false, failedAttempts: 0, forgotten: true };
+  }
 
   const hash = await hashPin(pin, stored.salt);
   if (hash === stored.hash) {

@@ -41,6 +41,7 @@ to you. That was my mistake. This document fixes it.
 | 14 | **The beta test, boss and staff** | One Android file, one iPhone route, and the checks before anyone installs | READY **The plan is in docs/BETA.md** |
 | 15 | **The company logo as the app icon** | The droplet on the Chapman navy, replacing the blue placeholder | DONE **Ready for the next build** |
 | 16 | **The two Supabase emails, and the Vercel one** | Every remaining open table closed, new tables closed on arrival, website moved off a dead Node | DONE **One paste and one line from you** |
+| 17 | **The dark mode switch, and the PIN after signing in** | The switch now answers at once, and a returning customer is asked for their own PIN | DONE **Ready to test on your phone** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -627,6 +628,74 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 17, The slow dark mode switch, and the PIN when signing back in DONE
+
+### Why the dark mode switch felt slow
+
+Because the app was asking the phone to change its appearance, not just itself.
+
+The switch called two things: React Native's own appearance setter, and
+nativewind's, which calls the same one underneath. Both tell the OPERATING SYSTEM
+to switch appearance, and that is expensive:
+
+- the whole app is drawn a second time, because the system then reports the new
+  appearance back to the app;
+- on Android, the system is asked for a configuration change, which means another
+  full redraw and sometimes a visible flash;
+- on iOS, the window cross-fades, which adds its own delay.
+
+So one tap produced two redraws and a round trip to the phone before the colours
+appeared. That is the delay you were seeing.
+
+**The fix.** The app no longer asks the phone for anything. Every screen in this
+app reads its colours from the palette in `lib/theme-palette.ts`, so switching is
+now just a redraw with the other palette, which is what should have been happening
+all along. A happy side effect: choosing dark in the app no longer changes anything
+else on your phone, and choosing light inside a dark phone does not fight with it.
+
+**Three smaller things found while fixing it:**
+
+1. The switch itself now moves the instant it is tapped, and the colours follow. On
+   a slower phone the knob can no longer appear stuck.
+2. The phone's clock and battery icons were dark-on-dark in dark mode, because they
+   followed the screen rather than the skin. They now follow the skin.
+3. The web version had two older components still asking the browser what the
+   visitor's computer was set to, so they ignored the choice made in Settings. They
+   now follow the choice like everything else.
+
+### The PIN when signing back in
+
+What you asked for, in the order it now happens after the six digit code:
+
+1. **A PIN is set for this account on this phone** -> the PIN screen appears, and
+   the PIN opens the app. This is new.
+2. **No PIN, but it was never offered** -> the one-time offer to set one, exactly
+   as before.
+3. **No PIN, and it was offered before** -> straight in.
+
+**What had to change underneath.** Signing out used to delete the PIN, because the
+PIN only unlocked a stored sign-in. Now the PIN stays, and it remembers WHICH
+account set it. That is what makes it safe on a shared phone: a PIN can only ever be
+asked of the account that created it, so if a different person signs in, the old PIN
+is dropped and they simply move on. Without that one detail, the phone would ask the
+next person for somebody else's PIN.
+
+**Two honest details.** The PIN at this step is a confirmation, not a second lock:
+the phone number was proved by text message moments earlier, so if the PIN is
+forgotten or the five tries are used up, the PIN is thrown away and the customer goes
+into the app rather than back to the start. And the app-lock PIN you already had,
+when the app is opened fresh, works exactly as before.
+
+### Face ID and Touch ID
+
+Agreed as the next step, and written down here so it is not lost. When we build it,
+it replaces typing the PIN rather than replacing the PIN itself, and it needs the
+same care: a device that fails the face or fingerprint check falls back to the PIN,
+and the PIN rules above still apply underneath. It also needs a real installed build
+to be tested properly, so it fits naturally with the TestFlight and APK step.
 
 ---
 
