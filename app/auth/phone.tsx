@@ -104,17 +104,22 @@ export default function PhoneAuthScreen() {
     if (code.length !== 6) { setError("Enter the full six-digit code."); return; }
     setBusy(true); setError(null); setNotice(null);
     try {
-      await verifyCustomerOtp(verifiedPhone, code);
+      const verified = await verifyCustomerOtp(verifiedPhone, code);
       Keyboard.dismiss();
 
       // A customer who has signed in before already gave Chapman their details,
       // so they go straight in rather than being asked for them all over again.
+      // The answer comes from the customer record, and if that read fails the
+      // customer's own sign-in record is used, so the form cannot reappear just
+      // because the signal dropped.
       const account = await getCurrentCustomerAccount().catch(() => null);
-      if (account?.profile_completed_at) {
+      const remembered = verified?.user?.user_metadata?.profile_completed_at;
+      const completedAt = account?.profile_completed_at ?? (typeof remembered === "string" ? remembered : null);
+      if (completedAt) {
         // Make sure Chapman's own client records know them, quietly.
         void linkCustomerToChapmanClients({
-          birthDay: account.birth_day ?? null,
-          birthMonth: account.birth_month ?? null,
+          birthDay: account?.birth_day ?? null,
+          birthMonth: account?.birth_month ?? null,
         }).catch(() => undefined);
 
         const { data } = (await supabase?.auth.getSession()) ?? { data: { session: null } };

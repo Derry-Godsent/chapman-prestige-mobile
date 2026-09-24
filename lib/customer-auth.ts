@@ -83,7 +83,22 @@ export async function completeCustomerOnboarding(input: {
     p_email: input.email ?? null,
     ...birthday,
   });
-  if (!error) return data as CustomerAccount;
+  if (!error) {
+    // The same details are kept in the customer's own private sign-in record as
+    // well. That way a later sign-in on a weak signal can never make the app ask
+    // a returning customer to type everything again.
+    const saved = data as CustomerAccount | null;
+    void client.auth.updateUser({
+      data: {
+        full_name: input.fullName,
+        gender: input.gender,
+        profile_completed_at: saved?.profile_completed_at ?? new Date().toISOString(),
+        birth_day: input.birthDay ?? null,
+        birth_month: input.birthMonth ?? null,
+      },
+    }).catch(() => undefined);
+    return data as CustomerAccount;
+  }
 
   // The larger customer-record migration has not been activated yet. Until it is,
   // save only this signed-in customer's own basic profile in Supabase Auth metadata.
