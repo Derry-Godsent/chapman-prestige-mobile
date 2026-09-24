@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, PrimaryButton, StatusPill, palette, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
-import { disableDailyChapmanUpdates, enableDailyChapmanUpdates } from "@/lib/chapman-notifications";
+import { disableDailyChapmanUpdates, enableDailyChapmanUpdates, isDailyChapmanUpdateOn } from "@/lib/chapman-notifications";
 import { CustomerNotification } from "@/lib/customer-notifications";
 import { timeAgo } from "@/lib/chapman-format";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -30,6 +30,12 @@ export default function NotificationsScreen()
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   useEffect(() => { if (unread > 0) void markAllRead(); }, [unread, markAllRead]);
+
+  // Read the switch from the phone every time this screen opens, so it shows
+  // what is really set rather than a guess.
+  useFocusEffect(useCallback(() => {
+    void isDailyChapmanUpdateOn().then(setDailyEnabled);
+  }, []));
   const toggleDaily = async (value: boolean) => {
     setBusy(true);
     try {

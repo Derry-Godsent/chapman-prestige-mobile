@@ -107,3 +107,4 @@ Then press `w` for the browser, or point your phone camera at the QR code.
 | `components/` | Shared pieces of the screens |
 | `docs/ROADMAP.md` | What is done, what is next, and what is waiting on Chapman |
 | `docs/staff-web-app/` | The staff system page and its setup, in plain words |
+| `docs/BETA.md` | The plan for testing on the boss and staff phones: the APK, the iPhone route, and the checks |

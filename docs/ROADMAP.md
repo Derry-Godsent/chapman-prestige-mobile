@@ -36,6 +36,9 @@ to you. That was my mistake. This document fixes it.
 | 9 | **The office sees its work arrive** | Counts on the staff menu and live alerts | STARTED **Built and running in the preview** |
 | 10 | **What you found on the phone** | Crash, daily updates, PIN, dark mode, permissions, routines | DONE **All seven** |
 | 11 | **Daily messages, dark colours, live area** | Chapman writes the messages, each service coloured, honest location | DONE **Waiting on one SQL** |
+| 12 | **Signing back in, birthdays, and the client list** | Returning customers go straight in, optional birthday, app sign-ups appear as clients | DONE **Waiting on one SQL** |
+| 13 | **The team page, your ideas, and the bonus box** | Every Chapman person as a bubble you can open, a form for app ideas, a bonus box that explains itself | DONE **Waiting on the same SQL** |
+| 14 | **The beta test, boss and staff** | One Android file, one iPhone route, and the checks before anyone installs | READY **The plan is in docs/BETA.md** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -625,6 +628,81 @@ out by mistake, which is now covered by tests.
 
 ---
 
+## Phase 12, Signing back in, birthdays, the client list, and the team page DONE
+
+### Signing back in no longer asks who you are
+
+A customer who had already given Chapman their name was being asked for it again
+every time they signed back in. Now, after the six digit code, the app checks
+whether this phone number already has a finished profile. If it does, the
+customer goes straight to the home screen. The details form only appears once, on
+the first sign-up, and never again.
+
+### The birthday, optional, day and month only
+
+The details form now has an optional birthday: two small boxes, a day and a month.
+There is no year, and no year is stored. It is used for one thing, wishing the
+customer on the day:
+
+- On the day itself, the home screen shows a birthday card and the profile shows
+  the date with a gift beside it.
+- Every other day, the profile simply shows the date, so the customer can check it.
+- Chapman sees the day and the month on the client record, and can use it for a
+  message or a call.
+
+### App sign-ups appear in the client list
+
+This was the missing join between the two apps. When someone signs up in the
+mobile app they are now found or created in the Chapman client list by their phone
+number, with their name, number, email, gender, and birthday, and marked as
+"Added from the Chapman app". Signing in again never creates a second copy: the
+same record is found and refreshed. This runs quietly on every sign-in, so
+customers who signed up before today are added too.
+
+### The team page, behind the people button
+
+Beside the settings gear on the profile screen there is now a people button. It
+opens the Chapman team: all eight people from the website, founder first, each as
+a bubble. Tap a bubble and it opens with the person's role, a short description of
+what they do, and their published contact details. Below the team there is a form
+for app ideas: add something, remove something, or change something. Chapman reads
+every one.
+
+### The bonus box, rebuilt
+
+The old box was three lines of text that nobody could read quickly. It is now a
+card that answers three questions in order: what am I getting, how close am I, and
+how does it work. Each ladder has its own bar that fills when the screen opens,
+with the tier, the discount, and the plain sentence from `lib/loyalty.ts`. Every
+number still comes from that one file, so changing Chapman's decision there changes
+the whole app.
+
+### Two things fixed that you spotted
+
+- **The name that vanished in dark mode.** "Chapman Prestige" on the home screen
+  was being drawn in the canvas colour, which is the same near-black as the dark
+  background. It now uses the text colour, so it reads in both skins.
+- **The switch that would not stay on.** The Updates screen was guessing the daily
+  update switch was off. It now reads the truth from the phone every time the
+  screen opens. Switching it off cancels only that phone's booked mornings: other
+  people's messages are untouched, and the app never re-books after you switch it
+  off.
+
+### Waiting on you: two pastes, and the beta
+
+1. `docs/customers-birthdays-and-ideas.sql` adds the birthday columns, the client
+   link, and the ideas table. Proved here first: a sign-up creates one client and
+   never two, the birthday is saved, an idea can be sent by a signed-in customer,
+   another customer cannot read it, a stranger cannot send one, and the office can
+   mark it.
+2. `docs/daily-messages.sql` is still the one that lets Chapman write the daily
+   message. Also proved.
+3. The beta plan is written out in full in `docs/BETA.md`: the APK, the two iPhone
+   routes, the accounts and what they cost, the security position, and the list of
+   things each tester should try.
+
+---
+
 ## Phase 11, Daily messages, dark colours, and the live area FIXED
 
 ### How daily messages reach customers, the honest answer
@@ -1021,6 +1099,7 @@ Skip this unless a term is bugging you.
 | `1-RUN-ME-database-check.sql` | Only if I ask, it re-checks the database afterwards |
 | `SECURITY-FINDINGS.md` | If you want the proof behind the security fix |
 | `audit-2026-09-20.md` | If you want the original full audit |
+| `BETA.md` | When you are ready to put the app on the boss and staff phones |
 | Everything else in `docs/` | Background from earlier in the project |
 
 ---

@@ -34,6 +34,7 @@ const check = fs.readFileSync(DOCS + '1-RUN-ME-database-check.sql', 'utf8');
 const fix = fs.readFileSync(DOCS + 'security-fix.sql', 'utf8');
 const decline = fs.readFileSync(DOCS + 'decline-with-reason.sql', 'utf8');
 const daily = fs.readFileSync(DOCS + 'daily-messages.sql', 'utf8');
+const customers = fs.readFileSync(DOCS + 'customers-birthdays-and-ideas.sql', 'utf8');
 
 const db = new PGlite();
 
@@ -44,7 +45,7 @@ const schema = `
 create role anon nologin;
 create role authenticated nologin;
 create schema auth;
-create table auth.users (id uuid primary key, phone text);
+create table auth.users (id uuid primary key, phone text, raw_user_meta_data jsonb);
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
@@ -57,8 +58,15 @@ create table public.staff (
   created_at timestamptz default now(), updated_at timestamptz default now(),
   is_banned boolean default false, last_login timestamptz
 );
+create table public.clients (
+  id uuid primary key default gen_random_uuid(), name text, full_name text, phone text,
+  type text default 'Individual', tier text default 'Standard', notes text,
+  active boolean default true, created_at timestamptz default now()
+);
 create table public.customer_accounts (
-  auth_user_id uuid primary key, client_id uuid, full_name text, phone text
+  auth_user_id uuid primary key, client_id uuid, phone text not null unique, full_name text,
+  email text, gender text, avatar_style text, profile_completed_at timestamptz,
+  created_at timestamptz default now(), updated_at timestamptz default now()
 );
 create table public.role_permissions (
   role text, page text, can_view boolean, can_edit boolean, primary key (role, page)
@@ -211,6 +219,7 @@ await db.exec(schema);
 // Protection state, straight from the live grid: these are already ON there.
 await db.exec(`
 alter table public.staff enable row level security;
+alter table public.clients enable row level security;
 alter table public.customer_accounts enable row level security;
 alter table public.role_permissions enable row level security;
 alter table public.mobile_request_events enable row level security;
@@ -228,9 +237,9 @@ insert into auth.users (id, phone) values
   ('${customerA}', '+233200000001'), ('${customerB}', '+233200000002'), ('${staffA}', '+233200000003');
 insert into public.staff (id, first_name, last_name, phone, role, status, is_banned) values
   ('${staffA}', 'Ama', 'Mensah', '+233200000003', 'admin', 'active', false);
-insert into public.customer_accounts (auth_user_id, client_id, full_name, phone) values
-  ('${customerA}', gen_random_uuid(), 'Kofi Boateng', '+233200000001'),
-  ('${customerB}', gen_random_uuid(), 'Akosua Darko', '+233200000002');
+insert into public.customer_accounts (auth_user_id, client_id, full_name, phone, email) values
+  ('${customerA}', gen_random_uuid(), 'Kofi Boateng', '+233200000001', null),
+  ('${customerB}', gen_random_uuid(), 'Akosua Darko', '+233200000002', 'akosua@example.com');
 insert into public.role_permissions (role, page, can_view, can_edit) values
   ('admin', 'mobile-requests', true, true), ('manager', 'mobile-requests', true, true);
 insert into public.laundry_items (name, category, price_wash, price_iron, price_fold, price_hang)
@@ -267,6 +276,22 @@ async function asRole(role, uid, sql) {
     return (await db.query(sql)).rows;
   } finally {
     await db.exec('rollback');
+  }
+}
+
+// Same as asRole, but keeps what the statement changed. Needed for the calls
+// that must leave a real row behind, such as the app adding a client.
+async function asRoleCommit(role, uid, sql) {
+  await db.exec('begin');
+  try {
+    if (role) await db.exec(`set local role ${role}`);
+    if (uid) await db.exec(`select set_config('request.jwt.claim.sub', '${uid}', true)`);
+    const rows = (await db.query(sql)).rows;
+    await db.exec('commit');
+    return rows;
+  } catch (error) {
+    await db.exec('rollback');
+    throw error;
   }
 }
 
@@ -342,6 +367,99 @@ try {
   say(`the file's own grid reads: ${JSON.stringify(dailyGrid)}`);
 } catch (error) {
   say(`THE DAILY MESSAGES FILE FAILED: ${error.message}`);
+  process.exit(1);
+}
+
+say('=== 3d. The customers, birthdays and ideas file, run from its own file ===');
+let birthdayColumns = 0;
+let linkFunction = 0;
+let ideaRules = 0;
+let customerARepeats = -1;
+let customerTwoEmail = null;
+let ideasSeenByOwner = -1;
+let ideasSeenByOther = -1;
+let ideasSeenByStaff = -1;
+let ideasSeenByStranger = -1;
+let anonIdeaRefused = false;
+const stripComments = (sql) => sql.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
+try {
+  await db.exec(stripComments(customers));
+
+  const columns = await db.query(`select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'customer_accounts'
+      and column_name in ('birth_day', 'birth_month') order by column_name`);
+  birthdayColumns = columns.rows.length;
+  say(`birthday columns on the customer record: ${columns.rows.map((row) => row.column_name).join(', ') || 'NONE'}`);
+
+  const functions = await db.query(`select p.proname, pg_get_function_identity_arguments(p.oid) as args
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname in ('complete_customer_onboarding', 'link_customer_to_chapman_client')
+    order by p.proname`);
+  for (const row of functions.rows) say(`  function ${row.proname}(${row.args})`);
+  linkFunction = functions.rows.filter((row) => row.proname === 'link_customer_to_chapman_client').length;
+
+  const rules = await db.query(`select policyname from pg_policies where tablename = 'chapman_app_ideas' order by policyname`);
+  ideaRules = rules.rows.length;
+  say(`idea table rules: ${rules.rows.map((row) => row.policyname).join(' | ') || 'NONE'}`);
+
+  const locks = await db.query(`select relrowsecurity from pg_class where relname = 'chapman_app_ideas'`);
+  say(`idea table row security on: ${locks.rows[0]?.relrowsecurity ? 'yes' : 'NO'}`);
+
+  // Running the whole file a second time must change nothing.
+  await db.exec(stripComments(customers));
+  say('running the file twice is safe');
+
+  // A signed in customer signs up: their record and the Chapman client list.
+  const first = await asRoleCommit('authenticated', customerA, `select public.link_customer_to_chapman_client(12, 6) as result`);
+  say(`customer A, first link: ${JSON.stringify(first[0].result)}`);
+
+  const sameAgain = await asRoleCommit('authenticated', customerA, `select public.link_customer_to_chapman_client() as result`);
+  say(`customer A, signing in again: ${JSON.stringify(sameAgain[0].result)}`);
+  customerARepeats = (await db.query(`select count(*)::int as n from public.clients where public.normalize_ghana_phone(phone) = '+233200000001'`)).rows[0].n;
+
+  const savedAccount = await db.query(`select birth_day, birth_month from public.customer_accounts where auth_user_id = '${customerA}'`);
+  say(`the birthday is on the customer record: day ${savedAccount.rows[0].birth_day}, month ${savedAccount.rows[0].birth_month}`);
+
+  // The client list without an email column must still be fillable.
+  await db.exec(`alter table public.clients add column email text`);
+  const second = await asRoleCommit('authenticated', customerB, `select public.link_customer_to_chapman_client(3, 11) as result`);
+  say(`customer B, first link: ${JSON.stringify(second[0].result)}`);
+  customerTwoEmail = (await db.query(`select email from public.clients where public.normalize_ghana_phone(phone) = '+233200000002'`)).rows[0].email;
+
+  const clientRows = await db.query(`select name, phone, type, tier, notes from public.clients order by created_at`);
+  for (const row of clientRows.rows) say(`  client: ${row.name} | ${row.phone} | ${row.type} | ${row.tier} | ${row.notes}`);
+
+  const grid = await db.query(`select
+    (select count(*)::int from public.clients) as clients,
+    (select count(*)::int from public.customer_accounts where birth_day is not null) as birthdays,
+    (select count(*)::int from pg_policies where tablename = 'chapman_app_ideas') as rules`);
+  say(`the file's own grid reads: ${JSON.stringify(grid.rows[0])}`);
+
+  // An idea sent from the app, and who can read it.
+  await asRoleCommit('authenticated', customerA, `insert into public.chapman_app_ideas (author_name, phone, kind, idea)
+    values ('Kofi Boateng', '+233200000001', 'add', 'Please add a pickup reminder the evening before.')`);
+  ideasSeenByOwner = (await asRole('authenticated', customerA, `select count(*)::int as n from public.chapman_app_ideas`))[0].n;
+  const ownRow = await asRole('authenticated', customerA, `select author_name, kind, status from public.chapman_app_ideas`);
+  say(`the customer reads their own idea back: ${JSON.stringify(ownRow[0])}`);
+  ideasSeenByOther = (await asRole('authenticated', customerB, `select count(*)::int as n from public.chapman_app_ideas`))[0].n;
+  ideasSeenByStaff = (await asRole('authenticated', staffA, `select count(*)::int as n from public.chapman_app_ideas`))[0].n;
+  ideasSeenByStranger = (await asRole('anon', null, `select count(*)::int as n from public.chapman_app_ideas`))[0].n;
+  say(`ideas seen by: owner ${ideasSeenByOwner}, another customer ${ideasSeenByOther}, the office ${ideasSeenByStaff}, a stranger ${ideasSeenByStranger}`);
+
+  // A stranger with no login must not be able to send one.
+  try {
+    await asRoleCommit('anon', null, `insert into public.chapman_app_ideas (author_name, idea) values ('Nobody', 'Spam from a stranger.')`);
+  } catch (error) {
+    anonIdeaRefused = true;
+    say(`a stranger sending an idea is refused: ${error.message.split('\n')[0]}`);
+  }
+  if (!anonIdeaRefused) say('A STRANGER COULD SEND AN IDEA, that must not happen');
+
+  const staffMark = await asRoleCommit('authenticated', staffA, `update public.chapman_app_ideas set status = 'planned' where true`);
+  const marks = (await db.query(`select count(*)::int as n from public.chapman_app_ideas where status = 'planned'`)).rows[0].n;
+  say(`the office can mark an idea as planned: ${marks === 1 ? 'yes' : 'NO'}`);
+} catch (error) {
+  say(`THE CUSTOMERS FILE FAILED: ${error.message}`);
   process.exit(1);
 }
 
@@ -584,6 +702,16 @@ if (dailyFutureHidden !== 0) failed.push(`a customer could read ${dailyFutureHid
 if (dailyCustomerWrite !== 0) failed.push('a customer could publish a daily message');
 if (dailyStaffWrite !== 1) failed.push('the office could not publish a daily message');
 if (!dailyGrid) failed.push('the daily messages grid did not run');
+if (birthdayColumns !== 2) failed.push(`the birthday columns should be 2, saw ${birthdayColumns}`);
+if (linkFunction !== 1) failed.push('the client link function is missing');
+if (ideaRules !== 4) failed.push(`the idea table should have 4 rules, saw ${ideaRules}`);
+if (customerARepeats !== 1) failed.push(`signing in twice created ${customerARepeats} clients, must be 1`);
+if (customerTwoEmail !== 'akosua@example.com') failed.push(`the email was not written to the client list, got ${customerTwoEmail}`);
+if (ideasSeenByOwner !== 1) failed.push(`the customer should read their own idea, read ${ideasSeenByOwner}`);
+if (ideasSeenByOther !== 0) failed.push(`another customer could read the idea, saw ${ideasSeenByOther}`);
+if (ideasSeenByStaff !== 1) failed.push(`the office should read the idea, read ${ideasSeenByStaff}`);
+if (ideasSeenByStranger !== 0) failed.push(`a stranger could read ideas, saw ${ideasSeenByStranger}`);
+if (!anonIdeaRefused) failed.push('a stranger could send an idea');
 
 say('');
 say(failed.length === 0 ? 'RESULT: every check passed' : `RESULT: FAILED -> ${failed.join('; ')}`);

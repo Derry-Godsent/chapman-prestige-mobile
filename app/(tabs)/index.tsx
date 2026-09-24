@@ -12,6 +12,8 @@ import { useBookingStore } from "@/lib/booking-store";
 import { haptic } from "@/lib/haptics";
 import { greetingForHour, useCustomerSummary } from "@/hooks/use-customer-summary";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useCustomerAccount } from "@/hooks/use-customer-account";
+import { isBirthdayToday } from "@/lib/customer-auth";
 import { laundryStanding, serviceStanding, trackProgressLine } from "@/lib/loyalty";
 import { quoteStatusLabel, requestStatusLabel } from "@/lib/customer-activity";
 import { timeAgo } from "@/lib/chapman-format";
@@ -28,6 +30,8 @@ export default function HomeScreen() {
   const laundryTrack = activity ? laundryStanding(activity) : null;
   const serviceTrack = activity ? serviceStanding(activity) : null;
   const { unread } = useNotifications();
+  const { account } = useCustomerAccount();
+  const birthdayToday = isBirthdayToday(account);
   // "Your care schedule" is about the customer's real account, not about what is
   // saved on this phone. The newest live request or enquiry leads, and anything
   // waiting for the customer's answer is called out, because that is the thing
@@ -96,6 +100,15 @@ export default function HomeScreen() {
           <Text style={styles.eyebrow}>{greetingForHour(new Date().getHours())}{firstName ? `, ${firstName.toUpperCase()}` : ""}</Text>
           <DisplayText style={styles.greetingTitle}>{firstName ? `Welcome back, ${firstName}.` : "Make your space work better for you."}</DisplayText>
         </View>
+        {birthdayToday ? (
+          <View style={styles.birthdayCard}>
+            <View style={styles.birthdayIcon}><Ionicons name="gift" size={21} color="#FFFFFF" /></View>
+            <View style={styles.birthdayCopy}>
+              <Text style={styles.birthdayTitle}>Happy birthday{firstName ? `, ${firstName}` : ""}.</Text>
+              <Text style={styles.birthdayText}>Everyone at Chapman Prestige wishes you a happy day. Thank you for trusting us with your space.</Text>
+            </View>
+          </View>
+        ) : null}
         <TouchableOpacity onPress={() => router.push("/service/laundry" as never)} activeOpacity={0.9} style={styles.storyMoment}>
           <View style={styles.storyCopy}><Text style={styles.storyLabel}>LAUNDRY MADE SIMPLE</Text><Text style={styles.storyTitle}>More fresh clothes. More time for you.</Text><Text style={styles.storyAction}>See how it works <Ionicons name="arrow-forward" size={13} color={palette.accent} /></Text></View>
           <View style={styles.storyArt}><AnimatedServiceScene serviceId="laundry" height={136} /></View>
@@ -188,7 +201,7 @@ export default function HomeScreen() {
 }
 const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: palette.canvas }, content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 36, gap: 23 },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 8 }, brandCopy: { justifyContent: "center", paddingTop: 1 }, brandName: { color: palette.deep, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 14, letterSpacing: -0.35 }, brandSub: { color: palette.orange, fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 2.7, marginTop: 1 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 10 }, bellButton: { width: 41, height: 41, borderRadius: 14, backgroundColor: palette.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }, notificationDot: { position: "absolute", top: 5, right: 5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#D97706", borderWidth: 1.5, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, avatar: { width: 41, height: 41, borderRadius: 15, backgroundColor: palette.chip, alignItems: "center", justifyContent: "center" }, avatarText: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 12 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, brandRow: { flexDirection: "row", alignItems: "center", gap: 8 }, brandCopy: { justifyContent: "center", paddingTop: 1 }, brandName: { color: palette.title, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 14, letterSpacing: -0.35 }, brandSub: { color: palette.orange, fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 2.7, marginTop: 1 }, headerActions: { flexDirection: "row", alignItems: "center", gap: 10 }, birthdayCard: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, borderRadius: 19, backgroundColor: palette.blue }, birthdayIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.17)", alignItems: "center", justifyContent: "center" }, birthdayCopy: { flex: 1, gap: 3 }, birthdayTitle: { color: "#FFFFFF", fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 15.5 }, birthdayText: { color: "#E4F5EA", fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 15.5 }, bellButton: { width: 41, height: 41, borderRadius: 14, backgroundColor: palette.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: palette.border }, notificationDot: { position: "absolute", top: 5, right: 5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: "#D97706", borderWidth: 1.5, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, avatar: { width: 41, height: 41, borderRadius: 15, backgroundColor: palette.chip, alignItems: "center", justifyContent: "center" }, avatarText: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 12 },
   notificationDotText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 9 },
   greeting: { gap: 4 }, eyebrow: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.3 }, greetingTitle: { maxWidth: 315, fontSize: 28, lineHeight: 35 },
   storyMoment: { minHeight: 151, borderRadius: 22, backgroundColor: palette.soft, overflow: "hidden", flexDirection: "row", alignItems: "center", paddingLeft: 17 }, storyCopy: { flex: 1, zIndex: 2, gap: 7, paddingVertical: 15 }, storyLabel: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.05 }, storyTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 17, lineHeight: 23, maxWidth: 175 }, storyAction: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 11, flexDirection: "row" }, storyArt: { width: 154, height: 151, marginRight: -5, justifyContent: "center" },

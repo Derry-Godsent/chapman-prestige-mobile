@@ -61,6 +61,7 @@ export default function RootLayout() {
             <Stack.Screen name="checkout" />
             <Stack.Screen name="booking/[id]" />
             <Stack.Screen name="notifications" />
+            <Stack.Screen name="team" />
           </Stack>
           <MobileRequestUpdateListener />
         </View>

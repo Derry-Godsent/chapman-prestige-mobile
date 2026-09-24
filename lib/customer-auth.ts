@@ -15,6 +15,10 @@ export type CustomerAccount = {
   gender: CustomerGender;
   avatar_style: "female" | "male" | "neutral";
   profile_completed_at: string | null;
+  /** Day of the month, 1 to 31. Kept only to wish the customer on the day. */
+  birth_day?: number | null;
+  /** Month, 1 to 12. The year is never asked for and never stored. */
+  birth_month?: number | null;
 };
 
 function requireSupabase() {
@@ -40,6 +44,8 @@ function accountFromAuthUser(user: User): CustomerAccount {
     gender,
     avatar_style: gender === "female" ? "female" : gender === "male" ? "male" : "neutral",
     profile_completed_at: typeof metadata.profile_completed_at === "string" ? metadata.profile_completed_at : null,
+    birth_day: typeof metadata.birth_day === "number" ? metadata.birth_day : null,
+    birth_month: typeof metadata.birth_month === "number" ? metadata.birth_month : null,
   };
 }
 
@@ -65,12 +71,17 @@ export async function completeCustomerOnboarding(input: {
   fullName: string;
   gender: CustomerGender;
   email?: string;
+  /** Optional. Day and month only, so Chapman can wish them on the day. */
+  birthDay?: number | null;
+  birthMonth?: number | null;
 }) {
   const client = requireSupabase();
+  const birthday = { p_birth_day: input.birthDay ?? null, p_birth_month: input.birthMonth ?? null };
   const { data, error } = await client.rpc("complete_customer_onboarding", {
     p_full_name: input.fullName,
     p_gender: input.gender,
     p_email: input.email ?? null,
+    ...birthday,
   });
   if (!error) return data as CustomerAccount;
 
@@ -84,6 +95,8 @@ export async function completeCustomerOnboarding(input: {
       full_name: input.fullName,
       gender: input.gender,
       profile_completed_at: completedAt,
+      birth_day: input.birthDay ?? null,
+      birth_month: input.birthMonth ?? null,
     },
   });
   if (updateError || !updated.user) throw updateError ?? new Error("Your profile could not be saved yet.");
@@ -98,7 +111,7 @@ export async function getCurrentCustomerAccount(): Promise<CustomerAccount | nul
 
   const { data, error } = await client
     .from("customer_accounts")
-    .select("auth_user_id, client_id, phone, full_name, email, gender, avatar_style, profile_completed_at")
+    .select("auth_user_id, client_id, phone, full_name, email, gender, avatar_style, profile_completed_at, birth_day, birth_month")
     .eq("auth_user_id", userData.user.id)
     .maybeSingle();
   if (!error && data) return data as CustomerAccount;
@@ -113,6 +126,8 @@ export async function getCurrentCustomerAccount(): Promise<CustomerAccount | nul
     p_full_name: fallbackAccount.full_name,
     p_gender: fallbackAccount.gender,
     p_email: fallbackAccount.email,
+    p_birth_day: fallbackAccount.birth_day ?? null,
+    p_birth_month: fallbackAccount.birth_month ?? null,
   });
   if (!linkError && linkedAccount) return linkedAccount as CustomerAccount;
 
@@ -147,4 +162,54 @@ export async function getLaunchDestination(): Promise<"/(tabs)" | "/onboarding">
     if (data.session) return "/(tabs)";
   }
   return (await AsyncStorage.getItem(CUSTOMER_GUEST_SESSION_KEY)) === "true" ? "/(tabs)" : "/onboarding";
+}
+
+
+/**
+ * Adds this customer to the Chapman client records, with the details they gave.
+ *
+ * Why it exists: a customer who signs up in the app should appear in the staff
+ * system as a client, with their name, number, and birthday, without anyone
+ * typing them in twice. The app calls this once the customer's own record
+ * exists. It is safe to call on every sign-in: if the customer is already a
+ * client, the same record is reused and only the details are refreshed.
+ *
+ * Returns plainly what happened, so the app can say something true rather than
+ * pretend. A missing function means the Chapman side has not been switched on
+ * yet, which is not an error the customer needs to see.
+ */
+export async function linkCustomerToChapmanClients(input: { birthDay?: number | null; birthMonth?: number | null } = {}): Promise<{
+  linked: boolean;
+  message: string;
+}> {
+  const client = supabase;
+  if (!client) return { linked: false, message: "Sign-in is not configured on this build." };
+
+  const { data, error } = await client.rpc("link_customer_to_chapman_client", {
+    p_birth_day: input.birthDay ?? null,
+    p_birth_month: input.birthMonth ?? null,
+  });
+
+  if (error) {
+    if (error.code === "PGRST202") {
+      return { linked: false, message: "The Chapman client link is not switched on yet. Your own account is saved." };
+    }
+    return { linked: false, message: "Your details are saved. The Chapman client list could not be updated just now." };
+  }
+
+  const linked = Boolean((data as { linked?: boolean } | null)?.linked);
+  return { linked, message: linked ? "Chapman now has you in their client records." : "Your details are saved." };
+}
+
+/** True when the customer's own date, day and month, is today. */
+export function isBirthdayToday(account: { birth_day?: number | null; birth_month?: number | null } | null | undefined, today = new Date()): boolean {
+  if (!account?.birth_day || !account?.birth_month) return false;
+  return account.birth_day === today.getDate() && account.birth_month === today.getMonth() + 1;
+}
+
+/** The birthday written out, for the profile: "12 June". */
+export function formatBirthday(day: number | null | undefined, month: number | null | undefined): string | null {
+  if (!day || !month || month < 1 || month > 12) return null;
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${day} ${months[month - 1]}`;
 }
