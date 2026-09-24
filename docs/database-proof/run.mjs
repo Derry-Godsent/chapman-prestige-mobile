@@ -33,6 +33,7 @@ const DOCS = docsFolder + path.sep;
 const check = fs.readFileSync(DOCS + '1-RUN-ME-database-check.sql', 'utf8');
 const fix = fs.readFileSync(DOCS + 'security-fix.sql', 'utf8');
 const decline = fs.readFileSync(DOCS + 'decline-with-reason.sql', 'utf8');
+const daily = fs.readFileSync(DOCS + 'daily-messages.sql', 'utf8');
 
 const db = new PGlite();
 
@@ -308,6 +309,42 @@ try {
 }
 
 say('');
+say('=== 3c. The daily messages file, run from its own file ===');
+let dailyReadable = 0;
+let dailyFutureHidden = -1;
+let dailyCustomerWrite = -1;
+let dailyStaffWrite = 0;
+let dailyGrid = null;
+try {
+  const strip = (sql) => sql.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n');
+  await db.exec(strip(daily));
+
+  const table = await db.query(`select column_name from information_schema.columns
+    where table_schema = 'public' and table_name = 'chapman_daily_messages' order by column_name`);
+  say(`table created with columns: ${table.rows.map((row) => row.column_name).join(', ') || 'NONE'}`);
+
+  const locks = await db.query(`select relrowsecurity from pg_class where relname = 'chapman_daily_messages'`);
+  say(`row security on: ${locks.rows[0]?.relrowsecurity ? 'yes' : 'NO'}`);
+
+  const rules = await db.query(`select policyname from pg_policies where tablename = 'chapman_daily_messages' order by policyname`);
+  say(`rules: ${rules.rows.map((row) => row.policyname).join(' | ') || 'NONE'}`);
+
+  // Running it a second time must be safe and must not add a second welcome.
+  await db.exec(strip(daily));
+  const twice = await db.query(`select count(*)::int as n from public.chapman_daily_messages where title = 'Chapman daily update'`);
+  say(`running it twice is safe: ${twice.rows[0].n === 1 ? 'yes, one welcome message' : 'NO, ' + twice.rows[0].n + ' copies'}`);
+
+  const grid = await db.query(`select
+    (select count(*)::int from public.chapman_daily_messages) as messages,
+    (select count(*)::int from public.chapman_daily_messages where publish_on <= current_date) as due_today,
+    (select count(*)::int from pg_policies where tablename = 'chapman_daily_messages') as rules`);
+  dailyGrid = grid.rows[0];
+  say(`the file's own grid reads: ${JSON.stringify(dailyGrid)}`);
+} catch (error) {
+  say(`THE DAILY MESSAGES FILE FAILED: ${error.message}`);
+  process.exit(1);
+}
+
 say('=== 3b. The decline statement, run from its own file ===');
 try {
   await db.exec(decline.split('\n').filter((line) => !line.trim().startsWith('--')).join('\n'));
@@ -398,6 +435,36 @@ try {
     `update public.quote_requests
         set appointment_response = 'awaiting-customer', details = '{"estimatedAreaM2": 60, "proposedDate": "2026-10-05"}'::jsonb
       where id = '${savedQuoteId}' returning id`)).rows.length;
+
+  /* Chapman's daily messages: a customer reads what is due, cannot publish, and
+     a future message stays hidden until its day. */
+  await claim(customerA);
+  dailyReadable = (await db.query(`select count(*)::int as n from public.chapman_daily_messages where publish_on <= current_date`)).rows[0].n;
+  dailyFutureHidden = 0;
+  // A refused insert ends the whole transaction unless it is fenced off, so it
+  // is wrapped in a savepoint that is rolled back either way.
+  let customerPublishBlocked = false;
+  await db.exec('savepoint daily_write');
+  try {
+    await db.query(`insert into public.chapman_daily_messages (kind, title, body, publish_on)
+      values ('news', 'Not allowed', 'A customer should not be able to publish this.', current_date)`);
+  } catch {
+    customerPublishBlocked = true;
+  }
+  await db.exec('rollback to savepoint daily_write');
+  dailyCustomerWrite = customerPublishBlocked ? 0 : 1;
+
+  await claim(staffA);
+  const staffPublished = (await db.query(`insert into public.chapman_daily_messages (kind, title, body, publish_on)
+    values ('thanks', 'Thank you', 'Thank you for choosing Chapman this month.', current_date + 1) returning id`)).rows.length;
+  dailyStaffWrite = staffPublished;
+  // A message written today for a future morning must stay hidden until its day.
+  await claim(customerA);
+  dailyFutureHidden = (await db.query(`select count(*)::int as n from public.chapman_daily_messages where title = 'Thank you'`)).rows[0].n;
+  await claim(staffA);
+  say(`  a customer reads ${dailyReadable} due message(s) and ${dailyFutureHidden} future one(s)`);
+  say(`  a customer publishing a message: ${dailyCustomerWrite} rows, must be 0`);
+  say(`  the office publishing a message: ${dailyStaffWrite} row, must be 1`);
 
   // Another customer tries to change that request, then to read this one's routines.
   await claim(customerB);
@@ -512,6 +579,11 @@ if (undoneOffCount !== 5) failed.push(`the undo should leave 5 tables unprotecte
 if (declinedRows !== 1) failed.push('the office could not decline a request');
 if (declinedReasonRead !== 'Fully booked on your preferred dates') failed.push(`the customer did not read the reason, got: ${declinedReasonRead}`);
 if (declinedSeenByOther !== 0) failed.push('another customer could read the decline reason');
+if (dailyReadable !== 1) failed.push(`a customer should read 1 due message, read ${dailyReadable}`);
+if (dailyFutureHidden !== 0) failed.push(`a customer could read ${dailyFutureHidden} message(s) dated in the future, must be 0`);
+if (dailyCustomerWrite !== 0) failed.push('a customer could publish a daily message');
+if (dailyStaffWrite !== 1) failed.push('the office could not publish a daily message');
+if (!dailyGrid) failed.push('the daily messages grid did not run');
 
 say('');
 say(failed.length === 0 ? 'RESULT: every check passed' : `RESULT: FAILED -> ${failed.join('; ')}`);

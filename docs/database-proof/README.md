@@ -8,6 +8,8 @@ says.
 and you found out by running it and getting an error. That is my mistake to prevent, not
 yours to discover. This catches that class of damage before you ever see it.
 
+**What it covers.** `docs/1-RUN-ME-database-check.sql`, `docs/security-fix.sql`, `docs/decline-with-reason.sql`, and `docs/daily-messages.sql`. The daily messages file is checked for a customer reading a due message, a customer being refused when publishing one, a future-dated message staying hidden, the office publishing one, and running it twice being safe.
+
 **What it builds.** A small Postgres database inside Node, matching your live database as
 closely as I can make it: the same table names, the same column names and types from your
 own report, the same access rules, the same functions, including the laundry booking

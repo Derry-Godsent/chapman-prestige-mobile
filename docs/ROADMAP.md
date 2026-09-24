@@ -35,6 +35,7 @@ to you. That was my mistake. This document fixes it.
 | 8 | **No more placeholders** | Every screen real, every tap does something | STARTED **First batch done: loyalty, updates, history, settings** |
 | 9 | **The office sees its work arrive** | Counts on the staff menu and live alerts | STARTED **Built and running in the preview** |
 | 10 | **What you found on the phone** | Crash, daily updates, PIN, dark mode, permissions, routines | DONE **All seven** |
+| 11 | **Daily messages, dark colours, live area** | Chapman writes the messages, each service coloured, honest location | DONE **Waiting on one SQL** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -621,6 +622,73 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 11, Daily messages, dark colours, and the live area FIXED
+
+### How daily messages reach customers, the honest answer
+
+There are three ways this can work, and the app now uses the third:
+
+| Way | What it would need | Why not this one |
+| --- | --- | --- |
+| Chapman buys a push service | A developer build, an Apple and Google account, a server that sends each message | Slowest to set up, and Expo Go cannot receive these |
+| The app fetches news and shows it in Updates only | Nothing extra | The customer only sees it if they open the app |
+| **The office writes the message, the phone delivers it at 9:00** | One small table, which is written and proved | **This is what the app does now** |
+
+**How it works.** The Chapman office writes a message in one small table: a title,
+the words, and the day it should appear. The app reads the messages that are due,
+then books the next seven mornings on the customer's own phone. That is why the
+message still arrives at 9:00 with the app closed and with no internet, and why
+Chapman pays nothing for a push service.
+
+**What can be sent:** care tips, service news, holiday notices, announcements, and
+thank-you notes. Each has its own label. They also appear in the app's Updates
+list, so a customer who opens the app sees them there too.
+
+**Two honest limits.** A message cannot be sent *instantly* to a phone that is
+closed: the phone holds the next seven mornings, so a message written today
+reaches customers from tomorrow morning. When we build push notifications later,
+instant delivery becomes possible and needs the paid developer build.
+
+**Two things waiting on you:**
+
+1. One database statement, `docs/daily-messages.sql`, which adds the table and its
+   two access rules. It is proved: a customer can read a due message, cannot
+   publish one, cannot see one dated in the future, and the office can publish.
+   Run it when you are ready and the app starts reading your messages.
+2. Birthdays need the customer's date of birth, which the app does not ask for
+   today. That is one new column and one new field at sign-up. Say the word and I
+   will build it, with the same proof.
+
+### The switch that would not switch on
+
+It asked the phone for 9:00 today. After nine in the morning that moment has
+already passed, so the phone refused the whole week and the switch sprang back to
+off. The mornings are now always in the future, each one is booked on its own so
+one refusal cannot take the week down, and the switch reports what actually got
+booked.
+
+### Dark mode, less brown
+
+The dark skin was warm brown everywhere, which flattened the whole app. It is now
+a cool near-black, with cards sitting slightly above the background and hairlines
+barely above the cards. The bright line above the tab bar and the glaring workers
+card are gone, because they were hard-coded light colours that ignored the skin.
+
+**Every service now has its own colour, in both skins:** laundry keeps the brand
+green, cleaning is blue, fumigation amber, detailing violet, fabric rose, polytank
+cyan, contract teal, and the team is gold. Each one is brightened for the dark
+skin so none of them disappears.
+
+### Your current area, told honestly
+
+You were right: it was not really live. It asked the phone once and showed a name.
+It now reads your position, names the area, keeps following you while the screen
+is open so the area stays current, shows when it last updated, and says plainly
+that Chapman does not track you in the background and that nothing is sent
+anywhere until you send a booking.
 
 ---
 

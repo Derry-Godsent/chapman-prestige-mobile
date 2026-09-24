@@ -3,35 +3,31 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 
 import type { StaffRequestUpdateNotice } from "./mobile-request-updates";
+import { DailyMessage, builtInDailyMessages } from "./daily-messages";
+import { loadDailyMessages } from "./daily-messages-live";
 
 const DAILY_IDENTIFIER_KEY = "chapman-daily-update";
 /** Whether the customer asked for the daily update. Kept on this phone. */
 export const DAILY_PREFERENCE_KEY = "chapman-daily-update-wanted";
 
 /**
- * A week of real messages, one per morning.
+ * The next mornings at 9:00, as real dates.
  *
- * These are not server pushes. The phone holds the schedule itself, which is why
- * they arrive at 9:00 even when the app is closed and even with no internet. The
- * week is put in place when the customer switches the update on, and topped up
- * whenever the app is opened, so the messages stay current.
+ * This is where the switch was failing. The first version asked for 9:00 today,
+ * and after nine in the morning that moment has already passed, so the phone
+ * refused the whole set and the switch sprang back to off. These are always in
+ * the future: today at 9:00 if it is still to come, otherwise tomorrow onwards.
  */
-const DAILY_MESSAGES: Array<{ title: string; body: string }> = [
-  { title: "Chapman daily update", body: "Today is a good day for a laundry collection. Send a request and Chapman will confirm your date." },
-  { title: "Chapman care tip", body: "Air bedding before it goes back on the bed. Fifteen minutes is enough to keep it fresh." },
-  { title: "Chapman care tip", body: "Wipe spills on sofas while they are still wet. Set-in marks need a deep clean instead." },
-  { title: "Chapman daily update", body: "Polytank cleaning keeps your water clear. Ask Chapman to check yours this month." },
-  { title: "Chapman care tip", body: "Carpets last longer with regular vacuuming along the walking paths, not just the middle of the room." },
-  { title: "Chapman daily update", body: "Fumigation works best before the rains. Book a visit and Chapman will confirm a date." },
-  { title: "Chapman care tip", body: "Iron shirts on the inside of the collar first. The creases then sit where nobody sees them." },
-];
-
-/** Nine in the morning, that many days from today. */
-function nextNineAm(dayOffset: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + dayOffset);
-  date.setHours(9, 0, 0, 0);
-  return date;
+function nextNineAms(count: number): Date[] {
+  const dates: Date[] = [];
+  const cursor = new Date();
+  cursor.setHours(9, 0, 0, 0);
+  if (cursor.getTime() <= Date.now()) cursor.setDate(cursor.getDate() + 1);
+  while (dates.length < count) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
 }
 
 Notifications.setNotificationHandler({
@@ -92,20 +88,33 @@ export async function isDailyChapmanUpdateOn(): Promise<boolean> {
   return (await countScheduledDailyUpdates()) > 0;
 }
 
-/** Puts the next week of 9:00 messages on this phone. */
-async function scheduleWeekOfDailyUpdates() {
+/**
+ * Puts the next week of 9:00 messages on this phone.
+ *
+ * Each morning is scheduled on its own so that one refusal cannot take the whole
+ * week down, and the number that actually went in is returned so the switch can
+ * tell the truth about it.
+ */
+async function scheduleWeekOfDailyUpdates(messages: DailyMessage[]): Promise<number> {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("chapman-updates", { name: "Chapman updates", importance: Notifications.AndroidImportance.DEFAULT, vibrationPattern: [0, 180], lightColor: "#047857" });
   }
   await cancelScheduledDailyUpdates();
-  await Promise.all(
-    DAILY_MESSAGES.map((message, dayOffset) =>
-      Notifications.scheduleNotificationAsync({
-        content: { title: message.title, body: message.body, data: { kind: DAILY_IDENTIFIER_KEY, url: "/notifications" } },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: nextNineAm(dayOffset), channelId: "chapman-updates" },
-      }),
-    ),
-  );
+  const toSend = messages.length ? messages : builtInDailyMessages;
+  const mornings = nextNineAms(toSend.length);
+  let scheduled = 0;
+  for (let index = 0; index < toSend.length; index += 1) {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: { title: toSend[index].title, body: toSend[index].body, data: { kind: DAILY_IDENTIFIER_KEY, url: "/notifications" } },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: mornings[index], channelId: "chapman-updates" },
+      });
+      scheduled += 1;
+    } catch {
+      // One morning that the phone would not accept must not stop the others.
+    }
+  }
+  return scheduled;
 }
 
 export async function enableDailyChapmanUpdates() {
@@ -115,9 +124,13 @@ export async function enableDailyChapmanUpdates() {
     await AsyncStorage.removeItem(DAILY_PREFERENCE_KEY);
     return notificationPermission;
   }
+  const scheduled = await scheduleWeekOfDailyUpdates(await loadDailyMessages());
+  if (scheduled === 0) {
+    await AsyncStorage.removeItem(DAILY_PREFERENCE_KEY);
+    return { enabled: false, message: "This phone would not accept the message schedule. Alerts may be switched off for Chapman in the phone settings." };
+  }
   await AsyncStorage.setItem(DAILY_PREFERENCE_KEY, "yes");
-  await scheduleWeekOfDailyUpdates();
-  return { enabled: true, message: "A Chapman message will arrive at 9:00 every morning." };
+  return { enabled: true, message: `${scheduled} mornings are booked in. A Chapman message will arrive at 9:00 each morning.` };
 }
 
 export async function disableDailyChapmanUpdates() {
@@ -139,7 +152,7 @@ export async function keepDailyChapmanUpdatesAlive(): Promise<void> {
     if ((await AsyncStorage.getItem(DAILY_PREFERENCE_KEY)) !== "yes") return;
     const permission = await Notifications.getPermissionsAsync();
     if (permission.status !== "granted") return;
-    if ((await countScheduledDailyUpdates()) < 2) await scheduleWeekOfDailyUpdates();
+    if ((await countScheduledDailyUpdates()) < 2) await scheduleWeekOfDailyUpdates(await loadDailyMessages());
   } catch {
     // Never disturb the app because of this. It is retried on the next open.
   }

@@ -15,8 +15,11 @@ import { useNotifications } from "@/hooks/use-notifications";
 import { laundryStanding, serviceStanding, trackProgressLine } from "@/lib/loyalty";
 import { quoteStatusLabel, requestStatusLabel } from "@/lib/customer-activity";
 import { timeAgo } from "@/lib/chapman-format";
+import { serviceColor } from "@/lib/service-colors";
+import { useColorSchemeSafe } from "@/lib/theme-provider";
 const quickServiceIds = ["laundry", "cleaning", "fumigation", "detailing", "fabric", "polytank", "workers", "contract"];
 export default function HomeScreen() {
+  const colorScheme = useColorSchemeSafe();
   const { styles, palette } = useChapmanStyles(makeStyles);
   const { bookings } = useBookingStore();
   const quickServices = useMemo(() => quickServiceIds.map((id) => SERVICES.find((service) => service.id === id)).filter(Boolean) as Service[], []);
@@ -145,7 +148,7 @@ export default function HomeScreen() {
                 else router.push(`/service/${service.id}` as never);
               }}
             >
-              <IconOrb icon={service.icon as keyof typeof Ionicons.glyphMap} color={service.accent} size={40} />
+              <IconOrb icon={service.icon as keyof typeof Ionicons.glyphMap} color={serviceColor(service.id, colorScheme).accent} size={40} />
               <Text numberOfLines={2} style={styles.quickLabel}>{service.shortTitle}</Text>
             </TouchableOpacity>
           ))}
@@ -160,7 +163,7 @@ export default function HomeScreen() {
                 <Text style={styles.activeTitle}>{scheduleTitle}</Text>
                 <Text style={styles.activeMeta}>{scheduleMeta}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#7A7E8D" />
+              <Ionicons name="chevron-forward" size={20} color={palette.muted} />
             </View>
             <View style={styles.trackButton}><Ionicons name="navigate-outline" size={16} color={palette.accent} /><Text style={styles.trackText}>{waitingForAnswer ? "Open and answer" : "Track live"}</Text></View>
           </TouchableOpacity>

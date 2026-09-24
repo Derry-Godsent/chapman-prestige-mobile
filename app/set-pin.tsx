@@ -62,7 +62,9 @@ export default function SetPinScreen() {
           automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
+          {/* One child only: this component refuses anything else. */}
           <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
+            <View style={styles.body}>
         <View style={styles.top}>
           <View style={styles.icon}><Ionicons name="keypad-outline" size={27} color={palette.accent} /></View>
           <DisplayText style={styles.title}>Open Chapman with a PIN next time.</DisplayText>
@@ -104,6 +106,7 @@ export default function SetPinScreen() {
             <Text style={styles.skipText}>Not now, take me to the app</Text>
           </TouchableOpacity>
         </View>
+            </View>
           </TouchableWithoutFeedback>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -112,7 +115,7 @@ export default function SetPinScreen() {
 }
 const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   page: { flex: 1, backgroundColor: palette.canvas },
-  pageContent: { flexGrow: 1, padding: 22, paddingBottom: 40, justifyContent: "space-between", gap: 18 },
+  pageContent: { flexGrow: 1, padding: 22, paddingBottom: 40 }, pageBody: { flexGrow: 1, justifyContent: "space-between", gap: 18 },
   hideKeyboard: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, backgroundColor: palette.soft, marginTop: 6 },
   hideKeyboardText: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 11 },
   top: { alignItems: "center", gap: 11, paddingTop: 30 },

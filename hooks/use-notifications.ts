@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import { loadCustomerAccount } from "@/hooks/use-customer-account";
 import { loadCustomerActivity } from "@/lib/customer-activity";
+import { loadDailyMessages } from "@/lib/daily-messages-live";
 import {
   buildNotifications,
   CustomerNotification,
+  newsNotifications,
   markNotificationsRead,
   readNotificationIds,
   unreadCount,
@@ -26,7 +28,10 @@ export function useNotifications() {
       const account = await loadCustomerAccount();
       const activity = await loadCustomerActivity(account?.client_id ?? null);
       setSignedIn(activity.signedIn);
-      setNotifications(buildNotifications(activity));
+      // Chapman's own messages lead the list, because they are the same messages
+      // that arrive as the 9:00 phone alert.
+      const news = newsNotifications(await loadDailyMessages());
+      setNotifications([...news, ...buildNotifications(activity)]);
       setReadIds(await readNotificationIds());
     } catch {
       setNotifications([]);

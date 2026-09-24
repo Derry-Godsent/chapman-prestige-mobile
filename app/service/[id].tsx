@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
+import { serviceColor } from "@/lib/service-colors";
+import { useColorSchemeSafe } from "@/lib/theme-provider";
 import { ServiceIllustration } from "@/components/service-illustration";
 import { getService } from "@/lib/chapman-data";
 import { useBookingStore } from "@/lib/booking-store";
@@ -30,6 +32,8 @@ export default function ServiceDetailScreen() {
   const { styles, palette } = useChapmanStyles(makeStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const service = getService(id);
+  // This service's own colour, so the icons match the card the customer tapped.
+  const tint = serviceColor(service.id, useColorSchemeSafe());
   const detail = serviceDetails[service.id] ?? serviceDetails.cleaning;
   const isLaundry = service.id === "laundry";
   const canRepeat = service.id !== "workers";
@@ -147,7 +151,7 @@ export default function ServiceDetailScreen() {
           </View>
           <View style={styles.promise}>
             <View style={styles.promiseIcon}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={palette.accent} />
+              <Ionicons name="shield-checkmark-outline" size={20} color={tint.accent} />
             </View>
             <View style={styles.promiseCopy}>
               <Text style={styles.promiseTitle}>Chapman care promise</Text>
@@ -160,7 +164,7 @@ export default function ServiceDetailScreen() {
                 <Text style={styles.label}>SIMPLE PRICE GUIDE</Text>
                 <Text style={styles.priceTitle}>What it starts from</Text>
               </View>
-              <Ionicons name="receipt-outline" size={21} color={palette.accent} />
+              <Ionicons name="receipt-outline" size={21} color={tint.accent} />
             </View>
             {detail.guidance.map((item) => (
               <View key={item} style={styles.priceLine}>
@@ -172,13 +176,13 @@ export default function ServiceDetailScreen() {
           {showMeasure ? (
             <TouchableOpacity activeOpacity={0.82} onPress={goMeasure} style={styles.measureCard}>
               <View style={styles.measureIcon}>
-                <Ionicons name="scan-outline" size={22} color={palette.accent} />
+                <Ionicons name="scan-outline" size={22} color={tint.accent} />
               </View>
               <View style={styles.measureCopy}>
                 <Text style={styles.measureTitle}>Measure your space or item</Text>
                 <Text style={styles.measureText}>Use your camera for a reference photo, then enter dimensions for a sample estimate.</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#7A7E8D" />
+              <Ionicons name="chevron-forward" size={18} color={palette.muted} />
             </TouchableOpacity>
           ) : null}
           {canRepeat ? (
@@ -188,7 +192,7 @@ export default function ServiceDetailScreen() {
                   <Text style={styles.label}>SAVED CARE</Text>
                   <Text style={styles.routineTitle}>Make this a routine</Text>
                 </View>
-                <Ionicons name="repeat-outline" size={21} color={palette.accent} />
+                <Ionicons name="repeat-outline" size={21} color={tint.accent} />
               </View>
               <Text style={styles.routineText}>
                 Save a reminder now. You will choose the day and approve each service when it is due.
@@ -220,7 +224,7 @@ export default function ServiceDetailScreen() {
             </View>
           ) : null}
           <View style={styles.paymentNote}>
-            <Ionicons name="wallet-outline" size={20} color={palette.accent} />
+            <Ionicons name="wallet-outline" size={20} color={tint.accent} />
             <View style={styles.paymentCopy}>
               <Text style={styles.paymentTitle}>Choose how you want to pay</Text>
               <Text style={styles.paymentText}>

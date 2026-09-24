@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { DailyMessage } from "@/lib/daily-messages";
+
 import { CustomerActivity } from "@/lib/customer-activity";
 import { timeAgo } from "@/lib/chapman-format";
 
@@ -14,7 +16,7 @@ import { timeAgo } from "@/lib/chapman-format";
 
 export type CustomerNotification = {
   id: string;
-  kind: "booking" | "date" | "answer" | "team" | "service";
+  kind: "booking" | "date" | "answer" | "team" | "service" | "news";
   title: string;
   body: string;
   createdAt: string;
@@ -162,6 +164,25 @@ export function buildNotifications(activity: CustomerActivity): CustomerNotifica
   }
 
   return entries.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()).slice(0, 40);
+}
+
+/**
+ * Chapman's own messages, shown in the Updates list as well as arriving at 9:00.
+ *
+ * A message written by the office should be readable in the app too, not only as
+ * a phone alert, so a customer who opens Updates sees the news, tips, holiday
+ * notices, and thank-you notes Chapman has published.
+ */
+export function newsNotifications(messages: DailyMessage[], today = new Date().toISOString().slice(0, 10)): CustomerNotification[] {
+  return messages.map((message, index) => ({
+    id: `news-${today}-${index}`,
+    kind: "news" as const,
+    title: message.title,
+    body: message.body,
+    createdAt: new Date(new Date(today).setHours(9, 0, 0, 0)).toISOString(),
+    href: "/notifications",
+    urgent: false,
+  }));
 }
 
 export async function readNotificationIds(): Promise<string[]> {

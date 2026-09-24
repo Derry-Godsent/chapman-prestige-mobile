@@ -15,6 +15,7 @@ const KIND_STYLE: Record<CustomerNotification["kind"], { icon: keyof typeof Ioni
   answer: { icon: "checkmark-circle-outline", color: "#047857", label: "CONFIRMED" },
   team: { icon: "people-outline", color: "#3E39C8", label: "FROM CHAPMAN" },
   service: { icon: "sparkles-outline", color: "#B45309", label: "SERVICE" },
+  news: { icon: "megaphone-outline", color: palette.orange, label: "FROM CHAPMAN" },
 };
 /**
  * Updates. Every entry here is a real record from the customer's own account:

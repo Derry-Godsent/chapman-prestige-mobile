@@ -266,7 +266,7 @@ export default function BookingsScreen() {
                 <Text style={styles.bookingTitle}>{card.title}</Text>
                 <Text style={styles.bookingMeta}>{card.meta}</Text>
               </View>
-              <Ionicons name={card.trailingIcon} size={20} color="#7A7E8D" />
+              <Ionicons name={card.trailingIcon} size={20} color={palette.muted} />
             </View>
             <View style={styles.cardFoot}>
               <StatusPill label={card.pillLabel} tone={card.pillTone} />
