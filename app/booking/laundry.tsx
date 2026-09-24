@@ -2,16 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { fetchLaundryItems, formatGhs, type LaundryItem } from "@/lib/chapman-data";
 import { useBookingStore } from "@/lib/booking-store";
 import { haptic } from "@/lib/haptics";
-
 type ServiceType = "wash" | "iron" | "fold" | "hang";
-
 // FIX: Updated to use actual Supabase UUIDs instead of text strings
 const quickBaskets = [
   { 
@@ -31,22 +28,19 @@ const quickBaskets = [
     ] 
   },
 ];
-
 export default function LaundryBookingScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const { cart, express, setExpress, updateLaundryQuantity, cartCount } = useBookingStore();
   const [items, setItems] = useState<LaundryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState<Record<string, ServiceType>>({});
-
   useEffect(() => {
     fetchLaundryItems().then((data) => {
       setItems(data);
       setLoading(false);
     });
   }, []);
-
   const quantityFor = (id: string) => cart.find((line) => line.item.id === id)?.quantity ?? 0;
-  
   const groupedItems = useMemo(() => {
     return items.reduce<Record<string, LaundryItem[]>>((groups, item) => {
       if (!groups[item.category]) groups[item.category] = [];
@@ -54,7 +48,6 @@ export default function LaundryBookingScreen() {
       return groups;
     }, {});
   }, [items]);
-
   const calculateTotal = () => {
     let itemsTotal = 0;
     cart.forEach(line => {
@@ -64,32 +57,24 @@ export default function LaundryBookingScreen() {
     const pickupFee = cartCount > 0 ? 20 : 0;
     return itemsTotal + expressFeeCalc + pickupFee;
   };
-
   const total = calculateTotal();
-
   const handleServiceSelect = (itemId: string, service: ServiceType) => {
     haptic.selection();
     setSelectedServices(prev => ({ ...prev, [itemId]: service }));
   };
-
   const handleQuantityChange = (item: LaundryItem, delta: number) => {
     haptic.selection();
     const currentQty = quantityFor(item.id);
     const newQty = currentQty + delta;
-    
     if (newQty < 0) return;
-
     const selectedService = selectedServices[item.id] || "wash";
     let priceToUse = item.price_wash || 0;
-
     if (selectedService === "iron") priceToUse = item.price_iron || 0;
     if (selectedService === "fold") priceToUse = item.price_fold || 0;
     if (selectedService === "hang") priceToUse = item.price_hang || 0;
-
     const itemForCart = { ...item, price_wash: priceToUse };
     updateLaundryQuantity(itemForCart, newQty);
   };
-
   const applyBasket = (basketItems: { id: string; quantity: number; service: ServiceType }[]) => {
     haptic.medium();
     basketItems.forEach(({ id, quantity, service }) => {
@@ -100,37 +85,32 @@ export default function LaundryBookingScreen() {
         if (service === "iron") priceToUse = item.price_iron || 0;
         if (service === "fold") priceToUse = item.price_fold || 0;
         if (service === "hang") priceToUse = item.price_hang || 0;
-        
         const itemForCart = { ...item, price_wash: priceToUse };
         updateLaundryQuantity(itemForCart, quantity);
       }
     });
   };
-
   const getServicePrice = (item: LaundryItem, service: ServiceType) => {
     if (service === "iron") return item.price_iron;
     if (service === "fold") return item.price_fold;
     if (service === "hang") return item.price_hang;
     return item.price_wash;
   };
-
   if (loading) {
     return (
       <AppScreen>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={palette.blue} />
+          <ActivityIndicator size="large" color={palette.accent} />
           <Text style={styles.loadingText}>Loading laundry list...</Text>
         </View>
       </AppScreen>
     );
   }
-
   return (
     <AppScreen>
       <View style={styles.page}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <ScreenHeader title="Build your laundry" subtitle="Transparent per-item pricing" />
-          
           <View style={styles.intro}>
             <View style={styles.introIcon}>
               <Ionicons name="shirt-outline" size={24} color="#FFFFFF" />
@@ -140,14 +120,13 @@ export default function LaundryBookingScreen() {
               <BodyText style={styles.introBody}>Select the service for each item.</BodyText>
             </View>
           </View>
-
           <View style={styles.quickStart}>
             <View style={styles.quickStartHeader}>
               <View>
                 <Text style={styles.quickStartLabel}>QUICK START</Text>
                 <Text style={styles.quickStartTitle}>Add a common basket</Text>
               </View>
-              <Ionicons name="sparkles-outline" size={20} color={palette.blue} />
+              <Ionicons name="sparkles-outline" size={20} color={palette.accent} />
             </View>
             <View style={styles.basketRow}>
               {quickBaskets.map((basket) => (
@@ -163,7 +142,6 @@ export default function LaundryBookingScreen() {
               ))}
             </View>
           </View>
-
           {Object.entries(groupedItems).map(([category, categoryItems]) => (
             <View key={category} style={styles.category}>
               <Text style={styles.categoryTitle}>{category.toUpperCase()}</Text>
@@ -172,7 +150,6 @@ export default function LaundryBookingScreen() {
                   const quantity = quantityFor(item.id);
                   const selectedService = selectedServices[item.id] || "wash";
                   const currentPrice = getServicePrice(item, selectedService);
-
                   return (
                     <View key={item.id} style={styles.itemRow}>
                       <View style={styles.itemInfo}>
@@ -213,7 +190,6 @@ export default function LaundryBookingScreen() {
                         </View>
                         <Text style={styles.itemPrice}>{formatGhs(currentPrice || 0)} each</Text>
                       </View>
-                      
                       <View style={styles.stepper}>
                         <TouchableOpacity 
                           disabled={quantity === 0} 
@@ -227,7 +203,7 @@ export default function LaundryBookingScreen() {
                           onPress={() => handleQuantityChange(item, 1)} 
                           style={styles.stepperButton}
                         >
-                          <Ionicons name="add" size={17} color={palette.blue} />
+                          <Ionicons name="add" size={17} color={palette.accent} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -236,7 +212,6 @@ export default function LaundryBookingScreen() {
               </View>
             </View>
           ))}
-
           <View style={styles.expressCard}>
             <View style={styles.expressIcon}>
               <Ionicons name="flash" size={20} color={palette.orange} />
@@ -253,7 +228,6 @@ export default function LaundryBookingScreen() {
             />
           </View>
         </ScrollView>
-
         <View style={styles.summary}>
           <View style={styles.summaryText}>
             <Text style={styles.summaryLabel}>{cartCount ? `${cartCount} item${cartCount === 1 ? "" : "s"} selected` : "Select items to continue"}</Text>
@@ -271,8 +245,7 @@ export default function LaundryBookingScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: palette.canvas },
   loadingText: { marginTop: 10, color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 14 },
   page: { flex: 1, backgroundColor: palette.canvas },
@@ -282,28 +255,28 @@ const styles = StyleSheet.create({
   introCopy: { flex: 1, gap: 4 },
   introTitle: { color: "#FFFFFF", fontSize: 20, lineHeight: 26 },
   introBody: { color: "#DDE1FF", fontSize: 12, lineHeight: 17 },
-  quickStart: { padding: 15, borderRadius: 19, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 11 },
+  quickStart: { padding: 15, borderRadius: 19, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 11 },
   quickStartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  quickStartLabel: { color: "#5871B5", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.05 },
+  quickStartLabel: { color: palette.eyebrow, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.05 },
   quickStartTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15, marginTop: 3 },
   basketRow: { flexDirection: "row", gap: 8 },
-  basket: { flex: 1, minHeight: 63, padding: 10, borderRadius: 14, backgroundColor: "#EEF3FF", justifyContent: "center", gap: 3 },
+  basket: { flex: 1, minHeight: 63, padding: 10, borderRadius: 14, backgroundColor: palette.chipBlue, justifyContent: "center", gap: 3 },
   basketTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 11 },
   basketDetail: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 9, lineHeight: 13 },
   category: { gap: 8 },
-  categoryTitle: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.1, paddingHorizontal: 2 },
-  itemList: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, borderRadius: 18, overflow: "hidden" },
+  categoryTitle: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.1, paddingHorizontal: 2 },
+  itemList: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: 18, overflow: "hidden" },
   itemRow: { minHeight: 95, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#EEF0F4" },
   itemInfo: { flex: 1, gap: 6 },
   itemName: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   serviceButtons: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   serviceBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: "#F1F2F5", borderWidth: 1, borderColor: "transparent" },
-  serviceBtnActive: { backgroundColor: "#EEF2FF", borderColor: palette.blue },
+  serviceBtnActive: { backgroundColor: palette.chipBlue, borderColor: palette.blue },
   serviceBtnText: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 10 },
-  serviceBtnTextActive: { color: palette.blue, fontFamily: "Inter_700Bold" },
+  serviceBtnTextActive: { color: palette.accent, fontFamily: "Inter_700Bold" },
   itemPrice: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 2 },
   stepper: { flexDirection: "row", alignItems: "center", gap: 8 },
-  stepperButton: { width: 31, height: 31, borderRadius: 10, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" },
+  stepperButton: { width: 31, height: 31, borderRadius: 10, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" },
   stepperDisabled: { backgroundColor: "#F1F2F5" },
   quantity: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14, minWidth: 15, textAlign: "center" },
   expressCard: { padding: 14, borderRadius: 18, backgroundColor: "#FFF5F0", borderWidth: 1, borderColor: "#FFE1D1", flexDirection: "row", alignItems: "center", gap: 10 },

@@ -2,16 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { ServiceIllustration } from "@/components/service-illustration";
 import { getService } from "@/lib/chapman-data";
 import { useBookingStore } from "@/lib/booking-store";
 import { supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
-
 const serviceDetails: Record<string, { summary: string; steps: string[]; guidance: string[]; promise: string }> = {
   laundry: { summary: "Choose your clothes and pickup time. We wash, press, fold, and bring them back.", steps: ["Tell us what you are sending", "Choose a pickup time", "Follow your order until it returns"], guidance: ["Small items from ₵3", "Shirts and trousers from ₵7", "Express care adds ₵10 per item"], promise: "We keep your item list clear and show the full total before you confirm." },
   cleaning: { summary: "Tell us about your space. We check what it needs, then send a clear quote before work starts.", steps: ["Choose the type of space", "Pick a day for assessment", "Approve the quote before we start"], guidance: ["One bedroom from ₵450", "Three bedrooms from ₵850", "Minimum service ₵500"], promise: "Your team follows a clear room-by-room plan and asks before any extra work." },
@@ -21,17 +19,15 @@ const serviceDetails: Record<string, { summary: string; steps: string[]; guidanc
   polytank: { summary: "Tell us your tank size. We plan the cleaning visit so your water storage gets the right care.", steps: ["Choose your tank size", "Choose a service day", "Follow the visit from confirmation"], guidance: ["Small tank ₵150", "Medium tank ₵350", "Large tank ₵600"], promise: "We confirm tank size, access, and the cleaning plan before the visit starts." },
   contract: { summary: "Tell us about your facility. We build a regular cleaning plan that fits your week and your budget.", steps: ["Tell us about the facility", "Receive a monthly plan", "Track each planned visit"], guidance: ["Small office from ₵600 monthly", "Schools from ₵1,200 monthly", "Clinics from ₵1,500 monthly"], promise: "Every contract begins with a shared checklist, schedule, and agreed service standard." },
 };
-
 const routineOptions = ["Weekly", "Bi-Weekly", "Monthly"];
-
 const servicePhotos = {
   laundry: require("@/assets/images/service-photo-laundry.jpg"),
   cleaning: require("@/assets/images/service-photo-cleaning.jpg"),
   contract: require("@/assets/images/service-photo-cleaning.jpg"),
   detailing: require("@/assets/images/service-photo-detailing.jpg"),
 } as const;
-
 export default function ServiceDetailScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const service = getService(id);
   const detail = serviceDetails[service.id] ?? serviceDetails.cleaning;
@@ -39,33 +35,27 @@ export default function ServiceDetailScreen() {
   const canRepeat = service.id !== "workers";
   const showMeasure = !isLaundry && service.id !== "workers";
   const servicePhoto = servicePhotos[service.id as keyof typeof servicePhotos];
-  
   const { routines, saveRoutine, removeRoutine } = useBookingStore();
   const [savedCadences, setSavedCadences] = useState<string[]>([]);
   const [loadingRoutines, setLoadingRoutines] = useState(true);
-
     useEffect(() => {
     const client = supabase;
     if (!client) return;
-    
     const loadRoutines = async () => {
       setLoadingRoutines(true);
       try {
         const { data: session } = await client.auth.getSession();
         const clientId = session?.session?.user?.id;
-
         // Routines are stored against the signed-in customer only.
         if (!clientId) {
           setSavedCadences(routines.filter((r) => r.serviceId === service.id).map((r) => r.cadence));
           return;
         }
-
         const { data } = await client
           .from('routines')
           .select('cadence, id')
           .eq('client_id', clientId)
           .eq('service_id', service.id);
-        
         if (data) {
           const cadences = data.map((r: any) => r.cadence);
           setSavedCadences(cadences);
@@ -80,17 +70,14 @@ export default function ServiceDetailScreen() {
     };
     void loadRoutines();
   }, [service.id, routines]);
-
   const handleRoutineToggle = useCallback(async (cadence: string) => {
     const client = supabase;
     if (!client) return;
     haptic.medium();
     const isSaved = savedCadences.includes(cadence);
-    
     try {
       const { data: session } = await client.auth.getSession();
       const clientId = session?.session?.user?.id;
-
       // Guests can save a routine on this device only; it is never written
       // under another customer's account.
       if (!clientId) {
@@ -104,7 +91,6 @@ export default function ServiceDetailScreen() {
         }
         return;
       }
-
       if (isSaved) {
         await client.from('routines').delete().eq('client_id', clientId).eq('service_id', service.id).eq('cadence', cadence);
         const routineToRemove = routines.find(r => r.serviceId === service.id && r.cadence === cadence);
@@ -125,17 +111,13 @@ export default function ServiceDetailScreen() {
       console.error("Routine toggle error:", error);
     }
   }, [savedCadences, routines, service, saveRoutine, removeRoutine]);
-
   const beginBooking = () => isLaundry ? router.push("/booking/laundry" as never) : router.push({ pathname: "/booking/request-quote" as never, params: { serviceId: service.id } });
-  
   const goMeasure = () => router.push(`/measure?serviceId=${service.id}` as never);
-
   return (
     <AppScreen>
       <View style={styles.page}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <ScreenHeader title={service.shortTitle} />
-          
           {servicePhoto ? (
             <View style={styles.photoFrame}>
               <Image source={servicePhoto} resizeMode="cover" style={styles.photo} />
@@ -147,13 +129,11 @@ export default function ServiceDetailScreen() {
           ) : (
             <ServiceIllustration serviceId={service.id} />
           )}
-          
           <View style={styles.intro}>
             <Text style={styles.label}>ABOUT THIS SERVICE</Text>
             <DisplayText style={styles.title}>{service.title}</DisplayText>
             <BodyText style={styles.summary}>{detail.summary}</BodyText>
           </View>
-
           <View style={styles.steps}>
             <Text style={styles.sectionTitle}>How it works</Text>
             {detail.steps.map((step, index) => (
@@ -165,24 +145,22 @@ export default function ServiceDetailScreen() {
               </View>
             ))}
           </View>
-
           <View style={styles.promise}>
             <View style={styles.promiseIcon}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={palette.blue} />
+              <Ionicons name="shield-checkmark-outline" size={20} color={palette.accent} />
             </View>
             <View style={styles.promiseCopy}>
               <Text style={styles.promiseTitle}>Chapman care promise</Text>
               <Text style={styles.promiseText}>{detail.promise}</Text>
             </View>
           </View>
-
           <View style={styles.priceSection}>
             <View style={styles.priceHeader}>
               <View>
                 <Text style={styles.label}>SIMPLE PRICE GUIDE</Text>
                 <Text style={styles.priceTitle}>What it starts from</Text>
               </View>
-              <Ionicons name="receipt-outline" size={21} color={palette.blue} />
+              <Ionicons name="receipt-outline" size={21} color={palette.accent} />
             </View>
             {detail.guidance.map((item) => (
               <View key={item} style={styles.priceLine}>
@@ -191,11 +169,10 @@ export default function ServiceDetailScreen() {
               </View>
             ))}
           </View>
-
           {showMeasure ? (
             <TouchableOpacity activeOpacity={0.82} onPress={goMeasure} style={styles.measureCard}>
               <View style={styles.measureIcon}>
-                <Ionicons name="scan-outline" size={22} color={palette.blue} />
+                <Ionicons name="scan-outline" size={22} color={palette.accent} />
               </View>
               <View style={styles.measureCopy}>
                 <Text style={styles.measureTitle}>Measure your space or item</Text>
@@ -204,7 +181,6 @@ export default function ServiceDetailScreen() {
               <Ionicons name="chevron-forward" size={18} color="#7A7E8D" />
             </TouchableOpacity>
           ) : null}
-
           {canRepeat ? (
             <View style={styles.routineCard}>
               <View style={styles.routineTop}>
@@ -212,12 +188,11 @@ export default function ServiceDetailScreen() {
                   <Text style={styles.label}>SAVED CARE</Text>
                   <Text style={styles.routineTitle}>Make this a routine</Text>
                 </View>
-                <Ionicons name="repeat-outline" size={21} color={palette.blue} />
+                <Ionicons name="repeat-outline" size={21} color={palette.accent} />
               </View>
               <Text style={styles.routineText}>
                 Save a reminder now. You will choose the day and approve each service when it is due.
               </Text>
-              
               {loadingRoutines ? (
                 <View style={styles.loadingRoutines}>
                   <Text style={styles.loadingRoutinesText}>Loading your routines...</Text>
@@ -244,9 +219,8 @@ export default function ServiceDetailScreen() {
               )}
             </View>
           ) : null}
-
           <View style={styles.paymentNote}>
-            <Ionicons name="wallet-outline" size={20} color={palette.blue} />
+            <Ionicons name="wallet-outline" size={20} color={palette.accent} />
             <View style={styles.paymentCopy}>
               <Text style={styles.paymentTitle}>Choose how you want to pay</Text>
               <Text style={styles.paymentText}>
@@ -255,7 +229,6 @@ export default function ServiceDetailScreen() {
             </View>
           </View>
         </ScrollView>
-        
         <View style={styles.bottomBar}>
           <PrimaryButton label={service.actionLabel} icon="arrow-forward" onPress={beginBooking} />
         </View>
@@ -263,8 +236,7 @@ export default function ServiceDetailScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({ 
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({ 
   page: { flex: 1, backgroundColor: palette.canvas }, 
   content: { padding: 20, paddingTop: 12, paddingBottom: 110, gap: 19 }, 
   photoFrame: { height: 188, borderRadius: 22, overflow: "hidden", backgroundColor: palette.deep }, 
@@ -279,38 +251,38 @@ const styles = StyleSheet.create({
   steps: { paddingVertical: 2, gap: 12 }, 
   sectionTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18, marginBottom: 2 }, 
   step: { flexDirection: "row", alignItems: "center", gap: 11 }, 
-  stepNumber: { width: 27, height: 27, borderRadius: 14, backgroundColor: "#E4F4E9", alignItems: "center", justifyContent: "center" }, 
-  stepNumberText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 }, 
+  stepNumber: { width: 27, height: 27, borderRadius: 14, backgroundColor: palette.chip, alignItems: "center", justifyContent: "center" }, 
+  stepNumberText: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 12 }, 
   stepText: { flex: 1, color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 13, lineHeight: 18 }, 
-  promise: { padding: 14, borderRadius: 18, backgroundColor: "#EEF7F1", flexDirection: "row", gap: 10, alignItems: "flex-start" }, 
-  promiseIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" }, 
+  promise: { padding: 14, borderRadius: 18, backgroundColor: palette.soft, flexDirection: "row", gap: 10, alignItems: "flex-start" }, 
+  promiseIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: palette.surface, alignItems: "center", justifyContent: "center" }, 
   promiseCopy: { flex: 1, gap: 3 }, 
   promiseTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   promiseText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 17 }, 
-  priceSection: { padding: 16, borderRadius: 19, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 10 }, 
+  priceSection: { padding: 16, borderRadius: 19, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 10 }, 
   priceHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 4 }, 
   priceTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 16, marginTop: 3 }, 
   priceLine: { flexDirection: "row", alignItems: "center", gap: 8 }, 
   priceDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: palette.blue }, 
   priceLineText: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 12 }, 
-  measureCard: { padding: 14, borderRadius: 18, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", gap: 10 }, 
-  measureIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center" }, 
+  measureCard: { padding: 14, borderRadius: 18, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", gap: 10 }, 
+  measureIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" }, 
   measureCopy: { flex: 1, gap: 2 }, 
   measureTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   measureText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15 }, 
-  routineCard: { padding: 16, borderRadius: 19, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 8 }, 
+  routineCard: { padding: 16, borderRadius: 19, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 8 }, 
   routineTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, 
   routineTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 16, marginTop: 3 }, 
   routineText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 17 }, 
   routineOptions: { flexDirection: "row", gap: 8, paddingTop: 3 }, 
-  routineChoice: { flex: 1, minHeight: 38, justifyContent: "center", alignItems: "center", borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: "#FFFFFF", flexDirection: "row", gap: 4 }, 
+  routineChoice: { flex: 1, minHeight: 38, justifyContent: "center", alignItems: "center", borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, flexDirection: "row", gap: 4 }, 
   routineChoiceSaved: { borderColor: palette.blue, backgroundColor: palette.blue }, 
   routineChoiceText: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 11 }, 
   routineChoiceTextSaved: { color: "#FFFFFF" }, 
   checkIcon: { marginLeft: 2 },
   loadingRoutines: { paddingVertical: 8, alignItems: "center" },
   loadingRoutinesText: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 11 },
-  paymentNote: { padding: 14, borderRadius: 17, backgroundColor: "#EEF7F1", flexDirection: "row", gap: 10, alignItems: "flex-start" }, 
+  paymentNote: { padding: 14, borderRadius: 17, backgroundColor: palette.soft, flexDirection: "row", gap: 10, alignItems: "flex-start" }, 
   paymentCopy: { flex: 1, gap: 3 }, 
   paymentTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   paymentText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }, 

@@ -34,6 +34,7 @@ to you. That was my mistake. This document fixes it.
 | 7 | **Same features on the web** | Every app feature visible and usable in the browser | STARTED **Customer side already works, staff page written** |
 | 8 | **No more placeholders** | Every screen real, every tap does something | STARTED **First batch done: loyalty, updates, history, settings** |
 | 9 | **The office sees its work arrive** | Counts on the staff menu and live alerts | STARTED **Built and running in the preview** |
+| 10 | **What you found on the phone** | Crash, daily updates, PIN, dark mode, permissions, routines | DONE **All seven** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -620,6 +621,45 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 10, What you found on the phone FIXED
+
+**1. A crash on the profile screen.** Six spaces sitting between two elements on one line.
+React Native treats those spaces as text outside a Text component and refuses to draw the
+screen at all, which is what you saw. My mistake, and it is now guarded by a test that reads
+every screen and refuses to let that pattern back in.
+
+**2. The daily update switch did not stay on.** It had no memory. It now remembers your
+choice, shows how many mornings are already waiting on the phone, and tops the week up each
+time you open the app so it does not quietly stop after seven days. There is also a **Send a
+test message** row so you can see one arrive in five seconds instead of waiting for 9:00.
+
+**3. The PIN screens.** The keyboard covered the fields and the Save button, and nothing put
+it away. Both PIN screens now move up with the keyboard, tapping anywhere outside the fields
+puts the keyboard away, there is a Hide the keyboard button, and the fields accept digits
+only. **Changing or removing the PIN now asks for the current PIN first**, so nobody holding
+your phone can simply remove the lock. Five wrong tries still throws the PIN away and asks for
+a fresh text message.
+
+**4. Dark mode.** It was only switching a few colours that no screen used, which is why
+nothing changed. Every screen now draws from one palette with two skins, so dark really is
+dark: the background, the cards, the text, the icons, the tab bar, and the dividers. Appearance
+now offers three choices: **Light, Dark, and My phone**, which follows your phone setting and
+changes with it.
+
+**5. Permissions.** The permissions screen now shows what the phone has actually allowed, and
+when the phone has already been asked once and said no, the button opens the phone settings,
+because the phone will not ask again. The same is true of Live service area on the profile:
+a refused location permission now opens the phone settings instead of doing nothing.
+
+**6. Saved routines never showed.** They were only ever held in memory, so they vanished the
+moment the app restarted. They are now saved on the phone and read back when the app opens.
+
+**7. Alerts.** The Booking alerts switch is now a real choice that the live alerts obey, the
+daily update is real and remembered, notifications are asked for through the phone, and the
+permissions screen reports the truth for alerts, location, and camera.
 
 ---
 

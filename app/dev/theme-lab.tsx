@@ -1,17 +1,14 @@
+import { ChapmanPalette, useChapmanStyles } from "@/components/chapman-ui";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
 import { ScreenContainer } from "@/components/screen-container";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SchemeColors, type ColorScheme } from "@/constants/theme";
 import { useColors } from "@/hooks/use-colors";
 import { useThemeContext } from "@/lib/theme-provider";
-
 type PaletteName = keyof typeof SchemeColors.light;
-
 const paletteNames: PaletteName[] = Object.keys(SchemeColors.light) as PaletteName[];
-
 function ColorSwatch({ name, value }: { name: PaletteName; value: string }) {
   return (
     <View className="flex-row items-center justify-between rounded-xl border border-border px-3 py-2">
@@ -23,13 +20,12 @@ function ColorSwatch({ name, value }: { name: PaletteName; value: string }) {
     </View>
   );
 }
-
 export default function ThemeLabScreen() {
+  const { styles } = useChapmanStyles(makeStyles);
   const [pressCount, setPressCount] = useState(0);
   const [lastAction, setLastAction] = useState<string>("None yet");
   const { colorScheme, setColorScheme } = useThemeContext();
   const colors = useColors();
-
   const swatches = useMemo(
     () =>
       paletteNames.map((name) => ({
@@ -38,7 +34,6 @@ export default function ThemeLabScreen() {
       })),
     [colorScheme],
   );
-
   const tileStyles = useMemo(() => {
     const build = (scheme: ColorScheme) => ({
       background: SchemeColors[scheme].background,
@@ -53,7 +48,6 @@ export default function ThemeLabScreen() {
       dark: build("dark"),
     };
   }, []);
-
   return (
     <ScreenContainer className="p-5">
       <ScrollView className="flex-1">
@@ -109,7 +103,6 @@ export default function ThemeLabScreen() {
               </Pressable>
             ))}
           </View>
-
           <ThemedView className="rounded-2xl border border-border p-4">
             <Text className="text-lg font-bold text-foreground">
               Tailwind tokens
@@ -117,7 +110,6 @@ export default function ThemeLabScreen() {
             <Text className="mt-1 text-sm text-muted">
               Buttons and badges driven by global {colorScheme} palette
             </Text>
-
             <View className="mt-4 flex-row flex-wrap gap-2">
               <TouchableOpacity
                 className="rounded-full px-4 py-2"
@@ -178,7 +170,6 @@ export default function ThemeLabScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-
             <View className="mt-4 rounded-xl bg-background p-4 border border-border">
               <Text className="text-base font-semibold text-foreground">
                 useColors()
@@ -202,7 +193,6 @@ export default function ThemeLabScreen() {
               </View>
             </View>
           </ThemedView>
-
           <ThemedView className="rounded-2xl border border-border p-4">
             <Text className="text-lg font-bold text-foreground">
               Palette values
@@ -221,8 +211,7 @@ export default function ThemeLabScreen() {
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   schemeToggle: {
     flex: 1,
     borderWidth: 1,

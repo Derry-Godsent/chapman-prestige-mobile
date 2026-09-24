@@ -2,9 +2,7 @@ import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-
-import { palette } from "@/components/chapman-ui";
-
+import { useChapmanPalette } from "@/components/chapman-ui";
 const tabIcons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
   index: { active: "home", inactive: "home-outline" },
   bookings: { active: "calendar", inactive: "calendar-outline" },
@@ -12,11 +10,10 @@ const tabIcons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactiv
   chat: { active: "chatbubble", inactive: "chatbubble-outline" },
   profile: { active: "person", inactive: "person-outline" },
 };
-
 export default function TabLayout() {
+  const palette = useChapmanPalette();
   const insets = useSafeAreaInsets();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 10);
-
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -28,7 +25,7 @@ export default function TabLayout() {
           height: 60 + bottomPadding,
           paddingTop: 7,
           paddingBottom: bottomPadding,
-          backgroundColor: "#FFFFFF",
+          backgroundColor: palette.surface,
           borderTopWidth: 1,
           borderTopColor: "#DED4C6",
           shadowColor: "#1C1208",

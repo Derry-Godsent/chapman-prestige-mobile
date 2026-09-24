@@ -2,16 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, IconOrb, StatusPill, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, IconOrb, StatusPill, palette, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { useNow } from "@/hooks/use-now";
 import { useBookingStore } from "@/lib/booking-store";
 import { newestFirst, timeAgo } from "@/lib/chapman-format";
 import { CustomerSignInRequiredError, getMyMobileLaundryRequests, MobileLaundryRequest } from "@/lib/mobile-requests";
 import { supabase } from "@/lib/supabase";
 import type { QuoteRequest } from "@/lib/chapman-data";
-
 /**
  * Every card on this screen, whichever kind of record it came from, reduced to
  * one shape so they can be listed together, most recent first, rather than in
@@ -30,16 +28,13 @@ type BookingCard = {
   createdAt: string;
   href: string;
 };
-
 type PillTone = BookingCard["pillTone"];
-
 function laundryPillTone(status: MobileLaundryRequest["request_status"]): PillTone {
   if (status === "needs_customer_confirmation") return "orange";
   if (status === "confirmed") return "green";
   if (status === "declined") return "red";
   return "blue";
 }
-
 function requestLabel(request: MobileLaundryRequest) {
   const status = request.request_status;
   if (status === "needs_customer_confirmation") return "date ready";
@@ -49,12 +44,10 @@ function requestLabel(request: MobileLaundryRequest) {
   if (status === "declined" && request.customer_response === "rejected") return "you declined";
   return status.replace(/_/g, " ");
 }
-
 function requestDate(request: MobileLaundryRequest) {
   const date = request.confirmed_for ?? request.requested_for;
   return date ? new Date(`${date}T12:00:00`).toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric" }) : "Date to be confirmed";
 }
-
 // Get the correct icon for a service type
 function getServiceIcon(serviceId: string, status?: string) {
   if (status === "declined") return "close-outline";
@@ -69,7 +62,6 @@ function getServiceIcon(serviceId: string, status?: string) {
     default: return "document-text-outline";
   }
 }
-
 // Get accent color for a service type
 function getServiceColor(serviceId: string, status?: string) {
   if (status === "declined") return palette.error;
@@ -84,7 +76,6 @@ function getServiceColor(serviceId: string, status?: string) {
     default: return palette.blue;
   }
 }
-
 // Format a quote ID into a clean reference code
 function formatQuoteRef(id: string) {
   // If it's already a formatted ref like QTE-0302, return as-is
@@ -93,14 +84,13 @@ function formatQuoteRef(id: string) {
   if (/^[0-9a-f]{8}-/i.test(id)) return `CPL-${id.slice(0, 8).toUpperCase()}`;
   return id;
 }
-
 export default function BookingsScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const { bookings, quotes } = useBookingStore();
   const [tab, setTab] = useState<"upcoming" | "history">("upcoming");
   const now = useNow();
   const [liveRequests, setLiveRequests] = useState<MobileLaundryRequest[]>([]);
   const [loadingLive, setLoadingLive] = useState(false);
-  
   const loadLiveRequests = useCallback(async () => {
     setLoadingLive(true);
     try { 
@@ -111,27 +101,20 @@ export default function BookingsScreen() {
       setLoadingLive(false); 
     }
   }, []);
-
   useEffect(() => { 
     void loadLiveRequests(); 
   }, [loadLiveRequests]);
-
   useEffect(() => {
     const client = supabase;
     if (!client) return;
-
     let channel: any = null;
-
     const setupRealtime = async () => {
       const { data: sessionData } = await client.auth.getSession();
       const userId = sessionData?.session?.user?.id;
-
       // Guests have no customer records to watch. Subscribing without a real
       // signed-in id would either leak nothing or, worse, watch another account.
       if (!userId) return;
-
       await client.removeChannel(client.channel(`customer-mobile-${userId}`));
-
       channel = client.channel(`customer-mobile-${userId}`)
         .on(
           "postgres_changes",
@@ -163,20 +146,16 @@ export default function BookingsScreen() {
           }
         });
     };
-
     void setupRealtime();
-
     return () => {
       if (channel) {
         void client.removeChannel(channel);
       }
     };
   }, [loadLiveRequests]);
-
   const liveIds = new Set(liveRequests.map((request) => request.id));
   const localBookings = bookings.filter((booking) => !liveIds.has(booking.id));
   const hasActivity = localBookings.length > 0 || quotes.length > 0 || liveRequests.length > 0;
-
   // Live laundry requests, saved bookings and quote requests all become cards,
   // then one sort puts the newest request at the top of the screen.
   const cards: BookingCard[] = [
@@ -224,20 +203,18 @@ export default function BookingsScreen() {
       href: `/booking/${quote.id}`,
     })),
   ];
-
   // Upcoming holds anything still moving. History holds anything that has ended:
   // work Chapman completed or converted to an order, a request the customer
   // declined, a request Chapman could not take, and anything cancelled.
   const finishedStatuses = ["completed", "converted", "declined", "cancelled"];
-  const withTab: Array<Record<string, any>> = (cards as Array<Record<string, any>>).map((card) => ({
+  const withTab: Record<string, any>[] = (cards as Record<string, any>[]).map((card) => ({
     ...card,
     tab: finishedStatuses.includes(String(card.status)) ? "history" : "upcoming",
   }));
-  const orderedCards = newestFirst(withTab, (card) => String(card.createdAt ?? "")) as Array<Record<string, any>>;
+  const orderedCards = newestFirst(withTab, (card) => String(card.createdAt ?? "")) as Record<string, any>[];
   const upcomingCards = orderedCards.filter((card) => card.tab === "upcoming");
   const historyCards = orderedCards.filter((card) => card.tab === "history");
   const shownCards = tab === "upcoming" ? upcomingCards : historyCards;
-
   return (
     <AppScreen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -260,14 +237,13 @@ export default function BookingsScreen() {
         </View>
         {loadingLive ? (
           <View style={styles.liveLoading}>
-            <ActivityIndicator size="small" color={palette.blue} />
+            <ActivityIndicator size="small" color={palette.accent} />
             <Text style={styles.liveLoadingText}>Refreshing secure request updates\u2026</Text>
           </View>
         ) : null}
-
         {!loadingLive && shownCards.length === 0 ? (
           <View style={styles.emptyHistory}>
-            <Ionicons name={tab === "history" ? "time-outline" : "calendar-clear-outline"} size={24} color={palette.blue} />
+            <Ionicons name={tab === "history" ? "time-outline" : "calendar-clear-outline"} size={24} color={palette.accent} />
             <Text style={styles.emptyHistoryTitle}>{tab === "history" ? "No finished work yet" : "Nothing in progress"}</Text>
             <Text style={styles.emptyHistoryText}>
               {tab === "history"
@@ -277,7 +253,6 @@ export default function BookingsScreen() {
             <TouchableOpacity onPress={() => router.push("/services" as never)} style={styles.emptyHistoryAction}><Text style={styles.emptyHistoryActionText}>See services</Text></TouchableOpacity>
           </View>
         ) : null}
-
         {shownCards.map((card) => (
           <TouchableOpacity
             key={String(card.key)}
@@ -300,11 +275,10 @@ export default function BookingsScreen() {
             <Text style={styles.bookingAge}>Requested {timeAgo(card.createdAt, now)}</Text>
           </TouchableOpacity>
         ))}
-
         {!hasActivity ? (
           <View style={styles.empty}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="calendar-clear-outline" size={36} color={palette.blue} />
+              <Ionicons name="calendar-clear-outline" size={36} color={palette.accent} />
             </View>
             <DisplayText style={styles.emptyTitle}>Nothing booked yet.</DisplayText>
             <BodyText style={styles.emptyBody}>
@@ -320,26 +294,25 @@ export default function BookingsScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({ 
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({ 
   content: { padding: 20, paddingTop: 18, paddingBottom: 34, gap: 18, backgroundColor: palette.canvas, flexGrow: 1 }, 
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, 
-  eyebrow: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2 }, 
+  eyebrow: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2 }, 
   title: { fontSize: 30, marginTop: 2 }, 
   addButton: { width: 43, height: 43, borderRadius: 14, backgroundColor: palette.blue, alignItems: "center", justifyContent: "center" }, 
   filters: { flexDirection: "row", gap: 8 },
-  emptyHistory: { padding: 24, borderRadius: 21, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, alignItems: "center", gap: 9 },
+  emptyHistory: { padding: 24, borderRadius: 21, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, alignItems: "center", gap: 9 },
   emptyHistoryTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15, textAlign: "center" },
   emptyHistoryText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16, textAlign: "center" },
   emptyHistoryAction: { marginTop: 4, paddingVertical: 11, paddingHorizontal: 20, borderRadius: 14, backgroundColor: palette.blue },
   emptyHistoryActionText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 12 }, 
   filterSelected: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: palette.blue, borderRadius: 999 }, 
-  filter: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: "#FFFFFF", borderRadius: 999, borderWidth: 1, borderColor: palette.border }, 
+  filter: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: palette.surface, borderRadius: 999, borderWidth: 1, borderColor: palette.border }, 
   filterTextSelected: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 12 }, 
   filterText: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 12 }, 
-  liveLoading: { minHeight: 38, borderRadius: 13, backgroundColor: "#EEF3FF", alignItems: "center", paddingHorizontal: 12, flexDirection: "row", gap: 9 }, 
-  liveLoadingText: { color: palette.blue, fontFamily: "Inter_600SemiBold", fontSize: 10 }, 
-  bookingCard: { backgroundColor: "#FFFFFF", borderRadius: 20, padding: 15, borderWidth: 1, borderColor: palette.border, gap: 14 }, 
+  liveLoading: { minHeight: 38, borderRadius: 13, backgroundColor: palette.chipBlue, alignItems: "center", paddingHorizontal: 12, flexDirection: "row", gap: 9 }, 
+  liveLoadingText: { color: palette.accent, fontFamily: "Inter_600SemiBold", fontSize: 10 }, 
+  bookingCard: { backgroundColor: palette.surface, borderRadius: 20, padding: 15, borderWidth: 1, borderColor: palette.border, gap: 14 }, 
   cardTop: { flexDirection: "row", alignItems: "center", gap: 11 }, 
   cardCopy: { flex: 1, gap: 4 }, 
   bookingTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
@@ -349,7 +322,7 @@ const styles = StyleSheet.create({
   price: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   quoteRef: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, paddingTop: 85, gap: 12 }, 
-  emptyIcon: { width: 78, height: 78, borderRadius: 30, backgroundColor: "#E9EEFF", alignItems: "center", justifyContent: "center", marginBottom: 5 }, 
+  emptyIcon: { width: 78, height: 78, borderRadius: 30, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center", marginBottom: 5 }, 
   emptyTitle: { textAlign: "center", fontSize: 24 }, 
   emptyBody: { textAlign: "center", maxWidth: 280 }, 
   emptyCTA: { minHeight: 48, paddingHorizontal: 17, backgroundColor: palette.blue, borderRadius: 15, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, marginTop: 7 }, 

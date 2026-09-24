@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, OutlineButton, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, OutlineButton, PrimaryButton, StatusPill, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { useBookingStore } from "@/lib/booking-store";
 import { getMobileLaundryRequest, getMobileRequestEvents, MobileLaundryRequest, MobileRequestEvent, respondToMobileRequestDate } from "@/lib/mobile-requests";
@@ -12,7 +11,6 @@ import { isDeclinedRequest } from "@/lib/mobile-request-updates";
 import { supabase } from "@/lib/supabase";
 import { haptic } from "@/lib/haptics";
 import type { QuoteRequest, QuoteDetails } from "@/lib/chapman-data";
-
 const progressSteps = [
   "Request received", 
   "Team confirms details", 
@@ -21,7 +19,6 @@ const progressSteps = [
   "On the way", 
   "Care complete"
 ];
-
 const stepForStatus: Record<string, number> = { 
   "quote-requested": 1, 
   pending: 1, 
@@ -36,16 +33,13 @@ const stepForStatus: Record<string, number> = {
   "in-progress": 5, 
   completed: 6 
 };
-
 const readableDate = (value?: string | null) => {
   if (!value) return "Date to be confirmed";
   const date = new Date(`${value}T12:00:00`);
   if (isNaN(date.getTime())) return "Date to be confirmed";
   return date.toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 };
-
 const looksLikeRequestId = (value: string | undefined) => Boolean(value && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value));
-
 function requestStatusLabel(status: MobileLaundryRequest["request_status"]) {
   if (status === "needs_customer_confirmation") return "date ready for approval";
   if (status === "under_review") return "Chapman is reviewing";
@@ -53,7 +47,6 @@ function requestStatusLabel(status: MobileLaundryRequest["request_status"]) {
   if (status === "confirmed") return "approved";
   return status.replace(/_/g, " ");
 }
-
 function eventLabel(event: MobileRequestEvent) {
   if (event.event_type === "submitted") return "Your Laundry request was received";
   if (event.event_type === "needs_customer_confirmation") return "Chapman proposed a date for you";
@@ -65,7 +58,6 @@ function eventLabel(event: MobileRequestEvent) {
   if (event.event_type === "confirmed") return "Your service date is approved";
   return event.note || event.event_type.replace(/_/g, " ");
 }
-
 // Load a quote request from Supabase by ID
 async function getQuoteRequestFromSupabase(quoteId: string): Promise<QuoteRequest | null> {
   const client = supabase;
@@ -74,16 +66,13 @@ async function getQuoteRequestFromSupabase(quoteId: string): Promise<QuoteReques
     const { data: session } = await client.auth.getSession();
     const userId = session?.session?.user?.id;
     if (!userId) return null;
-
     const { data, error } = await client
       .from("quote_requests")
       .select("*")
       .eq("id", quoteId)
       .eq("customer_account_id", userId)
       .maybeSingle();
-
     if (error || !data) return null;
-
     return {
       id: data.id,
       serviceId: data.service_id as any,
@@ -100,7 +89,6 @@ async function getQuoteRequestFromSupabase(quoteId: string): Promise<QuoteReques
     return null;
   }
 }
-
 // Update a quote request in Supabase
 async function updateQuoteRequestInSupabase(quoteId: string, updates: Record<string, any>): Promise<boolean> {
   const client = supabase;
@@ -109,7 +97,6 @@ async function updateQuoteRequestInSupabase(quoteId: string, updates: Record<str
     const { data: session } = await client.auth.getSession();
     const customerId = session?.session?.user?.id;
     if (!customerId) return false;
-
     // The customer id travels with the request id, so a quote number belonging
     // to somebody else cannot be written to even if it is guessed.
     const { error } = await client
@@ -122,17 +109,15 @@ async function updateQuoteRequestInSupabase(quoteId: string, updates: Record<str
     return false;
   }
 }
-
 export default function BookingDetailScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { bookings, quotes, respondToAppointment } = useBookingStore();
   const booking = bookings.find((item) => item.id === id);
   const localQuote = quotes.find((item) => item.id === id);
-  
   // Determine if this is a quote or a laundry request
   const isLocalQuote = Boolean(localQuote);
   const shouldLoadLiveRequest = !isLocalQuote && looksLikeRequestId(id);
-  
   // Live laundry request state
   const [liveRequest, setLiveRequest] = useState<MobileLaundryRequest | null>(null);
   const [events, setEvents] = useState<MobileRequestEvent[]>([]);
@@ -140,15 +125,12 @@ export default function BookingDetailScreen() {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
   const approvedPulse = useRef(new Animated.Value(0)).current;
-  
   // Live quote request state (loaded from Supabase)
   const [liveQuote, setLiveQuote] = useState<QuoteRequest | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
-  
   // Use live quote if available, otherwise fall back to local
   const quote = liveQuote ?? localQuote;
   const isQuote = Boolean(quote);
-
   // Load live laundry request
   const loadLiveRequest = useCallback(async () => {
     if (!shouldLoadLiveRequest || !id) return;
@@ -165,7 +147,6 @@ export default function BookingDetailScreen() {
       setLiveLoading(false);
     }
   }, [id, shouldLoadLiveRequest]);
-
   // Load live quote from Supabase (for UUID-based quote IDs or when local quote not found)
   const loadLiveQuote = useCallback(async () => {
     if (!id) return;
@@ -182,17 +163,13 @@ export default function BookingDetailScreen() {
       }
     }
   }, [id, localQuote]);
-
   useEffect(() => { void loadLiveRequest(); }, [loadLiveRequest]);
   useEffect(() => { void loadLiveQuote(); }, [loadLiveQuote]);
-
   // Realtime for laundry requests
   useEffect(() => {
     const client = supabase;
     if (!shouldLoadLiveRequest || !id || !client) return;
-
     void client.removeChannel(client.channel(`customer-booking-${id}`));
-
     const channel = client.channel(`customer-booking-${id}`)
       .on(
         "postgres_changes", 
@@ -210,19 +187,15 @@ export default function BookingDetailScreen() {
           console.warn("Tracking page realtime disconnected", status);
         }
       });
-
     return () => { 
       void client.removeChannel(channel); 
     };
   }, [id, loadLiveRequest, shouldLoadLiveRequest]);
-
   // Realtime for quote requests
   useEffect(() => {
     const client = supabase;
     if (!isQuote || !id || !client) return;
-
     void client.removeChannel(client.channel(`customer-quote-${id}`));
-
     const channel = client.channel(`customer-quote-${id}`)
       .on(
         "postgres_changes",
@@ -235,12 +208,10 @@ export default function BookingDetailScreen() {
           console.warn("Quote tracking realtime disconnected", status);
         }
       });
-
     return () => {
       void client.removeChannel(channel);
     };
   }, [id, isQuote, loadLiveQuote]);
-
   const respondToDate = async (response: "accepted" | "rejected") => {
     if (!id) return;
     setResponding(true);
@@ -262,14 +233,12 @@ export default function BookingDetailScreen() {
       setResponding(false);
     }
   };
-
   const isLiveRequest = Boolean(liveRequest);
   const localAwaitingChapman = booking?.status === "pending-review";
   const liveStatus = liveRequest?.request_status;
   const liveAwaitingResponse = liveStatus === "needs_customer_confirmation";
   const liveIsBeingReviewed = liveStatus === "pending" || liveStatus === "under_review";
   const isDeclined = isDeclinedRequest(liveStatus);
-
   // A cleaning or service request that Chapman could not take. The office writes
   // one short reason in the staff system and the customer reads it here, so a
   // request that cannot be done is answered instead of left silent.
@@ -277,15 +246,12 @@ export default function BookingDetailScreen() {
   const quoteDeclined = isQuote && appointment === "declined";
   const quoteDeclinedReason = quote?.declinedReason;
   const declinedView = isDeclined || quoteDeclined;
-
   const declinedByClient = isDeclined && liveRequest?.customer_response === "rejected";
   const requestInReview = (isQuote && !quoteDeclined) || localAwaitingChapman || liveAwaitingResponse || liveIsBeingReviewed;
   const isApproved = liveStatus === "confirmed";
-
   // Nothing at all was found for this id. Say so plainly rather than showing a
   // confident screen about a request we cannot actually see.
   const foundNothing = !booking && !quote && !liveRequest && !liveLoading && !quoteLoading;
-
   const title = booking?.serviceTitle ?? quote?.serviceTitle ?? "Your service request";
   const status = foundNothing
     ? "unavailable"
@@ -300,20 +266,17 @@ export default function BookingDetailScreen() {
   const measurement = quote?.details?.estimatedAreaM2;
   const contextUrl = `/(tabs)/chat?bookingId=${id}&service=${encodeURIComponent(title)}`;
   const reference = booking?.referenceCode ?? (id ? `CPL-${id.slice(0, 8).toUpperCase()}` : "CPL request");
-  
   const serviceMeta = isQuote 
     ? `${quote?.propertyType} \u00B7 ${quote?.preference}` 
     : liveRequest 
       ? `${readableDate(liveRequest.confirmed_for ?? liveRequest.requested_for)} \u00B7 ${liveRequest.pickup_window ?? "time to be confirmed"}` 
       : booking?.scheduledFor;
-
   // Space breakdown data for quote requests
   const spaceBreakdown = quote?.details?.spaceBreakdown as Record<string, any> | undefined;
   const spaceEntries = spaceBreakdown ? Object.entries(spaceBreakdown).filter(([key]) => key !== "otherAreas" && key !== "description") : [];
   const otherAreas = spaceBreakdown?.otherAreas as string[] | undefined;
   const otherDescription = spaceBreakdown?.description as string | undefined;
   const concernsList = quote?.details?.concerns;
-
   useEffect(() => {
     if (!isApproved) { approvedPulse.setValue(0); return; }
     const animation = Animated.loop(Animated.sequence([
@@ -323,9 +286,7 @@ export default function BookingDetailScreen() {
     animation.start();
     return () => animation.stop();
   }, [approvedPulse, isApproved]);
-
   const isLoading = liveLoading || quoteLoading;
-
   return (
     <AppScreen>
       <View style={styles.page}>
@@ -341,17 +302,14 @@ export default function BookingDetailScreen() {
             <BodyText style={styles.leadBody}>{foundNothing ? "This request is not on your account, or it has been removed. Open My bookings to see everything you have asked for, or message Chapman and we will find it for you." : quoteDeclined ? (quoteDeclinedReason ? `Chapman could not take this request: ${quoteDeclinedReason}` : "Chapman could not take this request. Message Chapman and we will explain, or send a new request with different dates.") : isDeclined ? declinedByClient ? "You rejected the proposed date, so this request is now closed. Message Chapman when you are ready to start a new request." : "Chapman could not approve this request. Use Message Chapman for a clear next step or another service option." : isApproved ? "Chapman has confirmed your service date. Your service team and arrival updates will appear here next." : liveAwaitingResponse ? "Chapman has proposed a date. Accept it to approve your service, or reject it to close this request." : requestInReview ? "Chapman will check the details and keep you updated here." : "We have your request and will share each practical update here."}</BodyText>
             <Text style={styles.reference}>{reference}</Text>
           </View>
-          
-          {isLoading ? <View style={styles.refreshState}><ActivityIndicator size="small" color={palette.blue} /><Text style={styles.refreshText}>Refreshing your secure request\u2026</Text></View> : null}
+          {isLoading ? <View style={styles.refreshState}><ActivityIndicator size="small" color={palette.accent} /><Text style={styles.refreshText}>Refreshing your secure request\u2026</Text></View> : null}
           {liveError ? <View style={styles.error}><Ionicons name="alert-circle-outline" size={18} color={palette.error} /><Text style={styles.errorText}>{liveError}</Text><TouchableOpacity onPress={() => { void loadLiveRequest(); void loadLiveQuote(); }} style={styles.tryAgain}><Text style={styles.tryAgainText}>Refresh</Text></TouchableOpacity></View> : null}
-          
           <View style={styles.serviceSummary}>
             <Text style={styles.label}>YOUR SERVICE</Text>
             <Text style={styles.serviceTitle}>{title}</Text>
             <Text style={styles.serviceMeta}>{serviceMeta}</Text>
-            {quote?.details?.estimateLabel ? <View style={styles.estimateLine}><Ionicons name="calculator-outline" size={14} color={palette.blue} /><Text style={styles.estimateLineText}>{measurement ? `${measurement} m\u00B2 \u00B7 ` : ""}{quote.details.estimateLabel}{quote.details.cameraGuided ? " \u00B7 camera-guided" : ""}</Text></View> : null}
+            {quote?.details?.estimateLabel ? <View style={styles.estimateLine}><Ionicons name="calculator-outline" size={14} color={palette.accent} /><Text style={styles.estimateLineText}>{measurement ? `${measurement} m\u00B2 \u00B7 ` : ""}{quote.details.estimateLabel}{quote.details.cameraGuided ? " \u00B7 camera-guided" : ""}</Text></View> : null}
           </View>
-
           {/* Space Breakdown Card (for quote requests with dynamic space data) */}
           {isQuote && (spaceEntries.length > 0 || otherAreas?.length || otherDescription) ? (
             <View style={styles.spaceBreakdownCard}>
@@ -374,7 +332,7 @@ export default function BookingDetailScreen() {
                   <View style={styles.areasGrid}>
                     {otherAreas.map((area) => (
                       <View key={area} style={styles.areaChip}>
-                        <Ionicons name="checkmark" size={10} color={palette.blue} />
+                        <Ionicons name="checkmark" size={10} color={palette.accent} />
                         <Text style={styles.areaChipText}>{area}</Text>
                       </View>
                     ))}
@@ -383,7 +341,6 @@ export default function BookingDetailScreen() {
               ) : null}
             </View>
           ) : null}
-
           {/* Concerns Card */}
           {isQuote && concernsList && concernsList.length > 0 ? (
             <View style={styles.concernsCard}>
@@ -398,7 +355,6 @@ export default function BookingDetailScreen() {
               </View>
             </View>
           ) : null}
-          
           {isLiveRequest && liveRequest?.pickup_latitude !== null && liveRequest?.pickup_latitude !== undefined && liveRequest?.pickup_longitude !== null && liveRequest?.pickup_longitude !== undefined ? (
             <View style={styles.pickupPointCard}>
               <View style={styles.pickupPointIcon}><Ionicons name="location" size={18} color="#FFFFFF" /></View>
@@ -409,7 +365,6 @@ export default function BookingDetailScreen() {
               <Ionicons name="checkmark-circle" size={19} color={palette.green} />
             </View>
           ) : null}
-          
           {isQuote ? (
             <View style={[styles.appointmentCard, quoteDeclined && styles.declinedCard]}>
               <View style={styles.appointmentHeader}>
@@ -471,7 +426,7 @@ export default function BookingDetailScreen() {
           ) : localAwaitingChapman ? (
             <View style={styles.appointmentCard}>
               <View style={styles.appointmentHeader}>
-                <View style={styles.appointmentIcon}><Ionicons name="calendar-outline" size={20} color={palette.blue} /></View>
+                <View style={styles.appointmentIcon}><Ionicons name="calendar-outline" size={20} color={palette.accent} /></View>
                 <View style={styles.appointmentCopy}>
                   <Text style={styles.appointmentTitle}>Preferred pickup received</Text>
                   <Text style={styles.appointmentDate}>{booking?.scheduledFor}</Text>
@@ -480,7 +435,6 @@ export default function BookingDetailScreen() {
               <Text style={styles.appointmentText}>Chapman will first review your collection details, then send a confirmed date and time for your approval. No service has been scheduled yet.</Text>
             </View>
           ) : null}
-          
           {foundNothing ? null : (
           <View style={styles.progressSection}>
             <View style={styles.progressHeader}>
@@ -489,7 +443,7 @@ export default function BookingDetailScreen() {
                 <Text style={styles.progressTitle}>What is happening now</Text>
               </View>
               <TouchableOpacity onPress={() => { void loadLiveRequest(); void loadLiveQuote(); }} disabled={(!shouldLoadLiveRequest && !isQuote) || isLoading} style={styles.refreshButton}>
-                <Ionicons name="refresh" size={18} color={palette.blue} />
+                <Ionicons name="refresh" size={18} color={palette.accent} />
               </TouchableOpacity>
             </View>
             {progressSteps.map((step, index) => { 
@@ -536,7 +490,6 @@ export default function BookingDetailScreen() {
               ))}
             </View>
           ) : null}
-          
           {foundNothing ? null : (
           <View style={[styles.specialistCard, declinedView && styles.declinedCard]}>
             <View style={[styles.specialistIcon, declinedView && styles.declinedAppointmentIcon]}>
@@ -549,7 +502,6 @@ export default function BookingDetailScreen() {
           </View>
           )}
         </ScrollView>
-        
         <View style={styles.bottom}>
           {foundNothing ? null : (
           <PrimaryButton 
@@ -579,8 +531,7 @@ export default function BookingDetailScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({ 
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({ 
   page: { flex: 1, backgroundColor: palette.canvas }, 
   content: { padding: 20, paddingTop: 12, paddingBottom: 172, gap: 17 }, 
   lead: { alignItems: "center", paddingHorizontal: 17, paddingTop: 4, gap: 9 }, 
@@ -595,59 +546,59 @@ const styles = StyleSheet.create({
   leadTitle: { textAlign: "center", fontSize: 24, lineHeight: 30 }, 
   leadBody: { textAlign: "center", maxWidth: 300, fontSize: 12, lineHeight: 18 }, 
   reference: { color: "#8790A1", fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 0.8 }, 
-  refreshState: { minHeight: 43, borderRadius: 14, backgroundColor: "#EEF3FF", paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 9 }, 
-  refreshText: { color: palette.blue, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
-  error: { minHeight: 48, padding: 11, borderRadius: 14, backgroundColor: "#FDEBEB", flexDirection: "row", alignItems: "center", gap: 8 }, 
+  refreshState: { minHeight: 43, borderRadius: 14, backgroundColor: palette.chipBlue, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 9 }, 
+  refreshText: { color: palette.accent, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
+  error: { minHeight: 48, padding: 11, borderRadius: 14, backgroundColor: palette.chipRed, flexDirection: "row", alignItems: "center", gap: 8 }, 
   errorText: { flex: 1, color: palette.error, fontFamily: "Inter_500Medium", fontSize: 10, lineHeight: 14 }, 
   tryAgain: { minHeight: 30, paddingHorizontal: 8, alignItems: "center", justifyContent: "center" }, 
   tryAgainText: { color: palette.error, fontFamily: "Inter_700Bold", fontSize: 10 }, 
-  serviceSummary: { padding: 16, borderRadius: 18, backgroundColor: "#EEF3FF", gap: 4 }, 
-  label: { color: "#5871B5", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.1 }, 
+  serviceSummary: { padding: 16, borderRadius: 18, backgroundColor: palette.chipBlue, gap: 4 }, 
+  label: { color: palette.eyebrow, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.1 }, 
   serviceTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15 }, 
   serviceMeta: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12 }, 
   estimateLine: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 }, 
-  estimateLineText: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10 }, 
-  spaceBreakdownCard: { padding: 16, borderRadius: 18, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 8 }, 
+  estimateLineText: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 10 }, 
+  spaceBreakdownCard: { padding: 16, borderRadius: 18, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 8 }, 
   spaceBreakdownTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   spaceDescription: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, fontStyle: "italic" }, 
   spaceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, 
-  spaceItem: { minWidth: 100, padding: 10, borderRadius: 12, backgroundColor: "#F5F7FA", gap: 3 }, 
+  spaceItem: { minWidth: 100, padding: 10, borderRadius: 12, backgroundColor: palette.soft, gap: 3 }, 
   spaceItemLabel: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 10 }, 
   spaceItemValue: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   areasSection: { gap: 6, paddingTop: 4 }, 
   areasLabel: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
   areasGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 }, 
-  areaChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "#EEF3FF" }, 
-  areaChipText: { color: palette.blue, fontFamily: "Inter_600SemiBold", fontSize: 10 }, 
-  concernsCard: { padding: 16, borderRadius: 18, backgroundColor: "#FFF9F0", borderWidth: 1, borderColor: "#F2E4BF", gap: 8 }, 
+  areaChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: palette.chipBlue }, 
+  areaChipText: { color: palette.accent, fontFamily: "Inter_600SemiBold", fontSize: 10 }, 
+  concernsCard: { padding: 16, borderRadius: 18, backgroundColor: palette.chipOrange, borderWidth: 1, borderColor: palette.chipOrange, gap: 8 }, 
   concernsList: { gap: 6 }, 
   concernRow: { flexDirection: "row", alignItems: "center", gap: 7 }, 
   concernText: { color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 12 }, 
-  pickupPointCard: { minHeight: 68, padding: 13, borderRadius: 18, backgroundColor: "#F0FAF2", borderWidth: 1, borderColor: "#B7DFC0", flexDirection: "row", alignItems: "center", gap: 10 }, 
+  pickupPointCard: { minHeight: 68, padding: 13, borderRadius: 18, backgroundColor: palette.soft, borderWidth: 1, borderColor: palette.accentBorder, flexDirection: "row", alignItems: "center", gap: 10 }, 
   pickupPointIcon: { width: 35, height: 35, borderRadius: 12, backgroundColor: palette.green, alignItems: "center", justifyContent: "center" }, 
   pickupPointCopy: { flex: 1, gap: 2 }, 
   pickupPointTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 12 }, 
   pickupPointText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 14 }, 
-  appointmentCard: { padding: 15, borderRadius: 19, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#C6D2FF", gap: 12 }, 
-  declinedCard: { borderColor: "#E9B8B2", backgroundColor: "#FFF9F8" }, 
+  appointmentCard: { padding: 15, borderRadius: 19, backgroundColor: palette.surface, borderWidth: 1, borderColor: "#C6D2FF", gap: 12 }, 
+  declinedCard: { borderColor: palette.chipRed, backgroundColor: palette.chipRed }, 
   appointmentHeader: { flexDirection: "row", alignItems: "center", gap: 10 }, 
-  appointmentIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center" }, 
-  declinedAppointmentIcon: { backgroundColor: "#FDEBEB" }, 
+  appointmentIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" }, 
+  declinedAppointmentIcon: { backgroundColor: palette.chipRed }, 
   appointmentCopy: { flex: 1, gap: 2 }, 
   appointmentTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
-  appointmentDate: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 }, 
+  appointmentDate: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 12 }, 
   declinedAppointmentDate: { color: palette.error }, 
   appointmentText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 17 }, 
   appointmentActions: { flexDirection: "row", gap: 9 }, 
-  rejectButton: { flex: 1, minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: "#E9B8B2", alignItems: "center", justifyContent: "center", backgroundColor: "#FFF8F7" }, 
+  rejectButton: { flex: 1, minHeight: 42, borderRadius: 12, borderWidth: 1, borderColor: palette.chipRed, alignItems: "center", justifyContent: "center", backgroundColor: palette.chipRed }, 
   rejectButtonText: { color: palette.error, fontFamily: "Inter_700Bold", fontSize: 12 }, 
   acceptButton: { flex: 1, minHeight: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: palette.blue, flexDirection: "row", gap: 6 }, 
   disabledButton: { opacity: 0.58 }, 
   acceptButtonText: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 12 }, 
-  progressSection: { padding: 17, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 12 }, 
+  progressSection: { padding: 17, borderRadius: 20, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 12 }, 
   progressHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 1 }, 
   progressTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18, marginTop: 3 }, 
-  refreshButton: { width: 35, height: 35, borderRadius: 12, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center" }, 
+  refreshButton: { width: 35, height: 35, borderRadius: 12, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" }, 
   progressRow: { flexDirection: "row", gap: 11, minHeight: 50 }, 
   progressRail: { alignItems: "center", width: 22 }, 
   progressDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: "#DDE1E9", alignItems: "center", justifyContent: "center" }, 
@@ -662,14 +613,14 @@ const styles = StyleSheet.create({
   progressTextFailed: { color: palette.error }, 
   progressHint: { color: "#8E96A5", fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 15 }, 
   progressHintFailed: { color: "#A8615A" }, 
-  activityCard: { padding: 15, borderRadius: 19, backgroundColor: "#FFFCF6", borderWidth: 1, borderColor: "#F2E4BF", gap: 11 }, 
+  activityCard: { padding: 15, borderRadius: 19, backgroundColor: "#FFFCF6", borderWidth: 1, borderColor: palette.chipOrange, gap: 11 }, 
   activityRow: { flexDirection: "row", gap: 9, alignItems: "flex-start" }, 
   activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.orange, marginTop: 4 }, 
   activityCopy: { flex: 1, gap: 2 }, 
   activityTitle: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
   activityTime: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 9 }, 
-  specialistCard: { padding: 15, borderRadius: 19, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, flexDirection: "row", gap: 11, alignItems: "flex-start" }, 
-  specialistIcon: { width: 37, height: 37, borderRadius: 13, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center" }, 
+  specialistCard: { padding: 15, borderRadius: 19, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, flexDirection: "row", gap: 11, alignItems: "flex-start" }, 
+  specialistIcon: { width: 37, height: 37, borderRadius: 13, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" }, 
   specialistCopy: { flex: 1, gap: 2 }, 
   specialistTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   specialistText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16 }, 

@@ -33,6 +33,14 @@ The third line matters. The newest work lives on that branch, not on main.
 The app's two settings, the Supabase address and the publishable key, are already saved in
 `.env` inside the project, so there is nothing to configure.
 
+## If you already have the project
+
+You only need this part when you want the newest changes from me:
+
+```
+git pull
+```
+
 ## Install and start the app
 
 ```
@@ -66,6 +74,28 @@ Run these in the project folder whenever you want to know the code is sound:
 | `pnpm check` | Whether the code has any type errors |
 | `pnpm test` | Whether every test still passes |
 | `pnpm lint` | Whether the code style is clean |
+
+## The short version, to paste
+
+If you already cloned the project before, these four lines are all you need:
+
+```
+cd chapman-prestige-mobile
+```
+
+```
+git pull
+```
+
+```
+pnpm install --frozen-lockfile
+```
+
+```
+npx expo start
+```
+
+Then press `w` for the browser, or point your phone camera at the QR code.
 
 ## Where things live
 

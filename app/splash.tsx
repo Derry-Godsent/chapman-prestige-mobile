@@ -3,20 +3,17 @@ import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { ChapmanMark, palette } from "@/components/chapman-ui";
+import { ChapmanMark, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { getLaunchDestination } from "@/lib/customer-auth";
 import { hasCustomerPin } from "@/lib/customer-pin";
-
 const SPLASH_DURATION_MS = 3500;
-
 export default function ChapmanSplashScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const emblemOpacity = useRef(new Animated.Value(0)).current;
   const emblemScale = useRef(new Animated.Value(0.92)).current;
   const copyOpacity = useRef(new Animated.Value(0)).current;
   const lineScale = useRef(new Animated.Value(0.3)).current;
-
   useEffect(() => {
     const entrance = Animated.parallel([
       Animated.timing(emblemOpacity, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
@@ -48,7 +45,6 @@ export default function ChapmanSplashScreen() {
     }, SPLASH_DURATION_MS);
     return () => { cancelled = true; entrance.stop(); clearTimeout(timer); };
   }, [copyOpacity, emblemOpacity, emblemScale, lineScale]);
-
   return (
     <AppScreen dark edges={["top", "bottom", "left", "right"]}>
       <LinearGradient colors={[palette.deep, "#312315", "#06745B"]} locations={[0, 0.5, 1]} style={styles.page}>
@@ -70,8 +66,7 @@ export default function ChapmanSplashScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   page: { flex: 1, justifyContent: "space-between", paddingHorizontal: 28, paddingVertical: 34, overflow: "hidden" },
   ambientOne: { position: "absolute", width: 340, height: 340, borderRadius: 170, top: -155, right: -140, backgroundColor: "rgba(255,255,255,0.08)" },
   ambientTwo: { position: "absolute", width: 280, height: 280, borderRadius: 140, bottom: -145, left: -122, backgroundColor: "rgba(246,199,105,0.12)" },

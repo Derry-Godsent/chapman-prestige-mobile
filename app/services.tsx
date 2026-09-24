@@ -1,18 +1,16 @@
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, IconOrb, StatusPill, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, IconOrb, StatusPill, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { ScreenHeader } from "@/components/screen-header";
 import { SERVICES, Service } from "@/lib/chapman-data";
-
 export default function ServicesScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const openService = (service: Service) => {
     if (service.id === "workers") router.push("/workers" as never);
     else router.push(`/service/${service.id}` as never);
   };
-
   return (
     <AppScreen>
       <FlatList
@@ -26,5 +24,4 @@ export default function ServicesScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({ content: { padding: 20, paddingTop: 12, paddingBottom: 34, gap: 11, backgroundColor: palette.canvas }, headerBlock: { gap: 18, paddingBottom: 3 }, search: { height: 48, borderRadius: 15, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, gap: 9 }, searchText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 13 }, introCard: { backgroundColor: "#EEF7F1", borderRadius: 23, padding: 18, gap: 8, overflow: "hidden" }, introEyebrow: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.15 }, introTitle: { fontSize: 21, lineHeight: 27, maxWidth: 290 }, introBody: { fontSize: 12, maxWidth: 307, lineHeight: 18 }, listLabel: { color: palette.muted, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.15, marginTop: 4 }, serviceCard: { padding: 16, backgroundColor: "#FFFFFF", borderRadius: 21, borderWidth: 1, borderColor: palette.border, gap: 10 }, workerCard: { borderColor: "#F3D49B", backgroundColor: "#FFFBF0" }, serviceTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, cardMeta: { flexDirection: "row", alignItems: "center", gap: 8 }, priceHint: { fontFamily: "Inter_700Bold", fontSize: 11 }, serviceTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18, lineHeight: 23 }, serviceDescription: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }, cardFooter: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }, actionText: { fontFamily: "Inter_700Bold", fontSize: 12 } });
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({ content: { padding: 20, paddingTop: 12, paddingBottom: 34, gap: 11, backgroundColor: palette.canvas }, headerBlock: { gap: 18, paddingBottom: 3 }, search: { height: 48, borderRadius: 15, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, gap: 9 }, searchText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 13 }, introCard: { backgroundColor: palette.soft, borderRadius: 23, padding: 18, gap: 8, overflow: "hidden" }, introEyebrow: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.15 }, introTitle: { fontSize: 21, lineHeight: 27, maxWidth: 290 }, introBody: { fontSize: 12, maxWidth: 307, lineHeight: 18 }, listLabel: { color: palette.muted, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.15, marginTop: 4 }, serviceCard: { padding: 16, backgroundColor: palette.surface, borderRadius: 21, borderWidth: 1, borderColor: palette.border, gap: 10 }, workerCard: { borderColor: "#F3D49B", backgroundColor: "#FFFBF0" }, serviceTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, cardMeta: { flexDirection: "row", alignItems: "center", gap: 8 }, priceHint: { fontFamily: "Inter_700Bold", fontSize: 11 }, serviceTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18, lineHeight: 23 }, serviceDescription: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }, cardFooter: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }, actionText: { fontFamily: "Inter_700Bold", fontSize: 12 } });

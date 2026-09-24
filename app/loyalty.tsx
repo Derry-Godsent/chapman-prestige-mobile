@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, PrimaryButton, StatusPill, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, PrimaryButton, StatusPill, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { useCustomerAccount } from "@/hooks/use-customer-account";
 import { CustomerActivity, loadCustomerActivity } from "@/lib/customer-activity";
 import { laundryStanding, serviceStanding, trackProgressLine, TrackStanding } from "@/lib/loyalty";
@@ -22,6 +22,7 @@ import { timeAgo } from "@/lib/chapman-format";
  * invented, and the screen says plainly which requests count and which do not.
  */
 export default function LoyaltyScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const [activity, setActivity] = useState<CustomerActivity | null>(null);
   const [reading, setReading] = useState(true);
   const { account, checking } = useCustomerAccount();
@@ -64,7 +65,7 @@ export default function LoyaltyScreen() {
         <BodyText style={styles.subtitle}>Two ladders, because Chapman does two kinds of work. Every collection you send counts on the laundry ladder, and every service Chapman completes counts on the services ladder. The discount applies to your next booking automatically.</BodyText>
 
         {loading ? (
-          <View style={styles.loading}><ActivityIndicator color={palette.blue} /><Text style={styles.loadingText}>Reading your account</Text></View>
+          <View style={styles.loading}><ActivityIndicator color={palette.accent} /><Text style={styles.loadingText}>Reading your account</Text></View>
         ) : !activity?.signedIn ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Sign in to see your tiers</Text>
@@ -112,7 +113,7 @@ export default function LoyaltyScreen() {
                 </TouchableOpacity>
               ))}
               {!countedLaundry.length && !countedServices.length ? (
-                <View style={styles.empty}><Ionicons name="sparkles-outline" size={20} color={palette.blue} /><Text style={styles.emptyText}>Nothing counted yet. Your first completed service starts your ladder.</Text></View>
+                <View style={styles.empty}><Ionicons name="sparkles-outline" size={20} color={palette.accent} /><Text style={styles.emptyText}>Nothing counted yet. Your first completed service starts your ladder.</Text></View>
               ) : null}
 
               <Text style={styles.subLabel}>NOT COUNTING YET</Text>
@@ -128,7 +129,7 @@ export default function LoyaltyScreen() {
                 href: `/booking/${quote.id}`,
               }))].slice(0, 6).map((entry) => (
                 <TouchableOpacity key={entry.id} onPress={() => router.push(entry.href as never)} style={styles.row}>
-                  <View style={styles.rowIcon}><Ionicons name="time-outline" size={15} color={palette.blue} /></View>
+                  <View style={styles.rowIcon}><Ionicons name="time-outline" size={15} color={palette.accent} /></View>
                   <View style={styles.rowCopy}><Text style={styles.rowTitle}>{entry.title}</Text><Text style={styles.rowMeta}>{entry.meta}</Text></View>
                   <Ionicons name="chevron-forward" size={17} color={palette.muted} />
                 </TouchableOpacity>
@@ -149,6 +150,7 @@ export default function LoyaltyScreen() {
 
 /** One track, at a glance: tier, discount, and the step to the next one. */
 function TrackCard({ standing, title, icon, explanation }: { standing: TrackStanding; title: string; icon: keyof typeof Ionicons.glyphMap; explanation: string }) {
+  const { styles } = useChapmanStyles(makeStyles);
   return (
     <LinearGradient colors={standing.track === "laundry" ? ["#047857", "#059669", "#1C1208"] : ["#1D4ED8", "#2563EB", "#111827"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
       <View style={styles.heroTop}>
@@ -174,6 +176,7 @@ function TrackCard({ standing, title, icon, explanation }: { standing: TrackStan
 
 /** The full ladder for one track, so the customer can see where it ends. */
 function TrackLadder({ standing, title }: { standing: TrackStanding; title: string }) {
+  const { styles } = useChapmanStyles(makeStyles);
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -199,11 +202,11 @@ function TrackLadder({ standing, title }: { standing: TrackStanding; title: stri
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   content: { padding: 20, paddingTop: 14, paddingBottom: 42, gap: 13, backgroundColor: palette.canvas },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
-  back: { width: 38, height: 38, borderRadius: 13, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, alignItems: "center", justifyContent: "center" },
-  eyebrow: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2 },
+  back: { width: 38, height: 38, borderRadius: 13, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, alignItems: "center", justifyContent: "center" },
+  eyebrow: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.2 },
   title: { fontSize: 27, lineHeight: 34, marginTop: 2 },
   subtitle: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 },
   loading: { padding: 40, alignItems: "center", gap: 10 },
@@ -221,18 +224,18 @@ const styles = StyleSheet.create({
   heroProgressTop: { flexDirection: "row", justifyContent: "space-between" },
   heroProgressLabel: { color: "#FFFFFF", fontFamily: "Inter_700Bold", fontSize: 11 },
   track: { height: 7, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" },
-  fill: { height: 7, borderRadius: 4, backgroundColor: "#FFFFFF" },
+  fill: { height: 7, borderRadius: 4, backgroundColor: palette.surface },
   heroExplanation: { color: "rgba(255,255,255,0.8)", fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15 },
-  card: { padding: 16, borderRadius: 21, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 9 },
+  card: { padding: 16, borderRadius: 21, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 9 },
   cardTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15 },
   cardText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 },
   row: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 9, borderTopWidth: 1, borderTopColor: "#F1EEE9" },
-  rowIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: "#EEF3FF", alignItems: "center", justifyContent: "center" },
+  rowIcon: { width: 30, height: 30, borderRadius: 10, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" },
   rowIconOn: { backgroundColor: palette.green },
   rowCopy: { flex: 1, gap: 2 },
   rowTitle: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 12 },
   rowMeta: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15 },
-  subLabel: { color: "#5871B5", fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.1, marginTop: 4 },
+  subLabel: { color: palette.eyebrow, fontFamily: "Inter_700Bold", fontSize: 9, letterSpacing: 1.1, marginTop: 4 },
   empty: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
   emptyText: { flex: 1, color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16 },
   tierRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: "#F1EEE9" },
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
   tierFrom: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10 },
   tierBenefit: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 14 },
   tierRight: { alignItems: "flex-end", gap: 3 },
-  tierDiscount: { color: palette.blue, fontFamily: "Inter_700Bold", fontSize: 12 },
+  tierDiscount: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 12 },
   tierDone: { color: palette.green, fontFamily: "Inter_600SemiBold", fontSize: 10 },
   footnote: { fontSize: 10, lineHeight: 15, color: palette.muted, textAlign: "center" },
 });

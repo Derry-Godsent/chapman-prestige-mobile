@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-
 import { AppScreen } from "@/components/app-screen";
-import { BodyText, DisplayText, PrimaryButton, palette } from "@/components/chapman-ui";
+import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { setCustomerPin, markPinOffered } from "@/lib/customer-pin";
 import { supabase } from "@/lib/supabase";
 import { isValidPin } from "@/lib/pin-policy";
 import { haptic } from "@/lib/haptics";
-
 /**
  * Offered once, straight after a customer signs in, because the PIN saves them
  * a text message every time they open the app afterwards.
@@ -18,11 +16,11 @@ import { haptic } from "@/lib/haptics";
  * whenever they like from Profile, then App lock.
  */
 export default function SetPinScreen() {
+  const { styles, palette } = useChapmanStyles(makeStyles);
   const [pin, setPin] = useState("");
   const [confirm, setConfirm] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
   const rememberOffered = async () => {
     try {
       const { data } = await supabase!.auth.getSession();
@@ -32,7 +30,6 @@ export default function SetPinScreen() {
       // The offer flag is a convenience. Failing to store it must not block the customer.
     }
   };
-
   const finish = async (setIt: boolean) => {
     if (busy) return;
     if (setIt) {
@@ -55,63 +52,76 @@ export default function SetPinScreen() {
       router.replace("/(tabs)" as never);
     }
   };
-
   return (
     <AppScreen>
-      <View style={styles.page}>
+      {/* The keyboard must never cover the digits or the buttons. */}
+      <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView
+          contentContainerStyle={styles.pageContent}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
         <View style={styles.top}>
-          <View style={styles.icon}><Ionicons name="keypad-outline" size={27} color={palette.blue} /></View>
+          <View style={styles.icon}><Ionicons name="keypad-outline" size={27} color={palette.accent} /></View>
           <DisplayText style={styles.title}>Open Chapman with a PIN next time.</DisplayText>
           <BodyText style={styles.body}>Your number is confirmed. Set 4 digits and you will not need another text message each time you open the app on this phone.</BodyText>
         </View>
-
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Choose 4 digits</Text>
           <TextInput
             value={pin}
-            onChangeText={setPin}
+            onChangeText={(value) => setPin(value.replace(/[^0-9]/g, ""))}
             keyboardType={Platform.OS === "ios" ? "number-pad" : "numeric"}
             maxLength={4}
             secureTextEntry
             placeholder="4 digits"
-            placeholderTextColor="#9AA1AE"
+            placeholderTextColor={palette.placeholder}
             style={styles.input}
           />
           <Text style={styles.fieldLabel}>Enter them once more</Text>
           <TextInput
             value={confirm}
-            onChangeText={setConfirm}
+            onChangeText={(value) => setConfirm(value.replace(/[^0-9]/g, ""))}
             keyboardType={Platform.OS === "ios" ? "number-pad" : "numeric"}
             maxLength={4}
             secureTextEntry
             placeholder="4 digits"
-            placeholderTextColor="#9AA1AE"
+            placeholderTextColor={palette.placeholder}
             style={styles.input}
           />
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+          <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.hideKeyboard}>
+            <Ionicons name="chevron-down-outline" size={16} color={palette.muted} />
+            <Text style={styles.hideKeyboardText}>Hide the keyboard</Text>
+          </TouchableOpacity>
           <Text style={styles.fine}>The PIN stays on this phone and is never sent to Chapman. Five wrong tries and it asks for a new text message, which keeps your bookings private.</Text>
         </View>
-
         <View style={styles.actions}>
           <PrimaryButton label={busy ? "Saving" : "Set my PIN"} icon="checkmark" onPress={() => void finish(true)} disabled={busy} />
           <TouchableOpacity onPress={() => void finish(false)} style={styles.skip} disabled={busy}>
             <Text style={styles.skipText}>Not now, take me to the app</Text>
           </TouchableOpacity>
         </View>
-      </View>
+          </TouchableWithoutFeedback>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  page: { flex: 1, padding: 22, justifyContent: "space-between", backgroundColor: palette.canvas },
+const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
+  page: { flex: 1, backgroundColor: palette.canvas },
+  pageContent: { flexGrow: 1, padding: 22, paddingBottom: 40, justifyContent: "space-between", gap: 18 },
+  hideKeyboard: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, backgroundColor: palette.soft, marginTop: 6 },
+  hideKeyboardText: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 11 },
   top: { alignItems: "center", gap: 11, paddingTop: 30 },
-  icon: { width: 62, height: 62, borderRadius: 21, backgroundColor: "#E4F4E9", alignItems: "center", justifyContent: "center" },
+  icon: { width: 62, height: 62, borderRadius: 21, backgroundColor: palette.chip, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 25, lineHeight: 32, textAlign: "center", maxWidth: 300 },
   body: { fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 310 },
-  card: { padding: 17, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: palette.border, gap: 7 },
+  card: { padding: 17, borderRadius: 20, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 7 },
   fieldLabel: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 12, marginTop: 2 },
-  input: { height: 50, borderRadius: 14, borderWidth: 1, borderColor: palette.border, paddingHorizontal: 14, color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 18, letterSpacing: 6, backgroundColor: "#FFFFFF" },
+  input: { height: 50, borderRadius: 14, borderWidth: 1, borderColor: palette.border, paddingHorizontal: 14, color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 18, letterSpacing: 6, backgroundColor: palette.surface },
   notice: { color: palette.error, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 15, marginTop: 3 },
   fine: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 10, lineHeight: 15, marginTop: 7 },
   actions: { gap: 9, paddingBottom: 12 },

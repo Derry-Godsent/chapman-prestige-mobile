@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { BookingProvider } from "@/lib/booking-store";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { MobileRequestUpdateListener } from "@/components/mobile-request-update-listener";
+import { keepDailyChapmanUpdatesAlive } from "@/lib/chapman-notifications";
 
 if (Platform.OS !== "web") void SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== "web" && (loaded || error)) void SplashScreen.hideAsync();
   }, [loaded, error]);
+
+  // If the customer asked for the daily 9:00 message, top the week up on open.
+  useEffect(() => { void keepDailyChapmanUpdatesAlive(); }, []);
 
   if (Platform.OS !== "web" && !loaded && !error) return null;
 

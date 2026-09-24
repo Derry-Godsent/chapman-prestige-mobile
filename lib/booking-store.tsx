@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AppointmentResponse, Booking, CartLine, LaundryItem, QuoteDetails, QuoteRequest, SavedRoutine, Service, formatGhs } from "@/lib/chapman-data";
 import type { MobileLaundryRequest } from "@/lib/mobile-requests";
@@ -25,6 +26,14 @@ interface BookingStoreValue {
 }
 
 const BookingStore = createContext<BookingStoreValue | null>(null);
+
+/**
+ * Saved routines are kept on this phone as well as in memory.
+ *
+ * They used to live only in memory, so a customer could save a routine, close
+ * the app, and find the Saved routines list empty when they came back.
+ */
+const ROUTINES_KEY = "chapman-saved-routines";
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -244,10 +253,33 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Read the routines saved on this phone once, when the app opens.
+  useEffect(() => {
+    void AsyncStorage.getItem(ROUTINES_KEY).then((stored) => {
+      if (!stored) return;
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setRoutines(parsed);
+      } catch {
+        // Unreadable saved routines are ignored rather than crashing the app.
+      }
+    });
+  }, []);
+
+  const rememberRoutines = useCallback((change: (current: SavedRoutine[]) => SavedRoutine[]) => {
+    setRoutines((current) => {
+      const next = change(current);
+      void AsyncStorage.setItem(ROUTINES_KEY, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
+  }, []);
+
   const saveRoutine = (service: Service, cadence: string) => {
-    setRoutines((current) => current.some((routine) => routine.serviceId === service.id && routine.cadence === cadence) ? current : [{ id: `ROU-${service.id}-${cadence.toLowerCase().replace(/\s+/g, "-")}`, serviceId: service.id, serviceTitle: service.shortTitle, cadence, detail: `${cadence} care reminder` }, ...current]);
+    const routine: SavedRoutine = { id: `ROU-${service.id}-${cadence.toLowerCase().replace(/\s+/g, "-")}`, serviceId: service.id, serviceTitle: service.shortTitle, cadence, detail: `${cadence} care reminder` };
+    rememberRoutines((current) => (current.some((item) => item.id === routine.id) ? current : [routine, ...current]));
   };
-  const removeRoutine = (routineId: string) => setRoutines((current) => current.filter((routine) => routine.id !== routineId));
+
+  const removeRoutine = (routineId: string) => rememberRoutines((current) => current.filter((routine) => routine.id !== routineId));
   const clearCart = () => { setCart([]); setExpress(false); };
 
   return <BookingStore.Provider value={{ cart, express, bookings, quotes, routines, updateLaundryQuantity, setExpress, laundrySubtotal, expressFee, cartCount, createLaundryBooking, createQuoteRequest, setProposedAppointment, respondToAppointment, saveRoutine, removeRoutine, clearCart }}>{children}</BookingStore.Provider>;
