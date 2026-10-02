@@ -127,6 +127,84 @@ TestFlight covers everyone from then on.
 
 ---
 
+## 4b. The UK boss today, before any build
+
+He can test from the UK today, for free, without the Apple account and without a
+build. Two things decide whether it works, and both are worth knowing before you
+send him anything.
+
+### The QR code on its own will not work
+
+The QR code from a plain `npx expo start` contains your computer's address on your
+own Wi-Fi network, something like `exp://192.168.1.20:8081`. That address means
+nothing in the UK, and he would see a loading error no matter how good the
+screenshot is.
+
+There is one command that fixes it:
+
+```
+npm install -g @expo/ngrok@^4.1.0
+npx expo start --tunnel
+```
+
+The tunnel gives the project a public address, so the QR code now points somewhere
+his phone can reach from anywhere. A screenshot of THAT QR code works.
+
+Rules for the tunnel:
+
+- The terminal and the computer must stay on and awake for the whole time he is
+  testing. Close the terminal and his app stops loading.
+- It is slower than a normal connection, because every request travels through the
+  tunnel first. That is normal and not a fault in the app.
+- If a screenshot comes out blurry, send him the `exp://...` address as text as
+  well. Expo Go has an "Enter URL manually" option for exactly this.
+- A few work networks block ngrok. If the tunnel refuses to start, that is the
+  network, not the app.
+
+### He should install Expo Go, and here is the catch per phone
+
+**iPhone.** Expo Go from the App Store is built for SDK 54, and this project is on
+SDK 54, so they match. Nothing to install by hand.
+
+**Android.** The Play Store version of Expo Go may already be built for a newer
+SDK than this project, in which case it refuses to open it with "Project is
+incompatible with this version of Expo Go". If he is on Android, do not use the
+Play Store copy: download the SDK 54 build from expo.dev/go (choose SDK 54, then
+Android). That one works.
+
+**That mismatch is also the reason Expo Go is a first look and not the beta.** The
+App Store only carries one Expo Go at a time, so the day it moves on, an SDK 54
+project stops opening in it.
+
+### What he can and cannot test in Expo Go
+
+| Can test | Cannot test |
+| --- | --- |
+| Signing in, the birthday, the profile, the bonus box | The Chapman icon on the home screen, which is Expo Go's own |
+| The team page and sending an idea | The 9:00 daily message, which needs an installed app |
+| Services, prices, requests, bookings, dark mode | Notification behaviour generally |
+
+### The one real blocker: his phone number
+
+The sign-in screen is Ghana only. It shows a fixed `+233` and takes nine digits, so
+a UK number cannot be typed in at all. That is by design today, not a fault: every
+customer so far is in Ghana.
+
+So, for the boss, three honest routes:
+
+1. **Guest mode today.** He taps "Continue as guest" and can look at everything
+   that does not need an account: services, prices, the team page, dark mode. No
+   sign-in, so no bookings and no ideas sent.
+2. **A Chapman Ghana number.** If there is a spare SIM, signing in with it gives him
+   the full experience, bookings and all.
+3. **Let the app take international numbers.** This means a country code on the
+   sign-in screen and a number stored with its country, plus one test message to a
+   UK number to prove the SMS account can deliver there. That is a real feature and
+   a paid-message question, so it waits on your word. Ask and it gets built with the
+   same proof as everything else.
+
+---
+
 ## 5. Accounts and money, in plain numbers
 
 | Thing | Needed for | Cost |
