@@ -133,6 +133,65 @@ He can test from the UK today, for free, without the Apple account and without a
 build. Two things decide whether it works, and both are worth knowing before you
 send him anything.
 
+### First, if the tunnel refuses to start
+
+The message "ngrok tunnel took too long to connect" almost always means one of
+these four things. In order:
+
+1. **The tunnel helper is not installed.** Install it once, then try again:
+   `npm install -g @expo/ngrok@^4.1.0`
+2. **Something in the network is blocking ngrok.** This is the common one in
+   Ghana, on office networks, and with some antivirus programs. The quickest test
+   is a phone hotspot: connect the computer to the hotspot and run the command
+   again. If it works there, the network was the problem, not the app.
+3. **An old ngrok process is stuck.** On Windows, open Task Manager, end any
+   `ngrok.exe`, or run `taskkill /IM ngrok.exe /F`, then try again.
+4. **Stale project cache.** Delete the `.expo` folder inside the project and run
+   the command once more.
+
+If none of that works, stop fighting the tunnel. There is a better route below,
+and it needs no tunnel at all.
+
+### The better route: send him a web link
+
+The whole app already runs in a browser, and this is the fastest way to put it in
+your boss's hands today. No install, no QR code, no tunnel, no Apple account, and
+it works from the UK the moment it is deployed.
+
+The project is already set up for it: `vercel.json` builds the web version and
+serves it. On the computer that has the project:
+
+```
+npm install -g vercel
+vercel login
+vercel
+```
+
+Answer the questions with the defaults, and Vercel prints a link such as
+`https://chapman-prestige-mobile.vercel.app`. Send that link to your boss. He opens
+it on his phone or his laptop, and he is using the app. Run `vercel --prod` when you
+want the final link rather than a preview one.
+
+Later, that link can be given a proper name, such as
+`app.chapmanprestige.com`, using a subdomain of the website's own domain.
+
+**What he can test in the browser:** everything visual and everything that reads
+data. The home screen, all the services and prices, the booking screens, the team
+page with the bubbles and the idea form, the profile, the bonus box, and dark mode,
+which switches instantly.
+
+**What he cannot test in the browser, honestly:**
+
+| Cannot test in a browser | Why |
+| --- | --- |
+| The 9:00 daily message | Phone alerts do not exist in a browser |
+| The Chapman icon on the home screen | Only an installed app has an icon |
+| Face or fingerprint, when we build it | Browser support is uneven |
+
+The web version is also a convenience lock rather than a secure one, because a
+browser stores the PIN differently from a phone. That is written up plainly in
+`docs/pin-rules.md`.
+
 ### The QR code on its own will not work
 
 The QR code from a plain `npx expo start` contains your computer's address on your
