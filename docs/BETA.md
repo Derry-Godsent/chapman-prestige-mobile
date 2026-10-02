@@ -133,6 +133,53 @@ He can test from the UK today, for free, without the Apple account and without a
 build. Two things decide whether it works, and both are worth knowing before you
 send him anything.
 
+### The exact commands, in order, to copy
+
+Run these in PowerShell on the computer that holds the project. Line by line is
+fine, all at once is fine too.
+
+```powershell
+cd D:\App\chapman-prestige-mobile
+
+git pull
+pnpm install --frozen-lockfile
+
+npm install -g @expo/ngrok@4.1.3
+npm ls -g @expo/ngrok --depth=1
+
+Remove-Item -Recurse -Force .expo -ErrorAction SilentlyContinue
+
+npx expo start --tunnel --clear
+```
+
+Read the results like this:
+
+- `git pull` may say the code is already up to date. If it refuses because of
+  local changes, skip that one line; the code on the computer is fine.
+- `pnpm install --frozen-lockfile` should end with "Done".
+- `npm ls -g @expo/ngrok --depth=1` must show `@expo/ngrok@4.1.3` and a line with
+  `win32-x64`. If it shows nothing, the install did not land and the tunnel
+  cannot start.
+- The final command prints the QR code. Keep that window open and the computer
+  awake.
+
+**Never run plain `npm install` inside this project folder.** The folder is a pnpm
+project, and npm warns about the `node-linker` line for exactly that reason.
+Running npm there can leave two half-installs behind. If that has already
+happened, clean it out with:
+
+```powershell
+Remove-Item -Recurse -Force node_modules
+pnpm install --frozen-lockfile
+npx expo start --tunnel --clear
+```
+
+If `pnpm` is not recognised, one line turns it on:
+
+```powershell
+corepack prepare pnpm@9.12.0 --activate
+```
+
 ### First, if the tunnel refuses to start
 
 The message "ngrok tunnel took too long to connect" almost always means one of
