@@ -266,7 +266,7 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   category: { gap: 8 },
   categoryTitle: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1.1, paddingHorizontal: 2 },
   itemList: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: 18, overflow: "hidden" },
-  itemRow: { minHeight: 95, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#EEF0F4" },
+  itemRow: { minHeight: 95, paddingHorizontal: 14, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: palette.divider },
   itemInfo: { flex: 1, gap: 6 },
   itemName: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 13 },
   serviceButtons: { flexDirection: "row", gap: 6, flexWrap: "wrap" },

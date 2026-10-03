@@ -429,7 +429,7 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   windowText: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 11 }, 
   optionTextSelected: { color: "#FFFFFF" },
   orderCard: { padding: 16, borderRadius: 20, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 11 }, 
-  orderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 7, borderBottomWidth: 1, borderBottomColor: "#EEF0F4" }, 
+  orderHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 7, borderBottomWidth: 1, borderBottomColor: palette.divider }, 
   orderTitle: { fontSize: 18, lineHeight: 24, marginTop: 3 }, 
   orderLine: { flexDirection: "row", justifyContent: "space-between" }, 
   orderItem: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 12 }, 
@@ -466,6 +466,6 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalTitle: { color: palette.ink, fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 18 },
   modalSearchInput: { minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 13, paddingHorizontal: 12, marginBottom: 16 },
-  modalItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#EEF0F4" },
+  modalItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: palette.divider },
   modalItemText: { color: palette.ink, fontFamily: "Inter_600SemiBold", fontSize: 14 },
 });

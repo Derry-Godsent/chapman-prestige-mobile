@@ -317,7 +317,7 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   cardCopy: { flex: 1, gap: 4 }, 
   bookingTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   bookingMeta: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17 }, 
-  cardFoot: { paddingTop: 12, borderTopWidth: 1, borderTopColor: "#EEF0F4", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, 
+  cardFoot: { paddingTop: 12, borderTopWidth: 1, borderTopColor: palette.divider, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, 
   bookingAge: { color: palette.muted, fontFamily: "Inter_500Medium", fontSize: 10 }, 
   price: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 }, 
   quoteRef: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 11 }, 
