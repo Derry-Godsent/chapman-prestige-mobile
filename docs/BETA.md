@@ -334,10 +334,15 @@ account, no store, no QR code and no tunnel.
 1. **GitHub's own hosting, no new account.** One click from you turns it on, and
    after that every change republishes itself:
    - Open https://github.com/Derry-Godsent/chapman-prestige-mobile/settings/pages
-   - Under "Build and deployment", set Source to **GitHub Actions**
-   - Open https://github.com/Derry-Godsent/chapman-prestige-mobile/actions
-   - Choose **Publish the web app**, then press **Run workflow**
+   - Under "Build and deployment", set Source to **GitHub Actions**. That is the
+     whole step; nothing else on that page needs changing.
+   - Open https://github.com/Derry-Godsent/chapman-prestige-mobile/actions and
+     check the run called **Publish the web app**. If a run is already going, it
+     will publish by itself. If the newest one failed while saying "Get Pages site
+     failed", press **Re-run all jobs** on it, or **Run workflow** for a fresh one.
    - The link is then: https://derry-godsent.github.io/chapman-prestige-mobile/
+   - From then on, every push to main republishes it automatically, and nothing
+     needs pressing again.
 2. **Vercel**, if you would rather have a shorter address. Three commands on the
    computer that holds the project, which are written out in section 4b.
 
