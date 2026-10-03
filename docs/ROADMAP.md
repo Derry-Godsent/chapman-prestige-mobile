@@ -44,6 +44,7 @@ to you. That was my mistake. This document fixes it.
 | 17 | **The dark mode switch, and the PIN after signing in** | The switch now answers at once, and a returning customer is asked for their own PIN | DONE **Ready to test on your phone** |
 | 18 | **The PIN rules, written down and tightened** | A forgotten PIN handled properly in both places, a record of every PIN moment, and the honest limits stated | DONE **Open the rules: docs/pin-rules.md** |
 | 19 | **Free access on every device** | The web version installs to a home screen with the Chapman icon, and there is a free link anyone can open | DONE **One click from you turns the free link on** |
+| 20 | **The PIN box on every device** | A PIN can be typed on a computer, the browser cannot stand in front of the box, and a page that cannot keep a PIN says so | DONE **Try the preview again** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -631,6 +632,58 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 20, The PIN box on every device DONE
+
+### What you found
+
+The PIN page would not take a PIN. It was checked the only honest way available,
+by running the real web build in a browser engine and watching what the screen
+does, rather than by guessing.
+
+**What it proved:** tapping the number pad does work, the four correct digits open
+the app, and four wrong digits bring up the warning. Typing into the two boxes on
+the PIN offer page works too. So the screen itself was not dead.
+
+**What was actually wrong, three things:**
+
+1. **On a computer, the number keys did nothing.** The pad was built for a phone,
+   where you tap. On a laptop the natural thing is to type the four digits, and
+   nothing happened at all, which looks exactly like a broken screen.
+2. **In a browser the box was a password field.** A hidden field tells the browser
+   "this is a password", so the browser's password manager moved in. On an iPhone
+   that can put a "use strong password" sheet in front of the box, which stops the
+   digits being typed at all.
+3. **A page that could not keep a PIN pretended it had.** Opened without a
+   signed-in account, the offer page took the four digits, said the account was
+   ready, and kept nothing. It now says "Sign in first" before asking for anything.
+
+### What changed
+
+1. `lib/pin-policy.ts` gained `pinKeyFromKeyboard`, which turns a keypress into a
+   keypad press. Digits and both delete keys only, so tabbing, shortcuts and
+   refreshing all still work. Tested.
+2. `app/lock.tsx` listens for the keyboard on the web, and the hint now says the
+   digits can be typed or tapped.
+3. `components/pin-field.tsx` is one PIN box for every device. On a phone it is
+   exactly what it was. On the web the digits are drawn as four dots by the app
+   itself, and the field is an ordinary numeric one, so no password manager is
+   involved and nothing can stand between the customer and the four digits.
+4. Every PIN box in the app now uses it: the offer after signing in, and the three
+   in Profile under App lock.
+5. A failed save now stays on the page, says so, and offers to try again, instead
+   of walking the customer into the app as if a PIN had been kept.
+6. The offer page's container was wearing a text style, which squashed the page.
+   It now uses the layout style that was written for it.
+
+### How it was checked
+
+The real web build was loaded in a browser engine, the digits typed with the
+keyboard, the dots watched filling, the button pressed, and the stored PIN read
+back afterwards. Both endings were watched: a correct PIN opens the app, and four
+wrong digits show the warning. The signed-out page shows "Sign in first".
 
 ---
 

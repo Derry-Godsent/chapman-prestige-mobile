@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pinRecoveryRoute, pinBelongsTo, MAX_PIN_ATTEMPTS, PIN_LENGTH, attemptsLeft, isValidPin, shouldForgetPin, wrongPinMessage } from "../lib/pin-policy";
+import { pinKeyFromKeyboard, pinRecoveryRoute, pinBelongsTo, MAX_PIN_ATTEMPTS, PIN_LENGTH, attemptsLeft, isValidPin, shouldForgetPin, wrongPinMessage } from "../lib/pin-policy";
 
 describe("app PIN rules", () => {
   it("accepts exactly four digits", () => {
@@ -57,6 +57,25 @@ describe("whose PIN it is", () => {
 
   it("ignores spaces around an id", () => {
     expect(pinBelongsTo("  user-a  ", "user-a")).toBe(true);
+  });
+});
+
+describe("the PIN screen and a physical keyboard", () => {
+  it("takes the number keys", () => {
+    for (const digit of "0123456789") expect(pinKeyFromKeyboard(digit)).toBe(digit);
+  });
+
+  it("takes both delete keys, so a slip can be corrected", () => {
+    expect(pinKeyFromKeyboard("Backspace")).toBe("back");
+    expect(pinKeyFromKeyboard("Delete")).toBe("back");
+  });
+
+  it("leaves every other key alone", () => {
+    // Tab, refresh, shortcuts and typing a name all have to keep working, so only
+    // digits and the two delete keys are claimed.
+    for (const key of ["a", "Enter", "Tab", "Escape", "F5", " ", "ArrowLeft", "Control", "Shift"]) {
+      expect(pinKeyFromKeyboard(key)).toBeNull();
+    }
   });
 });
 

@@ -57,6 +57,20 @@ export function wrongPinMessage(failedAttempts: number): string {
 }
 
 /**
+ * Turns a press on a physical keyboard into a press on the PIN keypad.
+ *
+ * The PIN screen was built for a phone, where the digits are tapped. On a
+ * computer the natural thing is to type them, and until now nothing at all
+ * happened, which looks exactly like a broken screen. Only digits and the two
+ * delete keys are claimed, so shortcuts, tabbing and refreshing still work.
+ */
+export function pinKeyFromKeyboard(key: string): string | null {
+  if (key.length === 1 && key >= "0" && key <= "9") return key;
+  if (key === "Backspace" || key === "Delete") return "back";
+  return null;
+}
+
+/**
  * Where a forgotten PIN sends the customer, which depends on why they are being
  * asked for it at all. This is the single most important rule in this file, so it
  * is written out and tested rather than left inside a screen.

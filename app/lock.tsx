@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { clearCustomerPin, forgetPinOffer, hasCustomerPin, pinOwnerId, verifyCustomerPin } from "@/lib/customer-pin";
 import { getCustomerSession, signOutCustomer } from "@/lib/customer-auth";
-import { PIN_LENGTH, pinRecoveryRoute, wrongPinMessage } from "@/lib/pin-policy";
+import { PIN_LENGTH, pinKeyFromKeyboard, pinRecoveryRoute, wrongPinMessage } from "@/lib/pin-policy";
 import { haptic } from "@/lib/haptics";
 import { confirmAction, notify } from "@/lib/notify";
 import { recordSecurityEvent } from "@/lib/app-security-log";
@@ -154,6 +154,27 @@ export default function AppLockScreen() {
     setMessage(null);
     if (next.length === PIN_LENGTH) void submit(next);
   }, [busy, digits, submit]);
+  /**
+   * The same keypad, driven from a physical keyboard.
+   *
+   * On a phone the digits are tapped. On a computer the natural thing is to type
+   * them, and before this nothing happened at all, which reads as a broken
+   * screen. The latest press is held in a ref so the listener is only attached
+   * once, rather than on every digit.
+   */
+  const pressRef = useRef<(key: string) => void>(() => {});
+  useEffect(() => { pressRef.current = press; }, [press]);
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = pinKeyFromKeyboard(event.key);
+      if (!key) return;
+      event.preventDefault();
+      pressRef.current(key);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   if (checking) return <AppScreen><View style={styles.page} /></AppScreen>;
   return (
     <AppScreen>
@@ -167,7 +188,7 @@ export default function AppLockScreen() {
               <View key={index} style={[styles.dot, index < digits.length && styles.dotFilled]} />
             ))}
           </View>
-          {message ? <Text style={styles.message}>{message}</Text> : <Text style={styles.hint}>{afterSignIn ? "Your name on the sign-in was proved by text message. The PIN is kept on this phone only." : "Your PIN stays on this phone. Five wrong tries remove it."}</Text>}
+          {message ? <Text style={styles.message}>{message}</Text> : <Text style={styles.hint}>{afterSignIn ? "Your name on the sign-in was proved by text message. The PIN is kept on this device only." : Platform.OS === "web" ? "Type the four digits on your keyboard, or tap them. Five wrong tries remove the PIN." : "Your PIN stays on this phone. Five wrong tries remove it."}</Text>}
         </View>
         <View style={styles.keypad}>
           {KEYS.map((key, index) => {

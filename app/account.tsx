@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
+import { PinField } from "@/components/pin-field";
 import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { signOutCustomer } from "@/lib/customer-auth";
 import { useCustomerAccount } from "@/hooks/use-customer-account";
@@ -139,15 +140,11 @@ export default function AccountScreen() {
             {pinStage === "verify" ? (
               <View style={styles.pinForm}>
                 <Text style={styles.pinFieldLabel}>Enter your current 4 digits</Text>
-                <TextInput
+                <PinField
                   value={currentEntry}
                   onChangeText={(value) => setCurrentEntry(value.replace(/[^0-9]/g, ""))}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  secureTextEntry
-                  placeholder="Current PIN"
-                  placeholderTextColor={palette.placeholder}
-                  style={styles.pinInput}
+                  boxStyle={styles.pinInput}
+                  accessibilityLabel="Enter your current 4 digits"
                   returnKeyType="done"
                   onSubmitEditing={() => void verifyCurrentPin()}
                 />
@@ -165,27 +162,19 @@ export default function AccountScreen() {
             ) : pinStage === "form" ? (
               <View style={styles.pinForm}>
                 <Text style={styles.pinFieldLabel}>{pinSet ? "New 4 digit PIN" : "Choose 4 digits"}</Text>
-                <TextInput
+                <PinField
                   value={pinEntry}
                   onChangeText={(value) => setPinEntry(value.replace(/[^0-9]/g, ""))}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  secureTextEntry
-                  placeholder="4 digits"
-                  placeholderTextColor={palette.placeholder}
-                  style={styles.pinInput}
+                  boxStyle={styles.pinInput}
+                  accessibilityLabel="New 4 digit PIN"
                   returnKeyType="next"
                 />
                 <Text style={styles.pinFieldLabel}>Enter them once more</Text>
-                <TextInput
+                <PinField
                   value={pinConfirm}
                   onChangeText={(value) => setPinConfirm(value.replace(/[^0-9]/g, ""))}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  secureTextEntry
-                  placeholder="4 digits"
-                  placeholderTextColor={palette.placeholder}
-                  style={styles.pinInput}
+                  boxStyle={styles.pinInput}
+                  accessibilityLabel="Enter the new 4 digits once more"
                   returnKeyType="done"
                   onSubmitEditing={() => void savePin()}
                 />

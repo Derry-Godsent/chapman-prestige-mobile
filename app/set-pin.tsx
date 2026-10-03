@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
@@ -8,6 +8,8 @@ import { setCustomerPin, markPinOffered } from "@/lib/customer-pin";
 import { getCurrentCustomerAccount } from "@/lib/customer-auth";
 import { recordSecurityEvent } from "@/lib/app-security-log";
 import { supabase } from "@/lib/supabase";
+import { getCustomerSession } from "@/lib/customer-auth";
+import { PinField } from "@/components/pin-field";
 import { isValidPin } from "@/lib/pin-policy";
 import { haptic } from "@/lib/haptics";
 /**
@@ -30,6 +32,23 @@ export default function SetPinScreen() {
   useEffect(() => {
     if (cameFromForgotten) setNotice("Your old PIN has been removed. Choose a new 4 digit PIN.");
   }, [cameFromForgotten]);
+  /**
+   * A PIN belongs to an account, and this page is only reachable with one.
+   *
+   * If the page is opened without a signed-in account, which can happen by
+   * following an old link or a reload at the wrong moment, asking for four digits
+   * and then quietly keeping none of them is worse than useless. So the page
+   * finds out first, and says so plainly instead.
+   */
+  const [accountReady, setAccountReady] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const session = await getCustomerSession().catch(() => null);
+      if (!cancelled) setAccountReady(Boolean(session));
+    })();
+    return () => { cancelled = true; };
+  }, []);
   /**
    * Marks the offer as made and returns the account this PIN belongs to.
    *
@@ -72,14 +91,30 @@ export default function SetPinScreen() {
         void recordSecurityEvent("pin_set");
       }
     } catch {
-      // If the PIN cannot be saved we still let the customer in rather than
-      // trapping them on this screen.
-      setNotice("The PIN could not be saved on this device, but your account is ready.");
-    } finally {
+      // Saying "ready" while keeping nothing is how a customer ends up believing
+      // they have a PIN that will never be asked for. Better to stay here, say
+      // what happened, and let them try again or skip.
+      setNotice("The PIN could not be kept on this device, so it was not saved. Tap Set my PIN to try again, or skip and set one later from your profile.");
       setBusy(false);
-      router.replace("/(tabs)" as never);
+      return;
     }
+    setBusy(false);
+    router.replace("/(tabs)" as never);
   };
+  if (accountReady === false) {
+    return (
+      <AppScreen>
+        <View style={styles.signedOut}>
+          <View style={styles.icon}><Ionicons name="keypad-outline" size={27} color={palette.accent} /></View>
+          <DisplayText style={styles.title}>Sign in first.</DisplayText>
+          <BodyText style={styles.body}>A 4 digit PIN belongs to an account. This device has none yet, so there is nothing for a PIN to open. Sign in with your phone number and the app will offer the PIN straight afterwards.</BodyText>
+          <View style={styles.signedOutAction}>
+            <PrimaryButton label="Go to sign in" icon="phone-portrait-outline" onPress={() => router.replace("/auth/phone" as never)} />
+          </View>
+        </View>
+      </AppScreen>
+    );
+  }
   return (
     <AppScreen>
       {/* The keyboard must never cover the digits or the buttons. */}
@@ -92,7 +127,7 @@ export default function SetPinScreen() {
         >
           {/* One child only: this component refuses anything else. */}
           <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
-            <View style={styles.body}>
+            <View style={styles.pageBody}>
         <View style={styles.top}>
           <View style={styles.icon}><Ionicons name="keypad-outline" size={27} color={palette.accent} /></View>
           <DisplayText style={styles.title}>Open Chapman with a PIN next time.</DisplayText>
@@ -100,26 +135,18 @@ export default function SetPinScreen() {
         </View>
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>Choose 4 digits</Text>
-          <TextInput
+          <PinField
             value={pin}
             onChangeText={(value) => setPin(value.replace(/[^0-9]/g, ""))}
-            keyboardType={Platform.OS === "ios" ? "number-pad" : "numeric"}
-            maxLength={4}
-            secureTextEntry
-            placeholder="4 digits"
-            placeholderTextColor={palette.placeholder}
-            style={styles.input}
+            boxStyle={styles.input}
+            accessibilityLabel="Choose 4 digits"
           />
           <Text style={styles.fieldLabel}>Enter them once more</Text>
-          <TextInput
+          <PinField
             value={confirm}
             onChangeText={(value) => setConfirm(value.replace(/[^0-9]/g, ""))}
-            keyboardType={Platform.OS === "ios" ? "number-pad" : "numeric"}
-            maxLength={4}
-            secureTextEntry
-            placeholder="4 digits"
-            placeholderTextColor={palette.placeholder}
-            style={styles.input}
+            boxStyle={styles.input}
+            accessibilityLabel="Enter the 4 digits once more"
           />
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
           <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.hideKeyboard}>
@@ -143,6 +170,8 @@ export default function SetPinScreen() {
 }
 const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   page: { flex: 1, backgroundColor: palette.canvas },
+  signedOut: { flex: 1, alignItems: "center", justifyContent: "center", gap: 13, padding: 26 },
+  signedOutAction: { alignSelf: "stretch", marginTop: 12 },
   pageContent: { flexGrow: 1, padding: 22, paddingBottom: 40 }, pageBody: { flexGrow: 1, justifyContent: "space-between", gap: 18 },
   hideKeyboard: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, backgroundColor: palette.soft, marginTop: 6 },
   hideKeyboardText: { color: palette.muted, fontFamily: "Inter_600SemiBold", fontSize: 11 },
