@@ -43,7 +43,8 @@ to you. That was my mistake. This document fixes it.
 | 16 | **The two Supabase emails, and the Vercel one** | Every remaining open table closed, new tables closed on arrival, website moved off a dead Node | DONE **One paste and one line from you** |
 | 17 | **The dark mode switch, and the PIN after signing in** | The switch now answers at once, and a returning customer is asked for their own PIN | DONE **Ready to test on your phone** |
 | 18 | **The PIN rules, written down and tightened** | A forgotten PIN handled properly in both places, a record of every PIN moment, and the honest limits stated | DONE **Open the rules: docs/pin-rules.md** |
-| 19 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
+| 19 | **Free access on every device** | The web version installs to a home screen with the Chapman icon, and there is a free link anyone can open | DONE **One click from you turns the free link on** |
+| 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
 waiting on five minutes from you. Phases 5 to 7 are planned and queued.**
@@ -633,6 +634,49 @@ out by mistake, which is now covered by tests.
 
 ---
 
+## Phase 19, Free access on every device DONE
+
+### What was missing
+
+The app could only be reached by someone with the project on their computer. That
+is no use for an owner in the UK. So the web version was finished off into
+something that installs and behaves like an app, and free hosting was set up for it.
+
+### What the web version gained
+
+1. **A real name and icon.** `app/+html.tsx` and `public/manifest.json` give it the
+   name Chapman Prestige, the droplet icon, and a full screen launch. Added to a
+   phone home screen, it opens without browser bars, like an app.
+2. **One document title.** The page title now comes from one place, the root layout,
+   instead of an empty one and a real one fighting.
+3. **Folder addresses work.** GitHub Pages serves from a folder, not a domain root,
+   so the build can now be told a base path. The same code deploys to either.
+4. **A workflow that republishes itself.** `.github/workflows/publish-web-app.yml`
+   builds the web app and publishes it on every push, at
+   https://derry-godsent.github.io/chapman-prestige-mobile/. It needs one click
+   from you to switch Pages on, in the repository settings.
+
+### The four routes, and what they cost
+
+| Route | Devices | Cost |
+| --- | --- | --- |
+| The web link | Android, iPhone, desktop | Free |
+| The web link added to the home screen | Android, iPhone, desktop | Free, and it looks like an app |
+| The Android APK | Android | Free, needs a free Expo account |
+| TestFlight | iPhone | 99 dollars a year |
+| Expo Go | Both, fussiest | Free |
+
+`docs/BETA.md` section 4c has every route written out with the exact clicks and
+commands, including what each route cannot do.
+
+### What is still true
+
+The web version has no 9:00 daily message, because browser alerts are not the same
+thing, and the web lock is a convenience rather than a secure one, which is already
+written down in `docs/pin-rules.md`.
+
+---
+
 ## Phase 18, The PIN rules, written down and tightened DONE
 
 ### The rules are now in one place
@@ -881,6 +925,11 @@ the whole app.
 3. The beta plan is written out in full in `docs/BETA.md`: the APK, the two iPhone
    routes, the accounts and what they cost, the security position, and the list of
    things each tester should try.
+4. **One click to switch on the free web link.** In the repository, open
+   Settings then Pages, set Source to **GitHub Actions**, then open the Actions tab
+   and run **Publish the web app**. The link is
+   https://derry-godsent.github.io/chapman-prestige-mobile/ and it updates itself
+   from then on.
 
 ---
 
@@ -1067,6 +1116,7 @@ Everything I'm waiting on, in priority order:
 | 3 | **Use the app after signing in, and set the PIN when it is offered** | 1 minute | Proves the new offer screen and the PIN both behave on your phone, and stops the repeat text messages |
 | 4 | **Tell me anything that looks broken while you test** | as you go | I fix it before you look again |
 | 5 | **Say the word and I'll push**, so you can see all of this outside our chat | minutes | You can't judge work you can't see |
+| 5b | **Switch the free web link on** (Settings, Pages, Source: GitHub Actions, then run the workflow) | ~1 min | Gives your boss in the UK a link that works today, with no install and no account |
 | 6 | **Decide on the website** (Phase 6) | minutes | Unblocks the last piece |
 
 ### See it running first, before you change anything

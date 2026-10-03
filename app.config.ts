@@ -135,6 +135,9 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
+    // Empty for a plain domain root. Set for a folder address, which is how GitHub
+    // Pages serves the web app: /chapman-prestige-mobile/...
+    baseUrl: (process.env.EXPO_PUBLIC_BASE_PATH ?? "").trim().replace(/\/+$/, "") || undefined,
   },
 };
 

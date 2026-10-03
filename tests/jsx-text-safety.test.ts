@@ -19,6 +19,10 @@ import { parse } from "@babel/parser";
 const ROOT = join(__dirname, "..");
 const TEXT_COMPONENTS = new Set(["Text", "DisplayText", "BodyText", "TextInput", "Animated.Text"]);
 
+// Web only HTML tags that exist for the browser, never for a phone: a page title,
+// an inline style, a script. Text inside those is correct and cannot reach a phone.
+const WEB_TEXT_ELEMENTS = new Set(["title", "style", "script"]);
+
 function screenFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (["node_modules", ".git", ".expo", "dist", "docs", "tests", "assets"].includes(entry)) continue;
@@ -39,7 +43,7 @@ function problemsIn(file: string): string[] {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) { node.forEach((child) => visit(child, elementName)); return; }
 
-    if (node.type === "JSXText" && node.value !== "" && !TEXT_COMPONENTS.has(elementName ?? "")) {
+    if (node.type === "JSXText" && node.value !== "" && !TEXT_COMPONENTS.has(elementName ?? "") && !WEB_TEXT_ELEMENTS.has(elementName ?? "")) {
       // JSX throws away whitespace that contains a newline, so that is harmless.
       // Whitespace on one line, and real words, both survive and both crash a phone.
       const survives = node.value.trim() !== "" || !node.value.includes("\n");

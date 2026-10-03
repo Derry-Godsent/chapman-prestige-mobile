@@ -311,6 +311,86 @@ So, for the boss, three honest routes:
 
 ---
 
+## 4c. Every free way to put this in someone's hands
+
+Three kinds of device, four routes, and only one of them ever costs money. The web
+routes need no account from anyone and no app store.
+
+| Route | Devices | What the tester does | Cost |
+| --- | --- | --- | --- |
+| The web link | Android, iPhone, desktop, tablet | Opens a link | Free |
+| Web link added to the home screen | Android, iPhone | Opens a link, then "Add to Home Screen" | Free |
+| Android APK | Any Android phone | Taps a download link, installs one file | Free |
+| TestFlight | iPhone | Installs from Apple's TestFlight app | 99 dollars a year |
+| Expo Go | Android, iPhone | Installs Expo Go, scans a QR code | Free, and the fussiest |
+
+### The web link, which needs nothing from anyone
+
+This is the route to use today. It works on every device, in every country, with no
+account, no store, no QR code and no tunnel.
+
+**Where the link comes from.** Two ways, both free.
+
+1. **GitHub's own hosting, no new account.** One click from you turns it on, and
+   after that every change republishes itself:
+   - Open https://github.com/Derry-Godsent/chapman-prestige-mobile/settings/pages
+   - Under "Build and deployment", set Source to **GitHub Actions**
+   - Open https://github.com/Derry-Godsent/chapman-prestige-mobile/actions
+   - Choose **Publish the web app**, then press **Run workflow**
+   - The link is then: https://derry-godsent.github.io/chapman-prestige-mobile/
+2. **Vercel**, if you would rather have a shorter address. Three commands on the
+   computer that holds the project, which are written out in section 4b.
+
+**Send that link to your boss in the UK.** He opens it on his phone or his laptop
+and he is using the app. Nothing to install.
+
+**Added to the home screen it behaves like an app.** On an iPhone: open the link in
+Safari, tap the Share button, choose "Add to Home Screen". On Android: open it in
+Chrome, tap the three dot menu, choose "Install app". On a desktop: Chrome or Edge
+show an install icon in the address bar. The icon is the Chapman droplet, and it
+opens full screen with no browser bars. That is the free way to have the app on an
+iPhone today.
+
+**What it cannot do.** No 9:00 daily message, because browser alerts are not the
+same thing, and the icon is the web icon rather than the installed one. Everything
+else is there: services, prices, the booking screens, the team page and its idea
+form, the profile, the bonus box, and dark mode.
+
+### The Android APK, one file, no store
+
+An APK is the Android app itself. Anyone can install it from a link you send, and
+it has the real Chapman icon, real alerts, and works from the UK. It needs a free
+Expo account, which is an email sign up.
+
+```
+npm install -g eas-cli
+eas login
+eas build --platform android --profile preview
+```
+
+The last command prints a link. Open it, download the `.apk`, and send that file to
+whoever is testing. On the phone, Android will ask once to allow installing from
+this source; allow it, and the app installs with the Chapman icon.
+
+The `preview` profile is already set up in `eas.json` to produce an APK rather than
+a store build, so there is nothing to configure.
+
+### The iPhone, honestly
+
+There are exactly three routes, and only two are free:
+
+1. **The web link added to the home screen.** Free, no account, works today, real
+   icon, full screen. Not a native app, but it looks and feels like one.
+2. **Expo Go.** Free. Works because Expo Go in the App Store is built for the same
+   SDK as this project. It needs the tunnel, which your network blocked, or the
+   phone on the same Wi-Fi as your computer.
+3. **TestFlight.** The proper iPhone beta, with notifications and the real icon, and
+   it costs 99 dollars a year because Apple requires a paid developer account for
+   any app installed from outside the App Store.
+
+For the boss in the UK today, option 1 is the one that works with no fuss, and the
+APK is the one that works if he is on Android.
+
 ## 5. Accounts and money, in plain numbers
 
 | Thing | Needed for | Cost |

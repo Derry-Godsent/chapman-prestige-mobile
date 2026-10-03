@@ -57,6 +57,19 @@ npx expo start
 
 The last command prints a square QR code and a short menu of keys.
 
+## Let someone else use it, without installing anything
+
+The app runs in a browser too, on Android, iPhone and desktop. Once the free
+hosting is switched on in the repository settings, the link is:
+
+```
+https://derry-godsent.github.io/chapman-prestige-mobile/
+```
+
+On a phone, open that link and add it to the home screen to get the Chapman icon
+and a full screen app. `docs/BETA.md` section 4c has every free route, including
+the Android APK.
+
 ## Open it
 
 - **On your computer:** press `w` in that same Terminal window. The app opens in your browser.

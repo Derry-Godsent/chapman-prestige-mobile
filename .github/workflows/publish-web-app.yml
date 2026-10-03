@@ -1,0 +1,67 @@
+name: Publish the web app
+
+# Free hosting for the web version of the app, on GitHub's own servers.
+# Every push to main republishes it. The address is
+# https://derry-godsent.github.io/chapman-prestige-mobile/
+#
+# The folder part of that address is why the build is told a base path: GitHub
+# Pages serves the app from a folder, not from the root of a domain.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Turn on pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+
+      - name: Install the exact versions in the lock file
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the web app
+        env:
+          EXPO_OFFLINE: "1"
+          EXPO_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: npx expo export --platform web
+
+      - name: Make the build safe to serve
+        run: |
+          touch dist/.nojekyll
+          cp dist/+not-found.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

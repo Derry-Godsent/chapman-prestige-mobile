@@ -2,6 +2,7 @@ import "../global.css";
 
 import { useEffect } from "react";
 import { Stack } from "expo-router";
+import Head from "expo-router/head";
 import { Platform, View } from "react-native";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from "@expo-google-fonts/plus-jakarta-sans";
@@ -40,6 +41,14 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <BookingProvider>
+        <Head>
+          <title>Chapman Prestige</title>
+          <meta
+            name="description"
+            content="Chapman Prestige Limited. Laundry, cleaning and the rest of what we do, booked from the app."
+          />
+          <meta name="theme-color" content="#1C2A5E" />
+        </Head>
         <View style={{ flex: 1 }}>
           <Stack initialRouteName="splash" screenOptions={{ headerShown: false, animation: "fade" }}>
             <Stack.Screen name="(tabs)" />
