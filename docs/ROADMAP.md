@@ -677,7 +677,9 @@ the location and request cards, the express card, the live workers card, the
 notification cards, and every bottom bar, which were all still pale cream or white
 under a dark theme. Two new colours live in the palette for the warm panels
 (`panelWarm`, `panelWarmBorder`); the rest reuse colours that already existed. The
-light theme is unchanged to the eye.
+light theme is unchanged to the eye. A sweep for the same problem then found the
+last few near-white rules, in the loyalty card, the bookings list, the checkout
+order summary and the laundry item list, and they follow the skin now too.
 
 ---
 
