@@ -45,6 +45,7 @@ to you. That was my mistake. This document fixes it.
 | 18 | **The PIN rules, written down and tightened** | A forgotten PIN handled properly in both places, a record of every PIN moment, and the honest limits stated | DONE **Open the rules: docs/pin-rules.md** |
 | 19 | **Free access on every device** | The web version installs to a home screen with the Chapman icon, and there is a free link anyone can open | DONE **One click from you turns the free link on** |
 | 20 | **The PIN pad on every device** | A PIN is now entered on the same number pad everywhere, so there is nothing for a phone or a browser to get in the way of | DONE **Try the preview again on your iPhone** |
+| 21 | **The web version, laid out like the app** | The browser page is locked to the visible screen, the real typefaces are served, and the two gestures that move a web page are refused | DONE **Reload the preview on your iPhone** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -632,6 +633,85 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 21, Why the web looked wrong, and what was actually missing DONE
+
+### What you noticed
+
+On an iPhone in Safari the web version had things out of place: buttons at the
+bottom of a screen partly off it, and some elements sitting further away than they
+should. The same screens were right in Expo Go on the same phone. That difference
+has two real causes, and neither is the app's layout. The app's layout is fine:
+it is the same code, and the box it is drawn in was wrong.
+
+### Cause one: a browser page is not a phone screen
+
+A phone app is drawn on a screen that never changes size. A browser page is drawn
+on a viewport that moves: the address bar and the toolbar slide away as you scroll,
+the notch and the home indicator take bites out of the edges, and a double tap
+zooms the whole page in.
+
+Three consequences, all of which were true before this phase:
+
+1. **The page was laid out against a taller box than the one you can see.** The
+   detail page bottom bar, the laundry summary, the checkout bar and the tab bar
+   are all anchored to the bottom of the screen, so on a phone they landed behind
+   the browser's own chrome. That is the "buttons exceed the page".
+2. **Nothing kept the app out of the areas the phone marks as unsafe.** The tab bar
+   asked the operating system for the home indicator size on a phone but used a
+   fixed 12 on the web, and the bottom bars used a fixed 18.
+3. **Two quick taps zoomed the page**, and a page that is zoomed looks shifted.
+
+### Cause two: the browser never had the app's typefaces
+
+This is the bigger one, and it was invisible unless you knew to look.
+
+On a phone, the app loads Inter and Plus Jakarta Sans through Expo. On the web,
+nothing loaded them, and every text style in this app asks for a font by name,
+such as `Inter_400Regular`. The browser had never heard of that name, so it fell
+back to its own default font, which on an iPhone is not even the same kind of
+letterform. Every line of text was therefore a different length from the app's,
+so text wrapped in different places and rows sat at different heights. On a screen
+built out of flexbox, one row wrapping differently moves everything under it. That
+is the "some shift far away".
+
+### What changed
+
+1. **The shell now locks the app to the visible screen.** `app/+html.tsx` pins the
+   app to the viewport (`position: fixed`, with `100dvh` where the browser supports
+   it), so the height is always the part you can actually see, whatever the address
+   bar is doing.
+2. **Nothing can be dragged or zoomed by accident.** The page itself no longer
+   scrolls or rubber-bands, and `touch-action: manipulation` means two quick taps
+   are two quick taps rather than a zoom. Screens that are built to scroll still
+   scroll normally.
+3. **The bottom safe area is respected once, for everything.** The shell keeps the
+   app above the home indicator line, which lifts every bottom bar and the tab bar
+   together, rather than each screen guessing.
+4. **The real typefaces are served to the browser.** The same six font files the
+   phone app uses are now part of the web build, declared in the page, and the
+   build was checked at both addresses: a plain domain root and a folder address
+   like GitHub Pages.
+5. **No swap mid-read.** The faces load with `font-display: block`, so text is
+   never first drawn in one font and then re-measured into another under the
+   customer's eyes, which would look like things moving on their own.
+6. The status bar in a saved-to-home-screen launch was set to white text drawn over
+   the app, which is unreadable on this app's light screens. It now lets the phone
+   choose, so it is dark text on light and light text on dark.
+
+### What is honestly still different on the web
+
+1. **Coming up from the bottom of the screen, the browser's own toolbar is not
+   ours.** The app now stays inside the visible area, which is why things fit, but
+   on an iPhone the bar itself is still there in Safari. Added to the home screen,
+   it is gone and it is a real full screen app.
+2. **A browser cannot vibrate like a phone.** The taps have no haptic feedback on
+   the web.
+3. **The keyboard on the remaining text fields is the browser's, not ours**, so on
+   an iPhone it can cover the bottom of a screen while typing, on the sign-in and
+   chat screens.
 
 ---
 
@@ -1398,6 +1478,7 @@ Skip this unless a term is bugging you.
 | `audit-2026-09-20.md` | If you want the original full audit |
 | `BETA.md` | When you are ready to put the app on the boss and staff phones |
 | `pin-rules.md` | When you want the PIN rules, and what happens if you forget it |
+| `BETA.md` section 4c | Every free way to put the app on a phone, including the web link |
 | Everything else in `docs/` | Background from earlier in the project |
 
 ---
