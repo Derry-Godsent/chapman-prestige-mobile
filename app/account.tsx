@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { PinField } from "@/components/pin-field";
+import { KeyboardDismissBoundary } from "@/components/keyboard-dismiss-boundary";
 import { BodyText, DisplayText, PrimaryButton, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { signOutCustomer } from "@/lib/customer-auth";
 import { useCustomerAccount } from "@/hooks/use-customer-account";
@@ -110,17 +111,17 @@ export default function AccountScreen() {
   };
   return (
     <AppScreen>
-      <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === "web" ? undefined : Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
           contentContainerStyle={styles.pageContent}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
-          {/* Tapping anywhere outside the fields puts the keyboard away.
-              This component takes exactly one child, so everything below sits in
-              a single wrapper. */}
-          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()} accessible={false}>
+          {/* No touchable wrapper around the page: on an iPhone it swallows the
+              tap before the field gets it, so the keyboard never opens. The "Hide
+              the keyboard" button below does that job instead. */}
+          <KeyboardDismissBoundary>
             <View style={styles.body}>
         <View style={styles.top}><TouchableOpacity onPress={() => router.back()} style={styles.back} accessibilityLabel="Go back"><Ionicons name="arrow-back" size={21} color={palette.ink} /></TouchableOpacity><Text style={styles.topLabel}>ACCOUNT</Text><View style={styles.spacer} /></View>
         {checking ? <View style={styles.loading}><ActivityIndicator color={palette.accent} /></View> : account ? <View style={styles.content}>
@@ -205,7 +206,7 @@ export default function AccountScreen() {
           <PrimaryButton label="Sign in with phone" icon="phone-portrait-outline" onPress={() => router.replace("/auth/phone" as never)} />
         </View>}
             </View>
-          </TouchableWithoutFeedback>
+          </KeyboardDismissBoundary>
         </ScrollView>
       </KeyboardAvoidingView>
     </AppScreen>

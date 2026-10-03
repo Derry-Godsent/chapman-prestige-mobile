@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { AppScreen } from "@/components/app-screen";
 import { ChapmanMark, DisplayText, useChapmanStyles, ChapmanPalette } from "@/components/chapman-ui";
 import { clearCustomerPin, forgetPinOffer, hasCustomerPin, pinOwnerId, verifyCustomerPin } from "@/lib/customer-pin";
 import { getCustomerSession, signOutCustomer } from "@/lib/customer-auth";
-import { PIN_LENGTH, pinKeyFromKeyboard, pinRecoveryRoute, wrongPinMessage } from "@/lib/pin-policy";
+import { PIN_LENGTH, pinRecoveryRoute, wrongPinMessage } from "@/lib/pin-policy";
 import { haptic } from "@/lib/haptics";
+import { PinPad } from "@/components/pin-pad";
 import { confirmAction, notify } from "@/lib/notify";
 import { recordSecurityEvent } from "@/lib/app-security-log";
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 /**
  * The PIN screen, which does two jobs.
  *
@@ -140,41 +139,15 @@ export default function AppLockScreen() {
       setBusy(false);
     }
   }, [leaveForSignIn]);
-  const press = useCallback((key: string) => {
-    if (busy) return;
-    haptic.light();
-    if (key === "back") {
-      setDigits((current) => current.slice(0, -1));
-      setMessage(null);
-      return;
-    }
-    if (digits.length >= PIN_LENGTH) return;
-    const next = digits + key;
+  /**
+   * A digit was pressed, tapped or typed. The fourth one is checked straight away,
+   * without asking for a button to be pressed as well.
+   */
+  const handleDigits = useCallback((next: string) => {
     setDigits(next);
     setMessage(null);
     if (next.length === PIN_LENGTH) void submit(next);
-  }, [busy, digits, submit]);
-  /**
-   * The same keypad, driven from a physical keyboard.
-   *
-   * On a phone the digits are tapped. On a computer the natural thing is to type
-   * them, and before this nothing happened at all, which reads as a broken
-   * screen. The latest press is held in a ref so the listener is only attached
-   * once, rather than on every digit.
-   */
-  const pressRef = useRef<(key: string) => void>(() => {});
-  useEffect(() => { pressRef.current = press; }, [press]);
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof window === "undefined") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      const key = pinKeyFromKeyboard(event.key);
-      if (!key) return;
-      event.preventDefault();
-      pressRef.current(key);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [submit]);
   if (checking) return <AppScreen><View style={styles.page} /></AppScreen>;
   return (
     <AppScreen>
@@ -183,33 +156,9 @@ export default function AppLockScreen() {
           <ChapmanMark size={54} />
           <DisplayText style={styles.title}>{afterSignIn ? "One more step." : "Welcome back."}</DisplayText>
           <Text style={styles.subtitle}>{afterSignIn ? "Enter your 4 digit PIN to finish signing in. Chapman will remember this phone." : "Enter your 4 digit PIN to open Chapman. No text message needed."}</Text>
-          <View style={styles.dots}>
-            {Array.from({ length: PIN_LENGTH }).map((_, index) => (
-              <View key={index} style={[styles.dot, index < digits.length && styles.dotFilled]} />
-            ))}
-          </View>
           {message ? <Text style={styles.message}>{message}</Text> : <Text style={styles.hint}>{afterSignIn ? "Your name on the sign-in was proved by text message. The PIN is kept on this device only." : Platform.OS === "web" ? "Type the four digits on your keyboard, or tap them. Five wrong tries remove the PIN." : "Your PIN stays on this phone. Five wrong tries remove it."}</Text>}
         </View>
-        <View style={styles.keypad}>
-          {KEYS.map((key, index) => {
-            if (key === "") return <View key={`gap-${index}`} style={styles.key} />;
-            return (
-              <TouchableOpacity
-                key={key}
-                onPress={() => press(key)}
-                activeOpacity={0.7}
-                accessibilityLabel={key === "back" ? "Delete" : key}
-                style={styles.key}
-              >
-                {key === "back" ? (
-                  <Ionicons name="backspace-outline" size={23} color={palette.ink} />
-                ) : (
-                  <Text style={styles.keyText}>{key}</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <PinPad value={digits} onChange={handleDigits} disabled={busy} />
         <TouchableOpacity
           onPress={() => {
             void (async () => {
@@ -250,17 +199,11 @@ export default function AppLockScreen() {
 }
 const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   page: { flex: 1, padding: 24, justifyContent: "space-between", backgroundColor: palette.canvas },
-  top: { alignItems: "center", gap: 9, paddingTop: 34 },
+  top: { alignItems: "center", gap: 9, paddingTop: 24 },
   title: { fontSize: 27, marginTop: 8 },
   subtitle: { textAlign: "center", maxWidth: 280, color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 13, lineHeight: 19 },
-  dots: { flexDirection: "row", gap: 14, marginTop: 26 },
-  dot: { width: 15, height: 15, borderRadius: 8, borderWidth: 2, borderColor: "#C9BFB0", backgroundColor: palette.surface },
-  dotFilled: { backgroundColor: palette.blue, borderColor: palette.blue },
   hint: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 4 },
   message: { color: palette.error, fontFamily: "Inter_600SemiBold", fontSize: 11, textAlign: "center", maxWidth: 280, marginTop: 4, lineHeight: 16 },
-  keypad: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 14 },
-  key: { width: 76, height: 60, borderRadius: 19, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, alignItems: "center", justifyContent: "center" },
-  keyText: { color: palette.ink, fontFamily: "PlusJakartaSans_700Bold", fontSize: 23 },
   forgot: { alignItems: "center", paddingVertical: 14 },
   forgotText: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 13 },
 });

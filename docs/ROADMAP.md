@@ -44,7 +44,7 @@ to you. That was my mistake. This document fixes it.
 | 17 | **The dark mode switch, and the PIN after signing in** | The switch now answers at once, and a returning customer is asked for their own PIN | DONE **Ready to test on your phone** |
 | 18 | **The PIN rules, written down and tightened** | A forgotten PIN handled properly in both places, a record of every PIN moment, and the honest limits stated | DONE **Open the rules: docs/pin-rules.md** |
 | 19 | **Free access on every device** | The web version installs to a home screen with the Chapman icon, and there is a free link anyone can open | DONE **One click from you turns the free link on** |
-| 20 | **The PIN box on every device** | A PIN can be typed on a computer, the browser cannot stand in front of the box, and a page that cannot keep a PIN says so | DONE **Try the preview again** |
+| 20 | **The PIN pad on every device** | A PIN is now entered on the same number pad everywhere, so there is nothing for a phone or a browser to get in the way of | DONE **Try the preview again on your iPhone** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -662,28 +662,41 @@ the PIN offer page works too. So the screen itself was not dead.
 
 ### What changed
 
-1. `lib/pin-policy.ts` gained `pinKeyFromKeyboard`, which turns a keypress into a
-   keypad press. Digits and both delete keys only, so tabbing, shortcuts and
-   refreshing all still work. Tested.
-2. `app/lock.tsx` listens for the keyboard on the web, and the hint now says the
-   digits can be typed or tapped.
-3. `components/pin-field.tsx` is one PIN box for every device. On a phone it is
-   exactly what it was. On the web the digits are drawn as four dots by the app
-   itself, and the field is an ordinary numeric one, so no password manager is
-   involved and nothing can stand between the customer and the four digits.
-4. Every PIN box in the app now uses it: the offer after signing in, and the three
-   in Profile under App lock.
-5. A failed save now stays on the page, says so, and offers to try again, instead
-   of walking the customer into the app as if a PIN had been kept.
-6. The offer page's container was wearing a text style, which squashed the page.
-   It now uses the layout style that was written for it.
+1. **A PIN is tapped on a pad, never typed into a box.** `components/pin-pad.tsx`
+   is now the one place a four digit PIN is entered: the four dots, the twelve
+   keys, and the delete key. The screen that opens the app and the screen that
+   offers a PIN after signing in both use it, so the two can never drift apart.
+   There is no field to focus, no keyboard to open, and no password manager to
+   interrupt, on any device.
+2. **On a computer the digits can also be typed.** `lib/pin-policy.ts` gained
+   `pinKeyFromKeyboard`, which turns a keypress into a keypad press. Digits and
+   both delete keys only, so tabbing, shortcuts and refreshing all still work.
+   Tested rather than assumed.
+3. **The offer page is two steps that finish themselves.** Four digits, then the
+   same four digits again, and it saves without a button. If the PIN cannot be
+   kept, the page says so and starts again instead of walking the customer into
+   the app as if it had worked.
+4. **The remaining PIN boxes, in Profile under App lock, are no longer password
+   fields in a browser.** `components/pin-field.tsx` draws its own four dots on the
+   web, because a hidden field tells the browser "this is a password" and the
+   browser's password manager then stands in front of it. On a phone nothing
+   changed; the operating system still hides the digits.
+5. **A page that could not keep a PIN no longer pretends it did.** Opened without a
+   signed-in account, the offer page says "Sign in first" instead of taking four
+   digits and quietly keeping none of them.
+6. The offer page's container was wearing a text style, which squashed the page,
+   and its icon and top spacing were trimmed so both entries sit on a small screen
+   without scrolling.
 
 ### How it was checked
 
-The real web build was loaded in a browser engine, the digits typed with the
-keyboard, the dots watched filling, the button pressed, and the stored PIN read
-back afterwards. Both endings were watched: a correct PIN opens the app, and four
-wrong digits show the warning. The signed-out page shows "Sign in first".
+The real web build was loaded in a browser engine and driven the way a person
+drives it. The dots fill as keys are tapped. Four correct digits open the app. Four
+wrong digits show the warning and count the tries. The same digits typed on a
+keyboard open the app just as well. On the offer page, four digits move it to the
+second entry on their own, and the second four save the PIN and enter the app, with
+the stored PIN read back afterwards to prove it. The signed-out page shows "Sign in
+first" and no pad.
 
 ---
 
