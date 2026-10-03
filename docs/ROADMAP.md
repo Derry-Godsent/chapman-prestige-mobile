@@ -47,6 +47,8 @@ to you. That was my mistake. This document fixes it.
 | 20 | **The PIN pad on every device** | A PIN is now entered on the same number pad everywhere, so there is nothing for a phone or a browser to get in the way of | DONE **Try the preview again on your iPhone** |
 | 21 | **The web version, laid out like the app** | The browser page is locked to the visible screen, the real typefaces are served, and the two gestures that move a web page are refused | DONE **Reload the preview on your iPhone** |
 | 22 | **Three things you found on your phone** | The six digit code boxes fit, the tab bar has no empty shelf under it, and dark mode has no shining white lines | DONE **Look at Settings and the sign-in code page again** |
+| 23 | **Every line, and the short sign-in note** | No screen draws its own white line any more, and the phone field says one sentence | DONE **Look at your profile page in dark** |
+| 24 | **The code that never arrives** | The app and Supabase both did their part. The message is being lost between Supabase and the phone, which is outside this app | WAITING **Two dashboards to look at, written out below** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -636,6 +638,66 @@ instantly, and signing out clears it. A slow or failed request can no longer sig
 out by mistake, which is now covered by tests.
 
 ---
+
+## Phase 23, Every line, and the short sign-in note DONE
+
+### The sign-in note
+
+"Enter the 9 digits after +233. Do not start with 0. We never show it publicly."
+is now just "Enter the 9 digits after +233." The field itself is unchanged: the
++233 prefix, nine digits, the same example in the box.
+
+### The lines
+
+You were right that the first sweep did not catch them all. It looked for border
+colours and for pale fills, and it missed two dividers on the profile page that
+were written a third way, as a one-pixel filled line:
+
+- the rule between the rows in "Profile and appearance"
+- the rule between the rows in "Your activity" and "Saved routines"
+
+Both are fixed the same way as Settings: the skin's own divider colour, a true
+hairline, and inset from both ends so it reads as a rule under the text rather than
+a wire across the card. Every divider in the app is now accounted for.
+
+A second, wider sweep found four more fixed light colours that would look wrong on
+the dark theme, all now on the skin's colours: a white text box on the request quote
+page, two pale blue panels on the measuring page, the pale blue panel behind a hand
+drawn service scene, and the white rings around the small badges. The failed-step
+line in a booking timeline followed the error colour instead of a fixed pink.
+
+What is deliberately left as a fixed colour: the gold bar on the launch screen and
+the white fill inside the bonus card, because both sit on a coloured panel that is
+the same in either skin.
+
+---
+
+## Phase 24, The code that never arrives WAITING on two dashboards
+
+### What was checked here, and what it proved
+
+The part of the app that asks Supabase to send a code was read line by line and
+compared with the version that was working before this week's changes. It is
+**untouched**: the edits of the last few days were wording, colours, the page shell,
+the fonts and the PIN screen. Nothing in them goes anywhere near sending a message.
+The request is one line, `client.auth.signInWithOtp({ phone })`, and it is the same
+line it has always been.
+
+Your screenshot is the useful clue. It shows "Your code is on its way" and "Waiting
+for your code", which the app only shows when Supabase has **accepted** the request.
+So the app asked, and Supabase said yes. The message is being lost after that point,
+between Supabase and the handset, which is not something this app can reach or fix.
+
+### Where the truth is, and it is two screens
+
+1. **Arkesel dashboard, SMS credits and delivery report.** If the balance is empty
+   or the sender ID is not approved, messages are accepted and never delivered. This
+   is the most common cause by far.
+2. **Supabase, Edge Functions, `send-sms-arkesel`, Logs.** Open the newest entries
+   and look at what the function answered. If Arkesel refused, the reason is in
+   there.
+
+Screenshot either of those and the cause will be plain.
 
 ## Phase 22, Three things you found on your iPhone DONE
 

@@ -324,7 +324,7 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   spaceFieldLabel: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   otherInputCard: { padding: 14, borderRadius: 16, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, gap: 6 }, 
   inputLabel: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 12 }, 
-  textInput: { minHeight: 80, borderRadius: 12, borderWidth: 1, borderColor: palette.border, paddingHorizontal: 12, paddingVertical: 10, color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 13, backgroundColor: "#FAFAFA", lineHeight: 18 }, 
+  textInput: { minHeight: 80, borderRadius: 12, borderWidth: 1, borderColor: palette.border, paddingHorizontal: 12, paddingVertical: 10, color: palette.ink, fontFamily: "Inter_500Medium", fontSize: 13, backgroundColor: palette.surface, lineHeight: 18 }, 
   measureCard: { padding: 14, borderRadius: 18, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, flexDirection: "row", alignItems: "center", gap: 10 }, 
   measureIcon: { width: 39, height: 39, borderRadius: 13, backgroundColor: palette.chipBlue, alignItems: "center", justifyContent: "center" }, 
   measureCopy: { flex: 1, gap: 2 }, 

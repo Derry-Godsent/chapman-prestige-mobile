@@ -606,7 +606,7 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   progressDotFailed: { backgroundColor: palette.error }, 
   progressLine: { width: 2, flex: 1, backgroundColor: palette.divider }, 
   progressLineActive: { backgroundColor: palette.blue }, 
-  progressLineFailed: { backgroundColor: "#E7A19A" }, 
+  progressLineFailed: { backgroundColor: palette.error }, 
   progressCopy: { gap: 2, flex: 1 }, 
   progressText: { color: "#727B8C", fontFamily: "Inter_600SemiBold", fontSize: 13 }, 
   progressTextActive: { color: palette.ink }, 
