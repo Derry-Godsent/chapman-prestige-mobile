@@ -49,6 +49,7 @@ to you. That was my mistake. This document fixes it.
 | 22 | **Three things you found on your phone** | The six digit code boxes fit, the tab bar has no empty shelf under it, and dark mode has no shining white lines | DONE **Look at Settings and the sign-in code page again** |
 | 23 | **Every line, and the short sign-in note** | No screen draws its own white line any more, and the phone field says one sentence | DONE **Look at your profile page in dark** |
 | 24 | **The code that never arrives** | The app and Supabase both did their part. The message is being lost between Supabase and the phone, which is outside this app | WAITING **Two dashboards to look at, written out below** |
+| 25 | **A home screen app that updates itself** | The web app notices a newer build and refreshes on its own, so nobody has to delete and re-add the icon | DONE **Close it fully once, then it looks after itself** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -672,6 +673,60 @@ the same in either skin.
 
 ---
 
+## Phase 25, The home screen app updates itself DONE
+
+### What you found
+
+In a browser tab the newest work appears as soon as the page is loaded again. Added
+to a home screen it showed nothing new, however many times it was opened. Nobody
+should have to delete an icon and add it again to see their own app improve.
+
+### Why it happens, and it is not your phone being odd
+
+A page in a browser tab is fetched again on every visit. A page on a home screen is
+not. The phone keeps it alive in the background and brings it straight back without
+ever asking the server, and iOS in particular holds on to the page it first
+downloaded. It is the same behaviour that makes home screen apps feel instant, and
+it is exactly what makes them look frozen in time.
+
+### What changed, so it looks after itself
+
+1. **Every build is stamped.** `scripts/build-web.mjs` builds the web version and
+   stamps it with the commit it came from, writing the stamp both into every page
+   and into a small `version.json` beside them. Vercel and GitHub now use that one
+   command, so the two hosts cannot drift apart.
+2. **The app compares the two.** `lib/app-update.ts` runs shortly after opening, and
+   again only when the app comes back to the front after ten minutes away, so
+   nothing is taken out from under a customer mid-booking. If the file is newer than
+   the page, the app reloads once and the newest work appears. It asks for the page
+   with `cache: "no-store"`, so the reload cannot serve the stale copy again.
+3. **A reload can never loop.** The stamp that was tried is remembered for the
+   session. If the phone hands back the same old page anyway, the app stops asking
+   instead of flashing on and off for ever. This is the one failure mode worth
+   protecting against, and it is tested.
+4. **Pages always come from the network.** The service worker now fetches
+   navigation requests with `cache: "no-store"`, so even the first load after an
+   absence is the real, current page. Nothing is cached there, which means the app
+   still needs a connection, exactly as before.
+5. **Nothing changes on a phone.** Expo delivers app updates its own way, so all of
+   this does nothing outside a browser.
+
+### How it was checked
+
+The real built app was loaded in a browser engine three times: once against a server
+claiming a newer build, where it reloaded itself; once where the two agreed, where it
+did nothing; and once where the newer build had already been tried, where it did
+nothing again. All three behaved, and nothing else in the page errored.
+
+### What is still true, honestly
+
+If the phone keeps the app in memory without ever reloading the page, nothing can
+force a refresh from inside it. For that one case, close it fully first: open the
+app switcher, swipe the app away, then open it again. One full close after this
+update is enough; from then on it refreshes itself.
+
+---
+
 ## Phase 24, The code that never arrives WAITING on two dashboards
 
 ### What was checked here, and what it proved
@@ -736,12 +791,30 @@ modes, blocked numbers, a full inbox and a dual SIM phone receiving texts on the
 other line all hide a delivered code in the same way. If the report says DELIVERED
 and the code cannot be found, it is one of these.
 
-### The decisive test
+### The decisive test, and the answer it gave
 
 Send the same code to a second phone on a different network, from the same Arkesel
-account. If it lands there, the account's route works and the trouble is this
-handset or this network. If nothing arrives anywhere, it is the account's sender ID
-or route, and that is Arkesel's side to fix.
+account.
+
+**Done, and it settled it: the second network delivered, the first stayed at
+SUBMITTED.** So Arkesel's account, credits, API key and sender ID all work. The
+route to that second network works too. What is failing is one network, or one
+handset, or both, and that narrows it to three things:
+
+1. **Sender ID approval on the first network.** Approval is per network, MTN,
+   Telecel and AT separately, and a network that has not approved the sender name
+   will hold a message rather than refuse it. This is the most likely cause, and
+   only Arkesel can see it from their side.
+2. **That handset or SIM.** An iPhone with Filter Unknown Senders on hides messages
+   from a sender ID in a separate tab with no notification. So does a full inbox, a
+   blocked number, a Focus mode, or a dual SIM phone receiving on the other line.
+3. **That network's route at that moment.** Queueing and congestion happen, and a
+   message can sit at SUBMITTED for hours.
+
+The question to put to Arkesel, quoting the message id: "This message stayed at
+SUBMITTED while another network delivered the same text within seconds. Is sender ID
+X approved for transactional SMS on the network this number is on, and what did the
+carrier answer?"
 
 ## Phase 22, Three things you found on your iPhone DONE
 

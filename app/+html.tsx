@@ -23,6 +23,13 @@ import type { PropsWithChildren } from "react";
 const basePath = process.env.EXPO_PUBLIC_BASE_PATH ?? "";
 
 /**
+ * The identity of this build, set by scripts/build-web.mjs. The app compares it
+ * with version.json to notice when a newer version exists, which is how a page on
+ * a home screen updates itself instead of waiting to be deleted and added again.
+ */
+const buildId = (process.env.EXPO_PUBLIC_BUILD_ID ?? "").trim();
+
+/**
  * The app's own typefaces, served to the browser.
  *
  * On a phone the app loads these through Expo. In a browser nothing did, so every
@@ -107,6 +114,10 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="apple-mobile-web-app-title" content="Chapman" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="application-name" content="Chapman Prestige" />
+
+        {/* The stamp, and where to ask whether a newer one exists. */}
+        <meta name="chapman-build" content={buildId} />
+        <meta name="chapman-build-url" content={`${basePath}/version.json`} />
 
         <link rel="manifest" href={`${basePath}/manifest.json`} />
         <link rel="icon" href={`${basePath}/favicon.png`} sizes="any" />

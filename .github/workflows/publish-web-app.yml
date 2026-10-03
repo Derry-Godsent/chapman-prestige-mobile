@@ -43,7 +43,7 @@ jobs:
         env:
           EXPO_OFFLINE: "1"
           EXPO_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-        run: npx expo export --platform web
+        run: node scripts/build-web.mjs
 
       - name: Make the build safe to serve
         run: |

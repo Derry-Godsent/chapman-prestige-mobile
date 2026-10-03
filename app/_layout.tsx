@@ -12,6 +12,7 @@ import { BookingProvider } from "@/lib/booking-store";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { MobileRequestUpdateListener } from "@/components/mobile-request-update-listener";
 import { keepDailyChapmanUpdatesAlive } from "@/lib/chapman-notifications";
+import { startUpdateWatch } from "@/lib/app-update";
 
 if (Platform.OS !== "web") void SplashScreen.preventAutoHideAsync();
 
@@ -35,6 +36,12 @@ export default function RootLayout() {
 
   // If the customer asked for the daily 9:00 message, top the week up on open.
   useEffect(() => { void keepDailyChapmanUpdatesAlive(); }, []);
+
+  // Added to a phone's home screen, a web app is kept alive and never asks the
+  // server again, so new work never appears until the icon is deleted and added
+  // back. This notices a newer build and refreshes on its own. Nothing happens on
+  // a phone, where Expo handles updates.
+  useEffect(() => { startUpdateWatch(); }, []);
 
   if (Platform.OS !== "web" && !loaded && !error) return null;
 
