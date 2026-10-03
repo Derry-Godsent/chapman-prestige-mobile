@@ -290,5 +290,5 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   paymentCopy: { flex: 1, gap: 3 }, 
   paymentTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 13 }, 
   paymentText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }, 
-  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: "rgba(250,246,238,0.98)", borderTopWidth: 1, borderTopColor: palette.border } 
+  bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: palette.canvas, borderTopWidth: 1, borderTopColor: palette.border } 
 });

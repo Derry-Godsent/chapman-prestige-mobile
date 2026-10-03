@@ -38,6 +38,10 @@ export type ChapmanPalette = {
   placeholder: string;
   border: string;
   divider: string;
+  /** A warm panel, for the express and urgent cards. Light equals what was there. */
+  panelWarm: string;
+  /** Its outline: a peach edge in light, a warm brown in dark. */
+  panelWarmBorder: string;
   paleBlue: string;
   green: string;
   error: string;
@@ -68,6 +72,8 @@ export const lightPalette: ChapmanPalette = {
   placeholder: "#9AA1AE",
   border: "#DED4C6",
   divider: "#EEE9E0",
+  panelWarm: "#FFF5F0",
+  panelWarmBorder: "#FFE1D1",
   paleBlue: "#E4F4E9",
   green: "#047857",
   error: "#BA1A1A",
@@ -101,6 +107,8 @@ export const darkPalette: ChapmanPalette = {
   placeholder: "#7C848F",
   border: "#2B3038",
   divider: "#242830",
+  panelWarm: "#2A1F1A",
+  panelWarmBorder: "#463128",
   paleBlue: "#1B2533",
   green: "#34D399",
   error: "#F87171",

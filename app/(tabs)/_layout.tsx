@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useChapmanPalette } from "@/components/chapman-ui";
+import { isInstalledWebApp } from "@/lib/installed-app";
 const tabIcons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
   index: { active: "home", inactive: "home-outline" },
   bookings: { active: "calendar", inactive: "calendar-outline" },
@@ -13,7 +14,10 @@ const tabIcons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactiv
 export default function TabLayout() {
   const palette = useChapmanPalette();
   const insets = useSafeAreaInsets();
-  const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 10);
+  // In a browser tab the browser's own bars are the cushion, so the tab bar only
+  // needs a small one of its own. Installed on a home screen there is nothing
+  // below, so the home indicator area has to be kept clear.
+  const bottomPadding = Platform.OS === "web" && !isInstalledWebApp() ? 9 : Math.max(insets.bottom, 10);
   return (
     <Tabs
       screenOptions={({ route }) => ({

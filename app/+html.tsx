@@ -76,10 +76,12 @@ const shell = `
     /* Two quick taps are two quick taps, never a zoom that leaves the page
        looking shifted. Scrolling inside a screen still works normally. */
     touch-action: manipulation;
-    /* Where the phone says the bottom is unsafe, the app keeps out of it, which
-       lifts every bottom bar and the tab bar above the home indicator line. */
-    padding-bottom: env(safe-area-inset-bottom);
   }
+  /* A row of boxes that should share the width, such as the six digits of a text
+     code, cannot shrink on the web unless this is said: a browser gives an input
+     its own minimum width, wide enough for about twenty letters, and six of those
+     push each other off the right edge of the screen. */
+  input, textarea, select { min-width: 0; }
   @supports (height: 100dvh) {
     #root { height: 100dvh; }
   }

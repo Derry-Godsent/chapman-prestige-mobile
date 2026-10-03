@@ -46,6 +46,7 @@ to you. That was my mistake. This document fixes it.
 | 19 | **Free access on every device** | The web version installs to a home screen with the Chapman icon, and there is a free link anyone can open | DONE **One click from you turns the free link on** |
 | 20 | **The PIN pad on every device** | A PIN is now entered on the same number pad everywhere, so there is nothing for a phone or a browser to get in the way of | DONE **Try the preview again on your iPhone** |
 | 21 | **The web version, laid out like the app** | The browser page is locked to the visible screen, the real typefaces are served, and the two gestures that move a web page are refused | DONE **Reload the preview on your iPhone** |
+| 22 | **Three things you found on your phone** | The six digit code boxes fit, the tab bar has no empty shelf under it, and dark mode has no shining white lines | DONE **Look at Settings and the sign-in code page again** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -633,6 +634,50 @@ tell "still checking" from "signed out", so it showed the sign-in prompt. There 
 shared account for the whole app: the first screen asks, every other screen reads the answer
 instantly, and signing out clears it. A slow or failed request can no longer sign a customer
 out by mistake, which is now covered by tests.
+
+---
+
+## Phase 22, Three things you found on your iPhone DONE
+
+### 1. The six digit code boxes ran off the right of the screen
+
+The six boxes were each given "share the width equally" and nothing else. On a
+phone that is enough. In a browser it is not: a browser gives every box a minimum
+width of its own, wide enough for about twenty letters, and six of those cannot fit
+on one screen no matter what the row is told to do. They pushed each other off the
+right edge, which is what the screenshot showed.
+
+Two small changes, one for each kind of device: the page now tells the browser that
+boxes in a row may shrink (`input, textarea, select { min-width: 0; }`), and the box
+style carries the same rule for itself. Every other row of fields in the app gets
+the same protection from that one line.
+
+### 2. The empty shelf under the bottom bar
+
+In a browser tab, the browser's own bars already sit below the page, so the app
+only needs a small cushion above them. Installed on a home screen there is nothing
+below, so the phone's home indicator area has to be kept clear instead. The app was
+doing both at once: the page carried a home indicator cushion, and the tab bar
+carried another. The two stacked up into a strip of empty space under the icons.
+
+Now the page carries none, and the tab bar decides for itself: a small cushion in a
+browser, the phone's own inset when installed. `lib/installed-app.ts` is the one
+place that answers "is this the installed app or a browser tab".
+
+### 3. White lines on the dark theme, and other fixed light colours
+
+The dividers in Settings were written as a fixed near-white, which is invisible on
+the light theme and glaring on the dark one. They now use the skin's own divider
+colour, inset from both ends so they read as a soft rule under the text rather than
+a full-width wire. The sign out card, which was also fixed pink, follows the skin.
+
+While in there, the same class of fixed light colour was cleared out of the rest of
+the app: the progress lines in the booking and checkout steppers, the totals card,
+the location and request cards, the express card, the live workers card, the
+notification cards, and every bottom bar, which were all still pale cream or white
+under a dark theme. Two new colours live in the palette for the warm panels
+(`panelWarm`, `panelWarmBorder`); the rest reuse colours that already existed. The
+light theme is unchanged to the eye.
 
 ---
 

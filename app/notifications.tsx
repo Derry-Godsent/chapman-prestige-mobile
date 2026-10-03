@@ -122,7 +122,7 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   emptyTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 15, textAlign: "center" },
   emptyText: { textAlign: "center", fontSize: 12, lineHeight: 17 },
   updateCard: { padding: 15, borderRadius: 19, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, flexDirection: "row", alignItems: "flex-start", gap: 11 },
-  updateCardUrgent: { borderColor: "#FDBA74", backgroundColor: "#FFFBF7" },
+  updateCardUrgent: { borderColor: palette.orange, backgroundColor: palette.panelWarm },
   updateIcon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   updateCopy: { flex: 1, gap: 3 },
   updateTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -131,6 +131,6 @@ const makeStyles = (palette: ChapmanPalette) => StyleSheet.create({
   updateTitle: { color: palette.ink, fontFamily: "Inter_700Bold", fontSize: 14 },
   updateText: { color: palette.muted, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 16 },
   actionHint: { marginTop: 4, alignSelf: "flex-start" },
-  explore: { minHeight: 49, borderRadius: 15, borderWidth: 1, borderColor: "#C6D2FF", backgroundColor: "#F9FAFF", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 4 },
+  explore: { minHeight: 49, borderRadius: 15, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.chipBlue, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 4 },
   exploreText: { color: palette.accent, fontFamily: "Inter_700Bold", fontSize: 13 },
 });
