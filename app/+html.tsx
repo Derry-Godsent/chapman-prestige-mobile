@@ -52,6 +52,16 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: background }} />
+
+        {/* Registers the do-nothing service worker that makes the browser offer the
+            real "Install app" rather than a plain shortcut. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ("serviceWorker" in navigator) { window.addEventListener("load", function () { navigator.serviceWorker.register(${JSON.stringify(
+              `${basePath}/sw.js`,
+            )}).catch(function () {}); }); }`,
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>
