@@ -229,7 +229,7 @@ export default function PhoneAuthScreen() {
               {stage === "phone" ? <>
                 <Text style={styles.fieldLabel}>Mobile number</Text>
                 <View style={styles.field}><Text style={styles.country}>+233</Text><TextInput value={phoneInput} onChangeText={updatePhoneInput} keyboardType="number-pad" autoComplete="tel" maxLength={9} placeholder="24 123 4567" placeholderTextColor={palette.placeholder} style={styles.input} editable={!busy} /></View>
-                <Text style={styles.fieldHint}>Enter the 9 digits after +233. Do not start with 0. We never show it publicly.</Text>
+                <Text style={styles.fieldHint}>Enter the 9 digits after +233.</Text>
               </> : null}
               {stage === "code" ? <>
                 <Text style={styles.fieldLabel}>Verification code</Text>
