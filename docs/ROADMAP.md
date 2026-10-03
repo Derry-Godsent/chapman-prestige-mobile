@@ -699,6 +699,50 @@ between Supabase and the handset, which is not something this app can reach or f
 
 Screenshot either of those and the cause will be plain.
 
+### What the dashboard said, and what it means
+
+The Arkesel delivery report shows the code as **SUBMITTED**. That is not a failure.
+It means Arkesel accepted the message, took the credit, and handed it to the mobile
+network, which has not yet confirmed that it reached the handset. It is the middle
+of the journey, not the end.
+
+The status that comes next is the one that matters. From Arkesel's own guide:
+
+| Next status | What it means | What to do |
+| --- | --- | --- |
+| DELIVERED | The network confirmed the phone received it | Look at the phone, not the account |
+| Still SUBMITTED, or QUEUED | The network is holding it | Sender ID or route question for Arkesel |
+| EXPIRED | The delivery window closed first | The handset was unreachable, or the sender ID was flagged |
+| NOT_DELIVERED, PROHIBITED, REJECTED | A rule stopped it | Almost always the sender ID or the route |
+
+### The two causes worth ruling out first
+
+1. **The route.** In Ghana, an OTP has to travel on the transactional route, with a
+   sender ID approved for transactional messages. On a promotional route or sender
+   ID, messages to numbers on the Do Not Disturb register are blocked silently and
+   everything else is delayed. Arkesel's own guidance is blunt about it: a login
+   code that arrives late has already failed. Sender ID approval is per network,
+   MTN, Telecel and AT separately.
+2. **The sender ID length.** Arkesel accepts sender names up to 11 characters and
+   warns that anything longer "will result in your messages failing". The function
+   sends whatever `ARKESEL_SENDER_ID` holds, so that secret has to be the exact
+   approved string, 11 characters or fewer.
+
+### The phone side, worth two minutes before blaming the route
+
+An iPhone hides messages from unknown senders in a separate tab with no
+notification at all when Filter Unknown Senders is on (Settings, Messages). Focus
+modes, blocked numbers, a full inbox and a dual SIM phone receiving texts on the
+other line all hide a delivered code in the same way. If the report says DELIVERED
+and the code cannot be found, it is one of these.
+
+### The decisive test
+
+Send the same code to a second phone on a different network, from the same Arkesel
+account. If it lands there, the account's route works and the trouble is this
+handset or this network. If nothing arrives anywhere, it is the account's sender ID
+or route, and that is Arkesel's side to fix.
+
 ## Phase 22, Three things you found on your iPhone DONE
 
 ### 1. The six digit code boxes ran off the right of the screen
