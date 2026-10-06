@@ -1,14 +1,21 @@
-# The staff page for app service requests
+# The staff side of the app's records
 
-**What this is.** The mobile app lets a customer ask for Deep Cleaning, Fumigation,
-Detailing, Polytank Cleaning or Contract Cleaning. Those requests go into your
-database and, until now, **no staff screen read them**, so nobody could answer them.
-This is the page that shows them, and lets your team offer a date that the customer
-accepts or rejects in the app.
+**What this is.** The mobile app has been writing three kinds of record that no
+staff screen read, so work your customers did landed nowhere:
 
-**Where it goes.** The staff system is a separate project (`laundry-app`), so these
-files cannot be committed from the mobile app repository. Everything needed is in
-this folder. Applying it takes about five minutes.
+| What the customer did in the app | Where it went | Who saw it |
+| --- | --- | --- |
+| Asked for cleaning, fumigation, detailing, polytank or contract work | `quote_requests` | Nobody |
+| Sent an idea for the app | `chapman_app_ideas` | Nobody |
+| Signed in, set a PIN, gave up a PIN | `chapman_app_security_events` | Nobody |
+
+This change gives the staff system the pages that show them, and it connects the
+numbers on the side menu and the bell to records that actually exist.
+
+**Where it goes.** The staff system is a separate project, `laundry-app`. My
+GitHub connection in this sandbox can read that repository but not write to it,
+so I cannot push the branch myself. Everything needed is here, and it is already
+compiled and built against the real staff project.
 
 ---
 
@@ -16,198 +23,100 @@ this folder. Applying it takes about five minutes.
 
 | File | What it is |
 | --- | --- |
-| `ServiceRequests.tsx` | The new page. Drop it into the staff project's `src/pages/` folder |
-| `ServiceRequests.css` | Its styling. Same folder |
-| `wiring.patch` | The three tiny edits that make the page reachable, as a patch |
-| `useIntakeCounts.ts` | Counts for the side menu. Goes in `src/hooks/` |
-| `useIntakeNotifications.ts` | The live alerts for the bell. Also `src/hooks/` |
-| `counts-and-alerts.patch` | The edits that put numbers on the menu and real alerts in the bell |
+| `app-records-pages.patch` | The whole change, as one patch. Fourteen files: three new pages with their styling, two new hooks, and six small edits |
+| `vite.preview.config.ts` | The config used to preview the staff app locally while building this |
 
-**I compiled this against the real staff project before handing it over.** It passed
-the TypeScript check and the production build, so it is not guesswork. What I could
-not do is click through it, because I have no way to run your staff system signed in
-as a staff member.
+The two database statements the pages need live one folder up, in
+`docs/staff-app-pages.sql`, and they have been run against a real Postgres engine
+to prove they work and are safe to run twice.
 
 ---
 
-## Step 1: the two files
+## What it does
 
-Copy both files into the staff project:
+**Service Requests** (`/service-requests`). Every cleaning, fumigation,
+detailing, polytank and contract enquiry sent from the app. The list shows the
+customer's name where it can be read, the property, the preference, the measured
+area, the areas they picked and any concerns they flagged. The office can offer a
+date, which the customer accepts or rejects in the app, or decline with one short
+line that the customer reads. A declined request can be taken back later.
 
-```
-laundry-app/src/pages/ServiceRequests.tsx
-laundry-app/src/pages/ServiceRequests.css
-```
+**App Ideas** (`/app-ideas`). Every idea sent from the app, with the sender's name
+and number, and a way to move it along: new, reading, planned, done, not doing.
 
-## Step 2: the three small edits
+**App Accounts** (`/app-accounts`). Who has signed into the app, with every
+security moment on their account: a sign-in, a PIN set, a PIN removed, a PIN used
+up. The four digits are never stored anywhere, here or on the phone's own record,
+and the page says so.
 
-They are listed here in plain words. The patch file contains the same three changes.
+**The side menu** now shows a number beside Orders, Mobile Requests, Service
+Requests, App Ideas, App Accounts, Staff and Clients, and each number explains
+itself when hovered. **The bell** now listens to real records. The old bell
+watched orders filtered by a client id, which a staff member never has, so it
+silently delivered nothing.
 
-**a. Add the page to the routes.** In `src/router.tsx`
-
-Find:
-```
-import { MobileRequests } from "./pages/MobileRequests";
-```
-Add below it:
-```
-import { ServiceRequests } from "./pages/ServiceRequests";
-```
-
-Find:
-```
-      { path: "mobile-requests", element: <MobileRequests /> },
-```
-Add below it:
-```
-      { path: "service-requests", element: <ServiceRequests /> },
-```
-
-**b. Add it to the side menu.** In `src/components/sidebar/Sidebar.tsx`
-
-Find the line that ends with:
-```
-  Printer, LogOut, X, BarChart3, Inbox
-} from "lucide-react";
-```
-Change it to:
-```
-  Printer, LogOut, X, BarChart3, Inbox, Sparkles
-} from "lucide-react";
-```
-
-Find:
-```
-    { icon: Inbox, label: "Mobile Requests", path: "/mobile-requests", pageKey: "mobile-requests" },
-```
-Add below it:
-```
-    { icon: Sparkles, label: "Service Requests", path: "/service-requests", pageKey: "service-requests" },
-```
-
-**c. Let the permission system know about it.** In `src/hooks/usePermission.ts`
-
-Find:
-```
-  "/mobile-requests": "mobile-requests",
-```
-Add below it:
-```
-  "/service-requests": "service-requests",
-```
-
-## Step 2b: numbers on the menu, and real alerts
-
-Two more small file copies, plus the patch.
-
-**Copies:**
-
-```
-laundry-app/src/hooks/useIntakeCounts.ts
-laundry-app/src/hooks/useIntakeNotifications.ts
-```
-
-**Then apply `counts-and-alerts.patch`,** which makes three small changes:
-
-| File | Change |
-| --- | --- |
-| `src/components/sidebar/Sidebar.tsx` | The menu numbers now come from the counts hook instead of the one order count, and every record page shows its own number |
-| `src/components/sidebar/NavItem.tsx` | The number now explains itself when the office hovers it, for example "8 waiting for Chapman to act" |
-| `src/components/topbar/Topbar.tsx` | The bell now listens to the two intake tables. The old listener watched orders filtered by a client id, which a staff member never has, so the bell silently delivered nothing |
-
-If you would rather make those three edits by hand, say so and I will write them out line
-by line.
-
-### What the numbers mean
-
-| Menu entry | The number means |
-| --- | --- |
-| Orders | Every order in the system |
-| Mobile Requests | Laundry requests still waiting for Chapman to act |
-| Service Requests | Cleaning and service enquiries that need a date from Chapman |
-| Staff | Staff records |
-| Clients | Client records |
-
-Every number updates by itself the moment a customer sends something or the office changes
-something. Nothing needs refreshing.
-
-### What the alerts mean
-
-The bell now tells the office, as it happens:
-
-- a customer sent a laundry request
-- a customer asked for cleaning, fumigation, detailing, polytank, or contract work
-- a customer accepted or rejected a date Chapman offered
-
-Clicking an alert opens the queue it belongs to, and the count is what is new since that
-staff member last looked, so it means something. It is kept per staff member in that
-browser.
+Each page says plainly, on screen, when the table or the rule it needs has not
+been created in the project yet, instead of showing an empty list as though there
+were nothing to see.
 
 ---
 
-## Step 3: two database statements, one each
+## Getting it in, two ways
 
-**Statement one, the permission row.** Without it the page will not appear in the menu
-even though the code is there. Your staff system decides which pages each role may see
-by looking in a table called `role_permissions`, and there is no row for this new page
-yet.
+**Way one, and I would prefer it: let me do it.** The GitHub connection this
+sandbox uses can read `laundry-app` but not write to it. Reconnecting GitHub in
+Arena with access to that repository means I push the branch and open the pull
+request myself, for every staff change from here on. Chat and the workers pages
+both need staff-side work, so this is worth doing once.
 
-**In plain English:** "Admins and managers may see and use the Service Requests page."
+**Way two, by hand.** One block, in a folder where you keep projects. It clones
+the staff system, applies the patch, checks it, and pushes a branch you can merge:
 
-```sql
-insert into public.role_permissions (role, page, can_view, can_edit)
-values
-  ('admin', 'service-requests', true, true),
-  ('manager', 'service-requests', true, true)
-on conflict (role, page) do update
-set can_view = excluded.can_view,
-    can_edit = excluded.can_edit;
+```bash
+git clone https://github.com/Derry-Godsent/laundry-app.git
+cd laundry-app
+git checkout -b app-records-pages
+git apply /path/to/chapman-prestige-mobile/docs/staff-web-app/app-records-pages.patch
+npm install
+npx tsc -b
+git add -A
+git commit -m "feat: read the app's records in the staff system"
+git push -u origin app-records-pages
 ```
 
-**Statement two, the decline reason.** Without it the page still works, but the decline
-button will say the reason box is missing. This adds one empty box where your team writes
-one short line explaining why a request cannot be taken.
-
-**In plain English:** "Add a place to write why Chapman cannot take this cleaning
-request." It adds one empty box, touches no data, and is safe to run twice.
-
-```sql
-alter table public.quote_requests add column if not exists declined_reason text;
-```
-
-Both statements are also saved in `docs/decline-with-reason.sql` in the mobile app
-project, with the full explanation and the undo.
+Then open the pull request GitHub offers you and merge it. The staff system
+deploys from the branch it already deploys from, so merging is what puts it live.
 
 ---
 
-## What your team can do on the page
+## The one database paste
 
-| Area | What it does |
-| --- | --- |
-| Five views across the top | Needs a date, With the customer, Accepted, Wants another date, Not taken, each with a count |
-| The list | Every request from the app, newest first, with the customer's name where it can be read |
-| The detail panel | What the customer chose: property, preference, their preferred date, the measured area, the areas they picked, and anything they flagged as a concern |
-| Offer a date | Sends a date to the customer. They accept or reject it in the app, and the answer appears here within seconds |
-| Decline with a reason | Tells the customer Chapman cannot take the request, and why. Three ready made reasons, or write your own line. The customer reads exactly that line in the app |
-| Live updates | New requests and customer replies appear without refreshing, the same way the laundry page works |
+Run `docs/staff-app-pages.sql` once in Supabase, SQL Editor, Run. Two statements:
+six menu rows so admins and managers may open the new pages, and one empty box
+where a decline reason is written. Safe to run twice.
 
-**What it deliberately does not do:** it does not create an order. Creating the job in
-your Orders section stays a deliberate step, exactly as it is for laundry requests.
-
-**A declined request can be taken back.** If the customer sends another request or calls
-in, offering a date from the Not taken view puts it back in their hands with a new date
-to accept. What the customer was told stays in their history, so nothing is rewritten.
+If Service Requests opens and shows an empty list even though requests exist, the
+two staff rules in `docs/security-fix.sql`, section 4, have not been run in this
+project yet. The page says so on screen. Running that file once is the fix.
 
 ---
 
-## After it is applied
+## What to check afterwards
 
-Check these four things and tell me what you see:
+1. Three new entries in the staff side menu: **Service Requests**, **App Ideas**,
+   **App Accounts**, with numbers beside them.
+2. **Service Requests** lists the cleaning enquiries already sent from the app.
+3. **App Ideas** lists any idea already sent, and moving one changes its label.
+4. **App Accounts** lists app customers, and opening one shows their sign-ins and
+   PIN moments.
 
-1. **Service Requests appears in the side menu** for an admin or manager.
-2. **The requests from the app are listed.** There should be 8 cleaning enquiries
-   already in your database.
-3. **Offer a date on one of them**, then open the app on that customer's account. The
-   app should show the date with an accept or reject choice.
-4. **Decline one of them with a reason**, then open that customer's app. Their tracking
-   page should show "Chapman cannot take this request" with your reason under it.
+---
+
+## The honest limits
+
+I compiled and built this against the real staff project: the TypeScript check
+passes and the production build succeeds, both in my working copy and again after
+applying the patch to a fresh clone of `master`. What I could not do is sign in
+to your staff system and click through the pages, because this sandbox has no
+route to Supabase. So the checks above are yours, and if anything reacts oddly,
+tell me what you see and I will fix it.

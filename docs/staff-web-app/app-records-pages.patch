@@ -1,0 +1,1965 @@
+diff --git a/src/components/sidebar/NavItem.tsx b/src/components/sidebar/NavItem.tsx
+index 84b0829..bcec18e 100644
+--- a/src/components/sidebar/NavItem.tsx
++++ b/src/components/sidebar/NavItem.tsx
+@@ -8,11 +8,13 @@ interface NavItemProps {
+   label: string;
+   path: string;
+   badge?: number;
++  /** What the number means, shown when the office hovers it. */
++  badgeTitle?: string;
+   isCollapsed?: boolean;
+   onClick?: () => void;
+ }
+ 
+-export const NavItem = ({ icon: Icon, label, path, badge, isCollapsed, onClick }: NavItemProps) => {
++export const NavItem = ({ icon: Icon, label, path, badge, badgeTitle, isCollapsed, onClick }: NavItemProps) => {
+   const location = useLocation();
+   const isActive = location.pathname === path;
+ 
+@@ -23,6 +25,7 @@ export const NavItem = ({ icon: Icon, label, path, badge, isCollapsed, onClick }
+         className={`nav-item ${isActive ? "active" : ""}`}
+         onClick={onClick}
+         aria-current={isActive ? "page" : undefined}
++        title={badge && badgeTitle ? `${badge} ${badgeTitle}` : undefined}
+       >
+         <span className="nav-icon">
+           <Icon size={20} />
+diff --git a/src/components/sidebar/Sidebar.tsx b/src/components/sidebar/Sidebar.tsx
+index f275a9c..a95ca8a 100644
+--- a/src/components/sidebar/Sidebar.tsx
++++ b/src/components/sidebar/Sidebar.tsx
+@@ -2,12 +2,13 @@ import { useState, useMemo, useEffect } from "react";
+ import {
+   LayoutDashboard, Package, Users, User, Settings, FileText,
+   ChevronLeft, ChevronRight, Shield, CreditCard, ShoppingCart,
+-  Printer, LogOut, X, BarChart3, Inbox
++  Printer, LogOut, X, BarChart3, Inbox, Sparkles, Lightbulb, Smartphone
+ } from "lucide-react";
+ // @ts-ignore
+ import { supabase } from "../../lib/supabaseClient";
+ import { NavItem } from "./NavItem";
+ import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
++import { useIntakeCounts } from "../../hooks/useIntakeCounts";
+ import "./Sidebar.css";
+ 
+ interface SidebarProps {
+@@ -18,28 +19,15 @@ interface SidebarProps {
+ 
+ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarProps) => {
+   const [isCollapsed, setIsCollapsed] = useState(false);
+-  const [orderCount, setOrderCount] = useState(0);
+   const [userRole, setUserRole] = useState<string>("staff");
+   const [allowedPages, setAllowedPages] = useState<Set<string>>(new Set());
+ 
+-  /* ─── REALTIME ORDER COUNT ─────────────────────────────────────────────── */
+-  useEffect(() => {
+-    let isMounted = true;
+-    const fetchCount = async () => {
+-      const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true });
+-      if (isMounted) setOrderCount(count || 0);
+-    };
+-    fetchCount();
+-    
+-    const channel = supabase.channel('sidebar-orders-badge')
+-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchCount())
+-      .subscribe();
+-      
+-    return () => { 
+-      isMounted = false; 
+-      supabase.removeChannel(channel); 
+-    };
+-  }, []);
++  /* ─── LIVE COUNTS FOR THE MENU ─────────────────────────────────────────────
++     One hook counts the records behind each page and keeps the numbers current
++     as customers send work and the office changes it. It only starts once the
++     role is known, because the menu hides pages this role may not open. */
++  const countsKnown = allowedPages.size > 0;
++  const { counts } = useIntakeCounts(countsKnown);
+ 
+   /* ─── FETCH ROLE & PERMISSIONS ─────────────────────────────────────────── */
+   useEffect(() => {
+@@ -80,10 +68,13 @@ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarPr
+   const navItems = useMemo(() => [
+     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", pageKey: "dashboard" },
+     { icon: ShoppingCart, label: "New Order", path: "/new-order", pageKey: "new-order" },
+-    { icon: Package, label: "Orders", path: "/orders", pageKey: "orders", badge: orderCount > 0 ? orderCount : undefined },
+-    { icon: Inbox, label: "Mobile Requests", path: "/mobile-requests", pageKey: "mobile-requests" },
+-    { icon: Users, label: "Staff", path: "/staff", pageKey: "staff" },
+-    { icon: User, label: "Clients", path: "/clients", pageKey: "clients" },
++    { icon: Package, label: "Orders", path: "/orders", pageKey: "orders", badge: countsKnown && counts.orders > 0 ? counts.orders : undefined },
++    { icon: Inbox, label: "Mobile Requests", path: "/mobile-requests", pageKey: "mobile-requests", badge: countsKnown && counts.mobileRequests > 0 ? counts.mobileRequests : undefined, badgeTitle: "waiting for Chapman to act" },
++    { icon: Sparkles, label: "Service Requests", path: "/service-requests", pageKey: "service-requests", badge: countsKnown && counts.serviceRequests > 0 ? counts.serviceRequests : undefined, badgeTitle: "need a date from Chapman" },
++    { icon: Lightbulb, label: "App Ideas", path: "/app-ideas", pageKey: "app-ideas", badge: countsKnown && counts.appIdeas > 0 ? counts.appIdeas : undefined, badgeTitle: "new ideas from customers" },
++    { icon: Smartphone, label: "App Accounts", path: "/app-accounts", pageKey: "app-accounts", badge: countsKnown && counts.appAccounts > 0 ? counts.appAccounts : undefined, badgeTitle: "customers using the app" },
++    { icon: Users, label: "Staff", path: "/staff", pageKey: "staff", badge: countsKnown && counts.staff > 0 ? counts.staff : undefined },
++    { icon: User, label: "Clients", path: "/clients", pageKey: "clients", badge: countsKnown && counts.clients > 0 ? counts.clients : undefined },
+     { icon: FileText, label: "Services", path: "/services", pageKey: "services" },
+     { icon: Printer, label: "Receipt", path: "/receipt", pageKey: "receipt" },
+     { icon: CreditCard, label: "Payments", path: "/payments", pageKey: "payments" },
+@@ -91,7 +82,7 @@ export const Sidebar = ({ isOpen = true, onToggle, isMobile = false }: SidebarPr
+     { icon: Shield, label: "Security", path: "/security", pageKey: "security" },
+     { icon: Settings, label: "Settings", path: "/settings", pageKey: "settings" },
+     { icon: Shield, label: "System Admin", path: "/system", pageKey: "system" },
+-  ], [orderCount]);
++  ], [counts, countsKnown]);
+ 
+   // Filter nav items based on database permissions
+   const filteredNavItems = useMemo(() => {
+diff --git a/src/components/topbar/Topbar.tsx b/src/components/topbar/Topbar.tsx
+index ad414c3..9946c50 100644
+--- a/src/components/topbar/Topbar.tsx
++++ b/src/components/topbar/Topbar.tsx
+@@ -6,6 +6,7 @@ import { CommandPalette } from "./CommandPalette";
+ import { NotificationDropdown } from "./NotificationDropdown";
+ import { ProfileDropdown } from "./ProfileDropdown";
+ import { supabase } from "../../lib/supabaseClient";
++import { useIntakeNotifications } from "../../hooks/useIntakeNotifications";
+ import type { User } from "@supabase/supabase-js";
+ import "./Topbar.css";
+ 
+@@ -15,12 +16,14 @@ interface TopbarProps {
+ }
+ 
+ interface NotificationItem {
+-  id: number;
++  id: number | string;
+   title: string;
+   message: string;
+   time: string;
+   read: boolean;
+   type: "success" | "info" | "warning" | "error";
++  /** Where clicking this alert takes the office. */
++  href?: string;
+ }
+ 
+ interface StaffProfile {
+@@ -37,8 +40,6 @@ export const Topbar = ({ onMenuClick, isMobile = false }: TopbarProps) => {
+   const [userRole, setUserRole] = useState<string>("");
+   const [userName, setUserName] = useState<string>("");
+   const [loading, setLoading] = useState(true);
+-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+-  const [unreadCount, setUnreadCount] = useState(0);
+ 
+   // Fetch current user session and staff profile
+   useEffect(() => {
+@@ -121,57 +122,19 @@ export const Topbar = ({ onMenuClick, isMobile = false }: TopbarProps) => {
+     };
+   }, []);
+ 
+-  // Listen for real-time notifications
+-  useEffect(() => {
+-    if (!user) return;
+-
+-    const channel = supabase
+-      .channel("topbar-notifications")
+-      .on(
+-        "postgres_changes",
+-        { event: "*", schema: "public", table: "orders", filter: `client_id=eq.${user.id}` },
+-        (payload: { eventType: string; new: Record<string, unknown> | null; old: Record<string, unknown> | null }) => {
+-          const eventType = payload.eventType;
+-          const newRecord = payload.new as Record<string, unknown> | null;
+-          const oldRecord = payload.old as Record<string, unknown> | null;
+-
+-          let title = "Order Updated";
+-          let message = "Your order has been updated";
+-          let type: NotificationItem["type"] = "info";
+-
+-          if (eventType === "INSERT") {
+-            title = "New Order";
+-            message = `Order ${newRecord?.order_id || "#???"} was created`;
+-            type = "success";
+-          } else if (eventType === "UPDATE") {
+-            title = "Order Updated";
+-            message = `Order ${newRecord?.order_id || "#???"} was updated`;
+-            type = "info";
+-          } else if (eventType === "DELETE") {
+-            title = "Order Deleted";
+-            message = `Order ${oldRecord?.order_id || "#???"} was removed`;
+-            type = "warning";
+-          }
+-
+-          const newNotification: NotificationItem = {
+-            id: Date.now(),
+-            title,
+-            message,
+-            time: new Date().toLocaleTimeString(),
+-            read: false,
+-            type,
+-          };
+-
+-          setNotifications((prev) => [newNotification, ...prev.slice(0, 19)]);
+-          setUnreadCount((prev) => prev + 1);
+-        }
+-      )
+-      .subscribe();
+-
+-    return () => {
+-      supabase.removeChannel(channel);
+-    };
+-  }, [user]);
++  /* ─── LIVE ALERTS ──────────────────────────────────────────────────────────
++     Every alert comes from a record: a customer sending a request, asking for a
++     service, or answering a date Chapman offered. The count is what is new since
++     this staff member last looked, so it is honest rather than decorative. */
++  const { notifications: intakeAlerts, unreadCount, markRead, markAllRead } = useIntakeNotifications(user?.id ?? null, Boolean(user));
++
++  // Clicking an alert marks it read and opens the queue it belongs to.
++  const handleAlertClick = (id?: number | string) => {
++    if (id === undefined || id === null) return;
++    const item = intakeAlerts.find((entry) => String(entry.id) === String(id));
++    markRead([String(id)]);
++    if (item?.href) navigate(item.href);
++  };
+ 
+   // Keyboard shortcuts
+   useEffect(() => {
+@@ -238,13 +201,13 @@ export const Topbar = ({ onMenuClick, isMobile = false }: TopbarProps) => {
+           </button>
+ 
+           <NotificationDropdown
+-  notifications={notifications}
+-  unreadCount={unreadCount}
+-  onMarkRead={(id) => { /* mark single read */ }}
+-  onMarkAllRead={() => setUnreadCount(0)}
+-  onViewAll={() => navigate("/notifications")}
+-  pulseBadge={unreadCount > 0}
+-/>
++            notifications={intakeAlerts}
++            unreadCount={unreadCount}
++            onMarkRead={handleAlertClick}
++            onMarkAllRead={markAllRead}
++            onViewAll={() => navigate("/mobile-requests")}
++            pulseBadge={unreadCount > 0}
++          />
+ 
+           <ProfileDropdown
+             user={user}
+diff --git a/src/hooks/useIntakeCounts.ts b/src/hooks/useIntakeCounts.ts
+new file mode 100644
+index 0000000..97251c4
+--- /dev/null
++++ b/src/hooks/useIntakeCounts.ts
+@@ -0,0 +1,95 @@
++import { useCallback, useEffect, useRef, useState } from "react";
++import { supabase } from "../lib/supabaseClient";
++
++/**
++ * Live counts for the staff side menu.
++ *
++ * Each number answers a question the office actually asks:
++ * - Orders: how many orders exist.
++ * - Mobile Requests: how many laundry requests are still waiting for Chapman.
++ * - Service Requests: how many cleaning or service enquiries need a date.
++ * - App Ideas: how many ideas from customers nobody has read yet.
++ * - App Accounts: how many customers use the app.
++ * - Clients: how many client records exist.
++ * - Staff: how many staff records exist.
++ *
++ * Everything updates by itself when a customer sends something or the office
++ * changes something, because the channel below listens to those tables.
++ */
++
++export interface IntakeCounts {
++  orders: number;
++  mobileRequests: number;
++  serviceRequests: number;
++  appIdeas: number;
++  appAccounts: number;
++  clients: number;
++  staff: number;
++}
++
++const EMPTY: IntakeCounts = { orders: 0, mobileRequests: 0, serviceRequests: 0, appIdeas: 0, appAccounts: 0, clients: 0, staff: 0 };
++
++async function countRows(table: string, apply?: (query: any) => any): Promise<number> {
++  let query = supabase.from(table).select("*", { count: "exact", head: true });
++  if (apply) query = apply(query);
++  const { count, error } = await query;
++  if (error) {
++    console.warn(`Staff count for ${table} could not be read:`, error.message);
++    return 0;
++  }
++  return count || 0;
++}
++
++export const useIntakeCounts = (enabled: boolean) => {
++  const [counts, setCounts] = useState<IntakeCounts>(EMPTY);
++  const [loading, setLoading] = useState(true);
++  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
++
++  const refresh = useCallback(async () => {
++    const [orders, mobileRequests, serviceRequests, appIdeas, appAccounts, clients, staff] = await Promise.all([
++      countRows("orders"),
++      countRows("mobile_requests", (query) => query.in("request_status", ["pending", "under_review"])),
++      countRows("quote_requests", (query) => query.in("appointment_response", ["awaiting-chapman", "rejected"])),
++      countRows("chapman_app_ideas", (query) => query.eq("status", "new")),
++      countRows("customer_accounts"),
++      countRows("clients"),
++      countRows("staff"),
++    ]);
++    setCounts({ orders, mobileRequests, serviceRequests, appIdeas, appAccounts, clients, staff });
++    setLoading(false);
++  }, []);
++
++  // The side menu only shows pages this role may see, so there is no point
++  // counting anything before the role is known.
++  useEffect(() => {
++    if (!enabled) return;
++    void refresh();
++  }, [enabled, refresh]);
++
++  useEffect(() => {
++    if (!enabled) return;
++
++    const scheduleRefresh = () => {
++      if (timer.current) clearTimeout(timer.current);
++      timer.current = setTimeout(() => { void refresh(); }, 350);
++    };
++
++    const channel = supabase
++      .channel("staff-sidebar-counts")
++      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, scheduleRefresh)
++      .on("postgres_changes", { event: "*", schema: "public", table: "mobile_requests" }, scheduleRefresh)
++      .on("postgres_changes", { event: "*", schema: "public", table: "quote_requests" }, scheduleRefresh)
++      .on("postgres_changes", { event: "*", schema: "public", table: "chapman_app_ideas" }, scheduleRefresh)
++      .on("postgres_changes", { event: "*", schema: "public", table: "customer_accounts" }, scheduleRefresh)
++      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, scheduleRefresh)
++      .on("postgres_changes", { event: "*", schema: "public", table: "staff" }, scheduleRefresh)
++      .subscribe();
++
++    return () => {
++      if (timer.current) clearTimeout(timer.current);
++      supabase.removeChannel(channel);
++    };
++  }, [enabled, refresh]);
++
++  return { counts, loading, refresh };
++};
+diff --git a/src/hooks/useIntakeNotifications.ts b/src/hooks/useIntakeNotifications.ts
+new file mode 100644
+index 0000000..a8e097e
+--- /dev/null
++++ b/src/hooks/useIntakeNotifications.ts
+@@ -0,0 +1,237 @@
++import { useCallback, useEffect, useRef, useState } from "react";
++import { supabase } from "../lib/supabaseClient";
++
++/**
++ * Real notifications for the office.
++ *
++ * Every alert here comes from a record in the database, and every one of them
++ * arrives by itself:
++ * - a customer sends a laundry request
++ * - a customer asks for cleaning, fumigation, detailing, polytank, or contract work
++ * - a customer answers a date Chapman offered, by accepting or rejecting it
++ * - a customer changes or cancels something
++ * - a customer sends an idea for the app
++ *
++ * The old alert listened to orders filtered by a client id, which a staff member
++ * never has, so it silently delivered nothing. This listens to the two intake
++ * tables, which is where the office's work actually arrives.
++ *
++ * Read state is kept in the browser, per staff member, so the count means
++ * "new since I last looked" rather than resetting on every refresh.
++ */
++
++export interface StaffNotification {
++  id: string;
++  title: string;
++  message: string;
++  time: string;
++  read: boolean;
++  type: "success" | "info" | "warning" | "error";
++  /** Where clicking the alert should take the office. */
++  href: string;
++  createdAt: string;
++}
++
++const READ_KEY_PREFIX = "chapman-staff-alerts-read:";
++const MAX_ITEMS = 20;
++
++const readIdsFor = (userId: string | null): string[] => {
++  if (!userId || typeof window === "undefined") return [];
++  try {
++    const stored = window.localStorage.getItem(READ_KEY_PREFIX + userId);
++    const parsed = stored ? JSON.parse(stored) : [];
++    return Array.isArray(parsed) ? parsed : [];
++  } catch {
++    return [];
++  }
++};
++
++const rememberReadIds = (userId: string | null, ids: string[]) => {
++  if (!userId || typeof window === "undefined") return;
++  try {
++    window.localStorage.setItem(READ_KEY_PREFIX + userId, JSON.stringify(ids.slice(-200)));
++  } catch {
++    // Read state is a convenience. Losing it must not break the alert list.
++  }
++};
++
++const money = (value: unknown) => {
++  const number = Number(value ?? 0);
++  return Number.isFinite(number) ? `GH₵${number.toFixed(2)}` : "";
++};
++
++const minutesAgo = (iso: string) => {
++  const then = new Date(iso).getTime();
++  if (Number.isNaN(then)) return "just now";
++  const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
++  if (minutes < 1) return "just now";
++  if (minutes < 60) return `${minutes} min ago`;
++  const hours = Math.round(minutes / 60);
++  if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
++  return new Date(iso).toLocaleDateString("en-GH", { day: "numeric", month: "short" });
++};
++
++function laundryNotification(row: any): StaffNotification {
++  const items = Array.isArray(row.laundry_items)
++    ? row.laundry_items.reduce((total: number, item: any) => total + Number(item?.quantity ?? 1), 0)
++    : 0;
++  return {
++    id: `mobile-${row.id}`,
++    title: "New laundry request",
++    message: `${items} item${items === 1 ? "" : "s"} from ${row.pickup_area || "a customer"}${row.estimated_total ? `, about ${money(row.estimated_total)}` : ""}. ${row.requested_for ? `Preferred ${row.requested_for}.` : ""}`,
++    time: minutesAgo(row.created_at),
++    read: false,
++    type: "success",
++    href: "/mobile-requests",
++    createdAt: row.created_at,
++  };
++}
++
++function serviceNotification(row: any): StaffNotification {
++  const area = row.details?.estimatedAreaM2;
++  return {
++    id: `quote-${row.id}`,
++    title: `New ${row.service_title || "service"} request`,
++    message: `${row.property_type || "A customer"}${row.preference ? `, ${row.preference}` : ""}${area ? `, about ${area} m2` : ""}. This one needs a date from Chapman.`,
++    time: minutesAgo(row.created_at),
++    read: false,
++    type: "info",
++    href: "/service-requests",
++    createdAt: row.created_at,
++  };
++}
++
++function answerNotification(row: any): StaffNotification {
++  const accepted = row.customer_response === "accepted";
++  return {
++    id: `answer-${row.id}`,
++    title: accepted ? "Customer accepted the date" : "Customer asked for another date",
++    message: `${row.pickup_area || "A customer"}${row.confirmed_for ? ` for ${row.confirmed_for}` : ""}. ${accepted ? "The job is ready for the next step." : "Offer a new date when you can."}`,
++    time: minutesAgo(row.customer_response_at || row.created_at),
++    read: false,
++    type: accepted ? "success" : "warning",
++    href: "/mobile-requests",
++    createdAt: row.customer_response_at || row.created_at,
++  };
++}
++
++function ideaNotification(row: any): StaffNotification {
++  const kind = row.kind === "remove" ? "remove something" : row.kind === "change" ? "change something" : "add something";
++  return {
++    id: `idea-${row.id}`,
++    title: "New idea for the app",
++    message: `${row.author_name || "A customer"} wants to ${kind}: ${String(row.idea || "").slice(0, 120)}`,
++    time: minutesAgo(row.created_at),
++    read: false,
++    type: "info",
++    href: "/app-ideas",
++    createdAt: row.created_at,
++  };
++}
++
++export const useIntakeNotifications = (userId: string | null, enabled: boolean) => {
++  const [notifications, setNotifications] = useState<StaffNotification[]>([]);
++  const [readIds, setReadIds] = useState<string[]>([]);
++  const [loading, setLoading] = useState(true);
++  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
++
++  const loadRecent = useCallback(async () => {
++    const entries: StaffNotification[] = [];
++    const [requests, quotes, ideas] = await Promise.all([
++      supabase
++        .from("mobile_requests")
++        .select("id, pickup_area, laundry_items, estimated_total, requested_for, request_status, customer_response, customer_response_at, created_at")
++        .order("created_at", { ascending: false })
++        .limit(10),
++      supabase
++        .from("quote_requests")
++        .select("id, service_title, property_type, preference, appointment_response, details, created_at")
++        .order("created_at", { ascending: false })
++        .limit(10),
++      supabase
++        .from("chapman_app_ideas")
++        .select("id, author_name, kind, idea, created_at")
++        .order("created_at", { ascending: false })
++        .limit(10),
++    ]);
++
++    for (const row of (requests.data ?? []) as any[]) entries.push(laundryNotification(row));
++    for (const row of (quotes.data ?? []) as any[]) entries.push(serviceNotification(row));
++    for (const row of (ideas.data ?? []) as any[]) entries.push(ideaNotification(row));
++
++    // Anything the customer has already answered is worth telling the office about
++    // too, because it decides the next step.
++    for (const row of ((requests.data ?? []) as any[]).filter((item) => item.customer_response)) {
++      entries.push(answerNotification(row));
++    }
++
++    setNotifications(entries.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()).slice(0, MAX_ITEMS));
++    setLoading(false);
++  }, []);
++
++  useEffect(() => {
++    if (!enabled) return;
++    setReadIds(readIdsFor(userId));
++    void loadRecent();
++  }, [enabled, userId, loadRecent]);
++
++  useEffect(() => {
++    if (!enabled) return;
++
++    const push = (entry: StaffNotification) => {
++      setNotifications((current) => {
++        if (current.some((item) => item.id === entry.id)) return current;
++        return [entry, ...current].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()).slice(0, MAX_ITEMS);
++      });
++    };
++
++    const channel = supabase
++      .channel("staff-intake-alerts")
++      .on("postgres_changes", { event: "INSERT", schema: "public", table: "mobile_requests" }, (payload: any) => {
++        if (payload?.new) push(laundryNotification(payload.new));
++      })
++      .on("postgres_changes", { event: "INSERT", schema: "public", table: "quote_requests" }, (payload: any) => {
++        if (payload?.new) push(serviceNotification(payload.new));
++      })
++      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chapman_app_ideas" }, (payload: any) => {
++        if (payload?.new) push(ideaNotification(payload.new));
++      })
++      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "mobile_requests" }, (payload: any) => {
++        const row = payload?.new;
++        if (!row?.customer_response) return;
++        if (row.customer_response_at && payload?.old?.customer_response === row.customer_response) return;
++        push(answerNotification(row));
++      })
++      .subscribe();
++
++    // Keep the "how long ago" wording honest while the page stays open.
++    timer.current = setInterval(() => {
++      setNotifications((current) => current.map((item) => ({ ...item, time: minutesAgo(item.createdAt) })));
++    }, 60000);
++
++    return () => {
++      if (timer.current) clearInterval(timer.current);
++      supabase.removeChannel(channel);
++    };
++  }, [enabled, userId]);
++
++  const notificationsWithReadState = notifications.map((item) => ({ ...item, read: readIds.includes(item.id) }));
++
++  const markRead = useCallback((ids: string[]) => {
++    setReadIds((current) => {
++      const merged = Array.from(new Set([...current, ...ids]));
++      rememberReadIds(userId, merged);
++      return merged;
++    });
++  }, [userId]);
++
++  const unreadCount = notificationsWithReadState.filter((item) => !item.read).length;
++
++  return {
++    notifications: notificationsWithReadState,
++    unreadCount,
++    loading,
++    markRead,
++    markAllRead: () => markRead(notifications.map((item) => item.id)),
++  };
++};
+diff --git a/src/hooks/usePermission.ts b/src/hooks/usePermission.ts
+index 1dc9746..c505301 100644
+--- a/src/hooks/usePermission.ts
++++ b/src/hooks/usePermission.ts
+@@ -15,6 +15,9 @@ const PATH_TO_PERMISSION: Record<string, string> = {
+   "/new-order": "new-order",
+   "/security": "security",
+   "/mobile-requests": "mobile-requests",
++  "/service-requests": "service-requests",
++  "/app-ideas": "app-ideas",
++  "/app-accounts": "app-accounts",
+ };
+ 
+ interface CacheEntry {
+diff --git a/src/pages/AppAccounts.css b/src/pages/AppAccounts.css
+new file mode 100644
+index 0000000..31ef9b0
+--- /dev/null
++++ b/src/pages/AppAccounts.css
+@@ -0,0 +1,71 @@
++/* App Accounts page. Who signed in to the app, and every security moment. */
++
++.aa-page { display: flex; flex-direction: column; gap: 18px; padding: 22px 24px 40px; color: #e6e9f2; font-family: "DM Sans", system-ui, sans-serif; }
++
++.aa-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
++.aa-eyebrow { display: flex; align-items: center; gap: 7px; color: #61d7bc; font-size: 11px; font-weight: 700; letter-spacing: 1.3px; }
++.aa-header h1 { margin: 6px 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
++.aa-header p { margin: 0; max-width: 660px; color: #9aa3b5; font-size: 13px; line-height: 20px; }
++.aa-refresh { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.13); border-radius: 11px; background: rgba(255,255,255,0.05); color: #cfd6e6; font-size: 12px; font-weight: 700; cursor: pointer; }
++.aa-refresh:disabled { opacity: 0.6; cursor: default; }
++.aa-spin { animation: aa-rotate 900ms linear infinite; }
++@keyframes aa-rotate { to { transform: rotate(360deg); } }
++
++.aa-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; }
++.aa-summary-card { display: flex; flex-direction: column; gap: 5px; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; background: rgba(255,255,255,0.04); color: #9aa3b5; }
++.aa-summary-card span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
++.aa-summary-card strong { font-size: 24px; font-weight: 800; color: #ffffff; }
++
++.aa-error { padding: 11px; border-radius: 11px; background: rgba(248,113,113,0.14); color: #fb9494; font-size: 12px; }
++.aa-notready { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 20px; border: 1px solid rgba(246,199,105,0.35); border-radius: 18px; background: rgba(246,199,105,0.08); color: #f6c769; }
++.aa-notready h2 { margin: 0; font-size: 15.5px; font-weight: 800; color: #f6dfae; }
++.aa-notready p { margin: 0; max-width: 700px; color: #d9c9a4; font-size: 12.5px; line-height: 19px; }
++.aa-notready strong { color: #ffffff; }
++
++.aa-workspace { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
++
++.aa-list-panel { display: flex; flex-direction: column; gap: 11px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; background: rgba(255,255,255,0.035); }
++.aa-list-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
++.aa-list-heading h2 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
++.aa-list-heading p { margin: 0; color: #8b94a7; font-size: 11px; line-height: 16px; }
++.aa-list-heading > span { min-width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,0.08); color: #e6e9f2; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
++
++.aa-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border: 1px solid rgba(255,255,255,0.12); border-radius: 11px; background: rgba(255,255,255,0.04); color: #8b94a7; }
++.aa-search input { flex: 1; min-width: 0; border: none; background: transparent; color: #e6e9f2; font-size: 13px; outline: none; font-family: inherit; }
++
++.aa-list { display: flex; flex-direction: column; gap: 9px; max-height: 62vh; overflow-y: auto; }
++.aa-person { display: flex; flex-direction: column; gap: 7px; padding: 13px; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; background: rgba(255,255,255,0.03); color: inherit; text-align: left; cursor: pointer; }
++.aa-person:hover { border-color: rgba(97,215,188,0.4); }
++.aa-person.selected { border-color: rgba(97,215,188,0.7); background: rgba(97,215,188,0.08); }
++.aa-person-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
++.aa-person-top strong { font-size: 13px; font-weight: 800; }
++.aa-pin { padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; }
++.aa-person-meta { display: flex; flex-wrap: wrap; gap: 10px; color: #9aa3b5; font-size: 11px; }
++
++.aa-detail-panel { display: flex; flex-direction: column; gap: 14px; padding: 17px; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; background: rgba(255,255,255,0.035); }
++.aa-detail-empty { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 52px 20px; color: #8b94a7; text-align: center; }
++.aa-detail-empty h2 { margin: 0; color: #e6e9f2; font-size: 16px; }
++.aa-detail-empty p { margin: 0; max-width: 380px; font-size: 12px; line-height: 18px; }
++.aa-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
++.aa-detail-label { color: #61d7bc; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
++.aa-detail-header h2 { margin: 5px 0 4px; font-size: 19px; font-weight: 800; }
++.aa-detail-header p { margin: 0; color: #8b94a7; font-size: 11px; }
++.aa-detail-header button { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(255,255,255,0.05); color: #cfd6e6; cursor: pointer; font-size: 11px; }
++
++.aa-honest { display: flex; align-items: flex-start; gap: 9px; padding: 12px; border: 1px solid rgba(97,215,188,0.28); border-radius: 13px; background: rgba(97,215,188,0.08); color: #9fe3d2; font-size: 12px; line-height: 18px; }
++
++.aa-history { display: flex; flex-direction: column; gap: 9px; }
++.aa-moment { display: flex; align-items: flex-start; gap: 11px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 13px; background: rgba(255,255,255,0.025); }
++.aa-moment-kind { padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; }
++.aa-moment-copy { display: flex; flex-direction: column; gap: 3px; }
++.aa-moment-copy span { color: #cfd6e6; font-size: 12.5px; line-height: 18px; }
++.aa-moment-copy time { color: #8b94a7; font-size: 11px; }
++
++.aa-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 30px 14px; color: #8b94a7; text-align: center; }
++.aa-empty h3 { margin: 0; color: #e6e9f2; font-size: 14px; }
++.aa-empty p { margin: 0; font-size: 12px; line-height: 17px; max-width: 430px; }
++
++@media (max-width: 1000px) {
++  .aa-workspace { grid-template-columns: minmax(0, 1fr); }
++  .aa-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++}
+diff --git a/src/pages/AppAccounts.tsx b/src/pages/AppAccounts.tsx
+new file mode 100644
+index 0000000..e5c2464
+--- /dev/null
++++ b/src/pages/AppAccounts.tsx
+@@ -0,0 +1,322 @@
++import { useCallback, useEffect, useMemo, useState } from "react";
++import { KeyRound, RefreshCw, Search, ShieldCheck, Smartphone, UserCheck } from "lucide-react";
++import { supabase } from "../lib/supabaseClient";
++import { PermissionGuard } from "../components/PermissionGuard";
++import { usePermission } from "../hooks/usePermission";
++import "./AppAccounts.css";
++
++/**
++ * App Accounts
++ *
++ * Who has signed into the Chapman app, and every security moment recorded on
++ * their account: a sign-in, a PIN set, a PIN removed, a PIN used up.
++ *
++ * The app writes these notes itself. Until now no staff screen read them, so a
++ * customer setting up or dropping their app PIN left a trail nobody could see.
++ * The office now has the same picture as the customer.
++ *
++ * What is deliberately absent: the four digits. No PIN, no hash, nothing that
++ * would help anyone guess. These rows say only what happened and when.
++ *
++ * If the security table has not been created in this project yet, the customer
++ * list still works and the history says so plainly.
++ */
++
++type EventKind = "sign_in" | "pin_set" | "pin_removed" | "pin_used_up";
++
++interface AppCustomer {
++  auth_user_id: string;
++  full_name: string | null;
++  phone: string | null;
++  created_at: string;
++  client_id: string | null;
++}
++
++interface SecurityEvent {
++  id: string;
++  auth_user_id: string;
++  kind: EventKind;
++  created_at: string;
++}
++
++const KIND_META: Record<EventKind, { label: string; sentence: string; color: string; background: string }> = {
++  sign_in: { label: "Signed in", sentence: "Opened their account with a code sent to their phone", color: "#aab4ff", background: "rgba(108,114,243,0.16)" },
++  pin_set: { label: "PIN set", sentence: "Added a 4 digit PIN to their phone", color: "#62dd93", background: "rgba(52,211,153,0.14)" },
++  pin_removed: { label: "PIN removed", sentence: "Gave up the PIN, or asked to forget it", color: "#f6c769", background: "rgba(246,199,105,0.14)" },
++  pin_used_up: { label: "PIN used up", sentence: "Five wrong tries, so the PIN was deleted", color: "#fb9494", background: "rgba(248,113,113,0.14)" },
++};
++
++const formatMoment = (value: string) =>
++  new Date(value).toLocaleString("en-GH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
++
++const startOfToday = () => {
++  const now = new Date();
++  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
++};
++
++const isMissingTable = (error: { code?: string } | null) =>
++  !!error && (error.code === "42P01" || error.code === "PGRST205");
++
++function AppAccountsContent() {
++  usePermission("/app-accounts");
++  const [customers, setCustomers] = useState<AppCustomer[]>([]);
++  const [events, setEvents] = useState<SecurityEvent[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [historyOff, setHistoryOff] = useState(false);
++  const [query, setQuery] = useState("");
++  const [selectedId, setSelectedId] = useState<string | null>(null);
++
++  const loadEverything = useCallback(async () => {
++    setLoading(true);
++    setError(null);
++
++    const [{ data: people, error: peopleError }, { data: notes, error: notesError }] = await Promise.all([
++      supabase
++        .from("customer_accounts")
++        .select("auth_user_id, full_name, phone, created_at, client_id")
++        .order("created_at", { ascending: false })
++        .limit(500),
++      supabase
++        .from("chapman_app_security_events")
++        .select("id, auth_user_id, kind, created_at")
++        .order("created_at", { ascending: false })
++        .limit(1000),
++    ]);
++
++    if (peopleError) {
++      setError(`Could not load app accounts: ${peopleError.message}`);
++      setCustomers([]);
++    } else {
++      setCustomers((people ?? []) as AppCustomer[]);
++    }
++
++    if (notesError) {
++      setHistoryOff(isMissingTable(notesError));
++      if (!isMissingTable(notesError)) setError(`Could not load the security history: ${notesError.message}`);
++      setEvents([]);
++    } else {
++      setHistoryOff(false);
++      setEvents((notes ?? []) as SecurityEvent[]);
++    }
++
++    setLoading(false);
++  }, []);
++
++  useEffect(() => {
++    void loadEverything();
++
++    const channel = supabase
++      .channel("staff-app-accounts")
++      .on("postgres_changes", { event: "*", schema: "public", table: "customer_accounts" }, () => { void loadEverything(); })
++      .on("postgres_changes", { event: "*", schema: "public", table: "chapman_app_security_events" }, () => { void loadEverything(); })
++      .subscribe();
++
++    return () => {
++      supabase.removeChannel(channel);
++    };
++  }, [loadEverything]);
++
++  const byCustomer = useMemo(() => {
++    const grouped = new Map<string, SecurityEvent[]>();
++    events.forEach((note) => {
++      const list = grouped.get(note.auth_user_id) ?? [];
++      list.push(note);
++      grouped.set(note.auth_user_id, list);
++    });
++    return grouped;
++  }, [events]);
++
++  const summary = useMemo(() => {
++    const today = startOfToday();
++    const signInsToday = events.filter((note) => note.kind === "sign_in" && new Date(note.created_at).getTime() >= today).length;
++
++    let pinsInUse = 0;
++    byCustomer.forEach((notes) => {
++      const latestPin = notes.find((note) => note.kind !== "sign_in");
++      if (latestPin?.kind === "pin_set") pinsInUse += 1;
++    });
++
++    return { accounts: customers.length, signInsToday, pinsInUse, events: events.length };
++  }, [customers, events, byCustomer]);
++
++  const visible = useMemo(() => {
++    const needle = query.trim().toLowerCase();
++    if (!needle) return customers;
++    return customers.filter((person) =>
++      (person.full_name ?? "").toLowerCase().includes(needle) || (person.phone ?? "").toLowerCase().includes(needle));
++  }, [customers, query]);
++
++  const selected = useMemo(() => customers.find((person) => person.auth_user_id === selectedId) ?? null, [customers, selectedId]);
++  const selectedHistory = useMemo(() => (selectedId ? byCustomer.get(selectedId) ?? [] : []), [byCustomer, selectedId]);
++
++  const lastMoment = (person: AppCustomer) => {
++    const notes = byCustomer.get(person.auth_user_id);
++    return notes && notes.length ? notes[0].created_at : null;
++  };
++
++  const pinState = (person: AppCustomer) => {
++    const latestPin = (byCustomer.get(person.auth_user_id) ?? []).find((note) => note.kind !== "sign_in");
++    if (!latestPin) return { label: "No PIN", color: "#8b94a7", background: "rgba(154,163,181,0.13)" };
++    if (latestPin.kind === "pin_set") return { label: "PIN in use", color: "#62dd93", background: "rgba(52,211,153,0.14)" };
++    if (latestPin.kind === "pin_used_up") return { label: "PIN used up", color: "#fb9494", background: "rgba(248,113,113,0.14)" };
++    return { label: "PIN removed", color: "#f6c769", background: "rgba(246,199,105,0.14)" };
++  };
++
++  return (
++    <div className="aa-page">
++      <header className="aa-header">
++        <div>
++          <span className="aa-eyebrow"><Smartphone size={13} /> FROM THE CUSTOMER APP</span>
++          <h1>App Accounts</h1>
++          <p>
++            Who has signed into the Chapman app, and every security moment on their account:
++            a sign-in, a PIN added, a PIN removed, a PIN used up. The four digits are never
++            stored, here or anywhere, so nothing on this page could help anyone guess one.
++          </p>
++        </div>
++        <button className="aa-refresh" onClick={() => { void loadEverything(); }} disabled={loading}>
++          <RefreshCw size={14} className={loading ? "aa-spin" : undefined} /> Refresh
++        </button>
++      </header>
++
++      <div className="aa-summary">
++        <div className="aa-summary-card"><span>App accounts</span><strong>{summary.accounts}</strong></div>
++        <div className="aa-summary-card"><span>Signed in today</span><strong>{summary.signInsToday}</strong></div>
++        <div className="aa-summary-card"><span>PINs in use</span><strong>{summary.pinsInUse}</strong></div>
++        <div className="aa-summary-card"><span>Moments recorded</span><strong>{summary.events}</strong></div>
++      </div>
++
++      {error && <div className="aa-error">{error}</div>}
++
++      {historyOff && (
++        <div className="aa-notready">
++          <ShieldCheck size={20} />
++          <h2>The security history is not switched on in this project yet</h2>
++          <p>
++            The app is writing nothing yet because the place that stores these notes has not
++            been created. Run <strong>docs/customers-birthdays-and-ideas.sql</strong>, section 6, once,
++            and every sign-in and PIN moment will appear here from then on.
++          </p>
++        </div>
++      )}
++
++      <div className="aa-workspace">
++        <section className="aa-list-panel">
++          <div className="aa-list-heading">
++            <div>
++              <h2>App customers</h2>
++              <p>Newest account first, with the last moment recorded on each.</p>
++            </div>
++            <span>{visible.length}</span>
++          </div>
++
++          <label className="aa-search">
++            <Search size={14} />
++            <input
++              value={query}
++              onChange={(event) => setQuery(event.target.value)}
++              placeholder="Search a name or a number"
++            />
++          </label>
++
++          {loading ? (
++            <div className="aa-empty"><h3>Reading accounts...</h3></div>
++          ) : visible.length === 0 ? (
++            <div className="aa-empty">
++              <h3>No app accounts yet</h3>
++              <p>An account appears here the first time a customer signs in to the app with their phone.</p>
++            </div>
++          ) : (
++            <div className="aa-list">
++              {visible.map((person) => {
++                const pin = pinState(person);
++                const last = lastMoment(person);
++                return (
++                  <button
++                    key={person.auth_user_id}
++                    className={`aa-person ${selectedId === person.auth_user_id ? "selected" : ""}`}
++                    onClick={() => setSelectedId(person.auth_user_id)}
++                  >
++                    <div className="aa-person-top">
++                      <strong>{person.full_name?.trim() || "Name not given"}</strong>
++                      <span className="aa-pin" style={{ color: pin.color, background: pin.background }}>{pin.label}</span>
++                    </div>
++                    <div className="aa-person-meta">
++                      <span>{person.phone ?? "No number"}</span>
++                      <span>{last ? `Last: ${formatMoment(last)}` : "No moments recorded yet"}</span>
++                      <span>{person.client_id ? "On the client list" : "Not on the client list yet"}</span>
++                    </div>
++                  </button>
++                );
++              })}
++            </div>
++          )}
++        </section>
++
++        <section className="aa-detail-panel">
++          {!selected ? (
++            <div className="aa-detail-empty">
++              <UserCheck size={24} />
++              <h2>Choose an account</h2>
++              <p>Pick a customer on the left to see every moment recorded on their account, newest first.</p>
++            </div>
++          ) : (
++            <>
++              <div className="aa-detail-header">
++                <div>
++                  <span className="aa-detail-label">APP ACCOUNT</span>
++                  <h2>{selected.full_name?.trim() || "Name not given"}</h2>
++                  <p>{selected.phone ?? "No number"} · joined {formatMoment(selected.created_at)}</p>
++                </div>
++                <button onClick={() => setSelectedId(null)}>Close</button>
++              </div>
++
++              <div className="aa-honest">
++                <KeyRound size={15} />
++                <span>
++                  The PIN lives on the customer's phone, not here. Chapman can see that a PIN was
++                  set or given up, never the four digits.
++                </span>
++              </div>
++
++              <div className="aa-history">
++                {selectedHistory.length === 0 ? (
++                  <div className="aa-empty">
++                    <h3>No moments recorded yet</h3>
++                    <p>
++                      {historyOff
++                        ? "The history table is not switched on in this project yet, so nothing has been saved."
++                        : "This customer has not signed in or touched their PIN since the record began."}
++                    </p>
++                  </div>
++                ) : (
++                  selectedHistory.map((note) => {
++                    const meta = KIND_META[note.kind] ?? { label: note.kind, sentence: "", color: "#9aa3b5", background: "rgba(154,163,181,0.13)" };
++                    return (
++                      <div key={note.id} className="aa-moment">
++                        <span className="aa-moment-kind" style={{ color: meta.color, background: meta.background }}>{meta.label}</span>
++                        <div className="aa-moment-copy">
++                          <span>{meta.sentence}</span>
++                          <time>{formatMoment(note.created_at)}</time>
++                        </div>
++                      </div>
++                    );
++                  })
++                )}
++              </div>
++            </>
++          )}
++        </section>
++      </div>
++    </div>
++  );
++}
++
++export const AppAccounts = () => (
++  <PermissionGuard>
++    <AppAccountsContent />
++  </PermissionGuard>
++);
++
++export default AppAccounts;
+diff --git a/src/pages/AppIdeas.css b/src/pages/AppIdeas.css
+new file mode 100644
+index 0000000..cb6788b
+--- /dev/null
++++ b/src/pages/AppIdeas.css
+@@ -0,0 +1,57 @@
++/* App Ideas page. Same dark workspace feel as the Mobile Requests queue. */
++
++.ai-page { display: flex; flex-direction: column; gap: 18px; padding: 22px 24px 40px; color: #e6e9f2; font-family: "DM Sans", system-ui, sans-serif; }
++
++.ai-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
++.ai-eyebrow { display: flex; align-items: center; gap: 7px; color: #61d7bc; font-size: 11px; font-weight: 700; letter-spacing: 1.3px; }
++.ai-header h1 { margin: 6px 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
++.ai-header p { margin: 0; max-width: 640px; color: #9aa3b5; font-size: 13px; line-height: 20px; }
++.ai-refresh { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.13); border-radius: 11px; background: rgba(255,255,255,0.05); color: #cfd6e6; font-size: 12px; font-weight: 700; cursor: pointer; }
++.ai-refresh:disabled { opacity: 0.6; cursor: default; }
++.ai-spin { animation: ai-rotate 900ms linear infinite; }
++@keyframes ai-rotate { to { transform: rotate(360deg); } }
++
++.ai-notready { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; padding: 22px; border: 1px solid rgba(246,199,105,0.35); border-radius: 18px; background: rgba(246,199,105,0.08); color: #f6c769; }
++.ai-notready h2 { margin: 0; font-size: 16px; font-weight: 800; color: #f6dfae; }
++.ai-notready p { margin: 0; max-width: 700px; color: #d9c9a4; font-size: 12.5px; line-height: 19px; }
++.ai-notready strong { color: #ffffff; }
++
++.ai-summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
++.ai-summary-card { display: flex; flex-direction: column; gap: 5px; padding: 13px; border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; background: rgba(255,255,255,0.04); color: #9aa3b5; text-align: left; cursor: pointer; }
++.ai-summary-card span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
++.ai-summary-card strong { font-size: 22px; font-weight: 800; color: #ffffff; }
++.ai-summary-card.active { border-color: rgba(108,114,243,0.55); background: rgba(108,114,243,0.1); }
++.ai-summary-card.reading.active { border-color: rgba(246,199,105,0.55); background: rgba(246,199,105,0.1); }
++.ai-summary-card.planned.active { border-color: rgba(97,215,188,0.55); background: rgba(97,215,188,0.1); }
++.ai-summary-card.done.active { border-color: rgba(98,221,147,0.55); background: rgba(98,221,147,0.1); }
++
++.ai-error { padding: 11px; border-radius: 11px; background: rgba(248,113,113,0.14); color: #fb9494; font-size: 12px; }
++.ai-saved { padding: 11px; border-radius: 11px; background: rgba(97,215,188,0.14); color: #61d7bc; font-size: 12px; }
++
++.ai-panel { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; background: rgba(255,255,255,0.035); }
++.ai-list-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
++.ai-list-heading h2 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
++.ai-list-heading p { margin: 0; color: #8b94a7; font-size: 11px; line-height: 16px; }
++.ai-list-heading > span { min-width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,0.08); color: #e6e9f2; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
++
++.ai-list { display: flex; flex-direction: column; gap: 11px; }
++.ai-idea { display: flex; flex-direction: column; gap: 10px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; background: rgba(255,255,255,0.03); }
++.ai-idea-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
++.ai-kind { padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
++.ai-status { padding: 4px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
++.ai-text { margin: 0; color: #eef1f8; font-size: 13.5px; line-height: 21px; white-space: pre-wrap; }
++.ai-meta { display: flex; flex-wrap: wrap; gap: 12px; color: #8b94a7; font-size: 11.5px; }
++
++.ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.07); }
++.ai-move { padding: 7px 12px; border: 1px solid rgba(255,255,255,0.13); border-radius: 9px; background: rgba(255,255,255,0.05); color: #cfd6e6; font-size: 11.5px; font-weight: 700; cursor: pointer; }
++.ai-move:hover:not(:disabled) { border-color: rgba(97,215,188,0.45); color: #ffffff; }
++.ai-move.current { border-color: rgba(97,215,188,0.6); background: rgba(97,215,188,0.12); color: #61d7bc; cursor: default; }
++.ai-move:disabled { opacity: 0.75; }
++.ai-saving { color: #8b94a7; font-size: 11.5px; }
++
++.ai-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 30px 14px; color: #8b94a7; text-align: center; }
++.ai-empty h3 { margin: 0; color: #e6e9f2; font-size: 14px; }
++.ai-empty p { margin: 0; font-size: 12px; line-height: 17px; max-width: 420px; }
++
++@media (max-width: 1100px) { .ai-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
++@media (max-width: 720px) { .ai-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+diff --git a/src/pages/AppIdeas.tsx b/src/pages/AppIdeas.tsx
+new file mode 100644
+index 0000000..f305da5
+--- /dev/null
++++ b/src/pages/AppIdeas.tsx
+@@ -0,0 +1,257 @@
++import { useCallback, useEffect, useMemo, useState } from "react";
++import { Lightbulb, RefreshCw, Sparkles } from "lucide-react";
++import { supabase } from "../lib/supabaseClient";
++import { PermissionGuard } from "../components/PermissionGuard";
++import { usePermission } from "../hooks/usePermission";
++import "./AppIdeas.css";
++
++/**
++ * App Ideas
++ *
++ * Each idea a customer sends from the Chapman app, together with their name and
++ * number, so the office can read it and reply to them. The table has existed
++ * since the app could send ideas, and until now no staff screen read it, so
++ * every idea a customer took the trouble to write landed nowhere.
++ *
++ * Nothing is deleted here and nothing is rewritten. The office moves an idea
++ * along: new, reading, planned, done, or not doing.
++ *
++ * If the ideas table has not been created in this project yet, the page says so
++ * plainly instead of pretending the list is empty.
++ */
++
++type IdeaKind = "add" | "remove" | "change";
++type IdeaStatus = "new" | "reading" | "planned" | "done" | "declined";
++
++interface AppIdea {
++  id: string;
++  author_name: string | null;
++  phone: string | null;
++  kind: IdeaKind;
++  idea: string;
++  status: IdeaStatus;
++  created_at: string;
++}
++
++const KIND_META: Record<IdeaKind, { label: string; color: string; background: string }> = {
++  add: { label: "Add", color: "#aab4ff", background: "rgba(108,114,243,0.16)" },
++  remove: { label: "Remove", color: "#fb9494", background: "rgba(248,113,113,0.14)" },
++  change: { label: "Change", color: "#f6c769", background: "rgba(246,199,105,0.14)" },
++};
++
++const STATUS_META: Record<IdeaStatus, { label: string; hint: string; color: string; background: string }> = {
++  new: { label: "New", hint: "Nobody has read it yet", color: "#aab4ff", background: "rgba(108,114,243,0.16)" },
++  reading: { label: "Reading", hint: "Being looked at now", color: "#f6c769", background: "rgba(246,199,105,0.14)" },
++  planned: { label: "Planned", hint: "Agreed, waiting its turn", color: "#61d7bc", background: "rgba(97,215,188,0.14)" },
++  done: { label: "Done", hint: "Built and in the app", color: "#62dd93", background: "rgba(52,211,153,0.14)" },
++  declined: { label: "Not doing", hint: "Explained to the customer", color: "#9aa3b5", background: "rgba(154,163,181,0.13)" },
++};
++
++const STATUS_ORDER: IdeaStatus[] = ["new", "reading", "planned", "done", "declined"];
++
++const formatMoment = (value: string) =>
++  new Date(value).toLocaleString("en-GH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
++
++/** A table that does not exist answers with one of these two codes. */
++const isMissingTable = (error: { code?: string } | null) =>
++  !!error && (error.code === "42P01" || error.code === "PGRST205");
++
++function AppIdeasContent() {
++  const { canEdit } = usePermission("/app-ideas");
++  const [ideas, setIdeas] = useState<AppIdea[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [notReady, setNotReady] = useState(false);
++  const [filter, setFilter] = useState<IdeaStatus | "all">("new");
++  const [savingId, setSavingId] = useState<string | null>(null);
++  const [savedMessage, setSavedMessage] = useState<string | null>(null);
++
++  const loadIdeas = useCallback(async () => {
++    setLoading(true);
++    setError(null);
++
++    const { data, error: readError } = await supabase
++      .from("chapman_app_ideas")
++      .select("id, author_name, phone, kind, idea, status, created_at")
++      .order("created_at", { ascending: false })
++      .limit(300);
++
++    if (readError) {
++      if (isMissingTable(readError)) {
++        setNotReady(true);
++        setIdeas([]);
++      } else {
++        setError(`Could not load ideas: ${readError.message}`);
++        setIdeas([]);
++      }
++    } else {
++      setNotReady(false);
++      setIdeas((data ?? []) as AppIdea[]);
++    }
++    setLoading(false);
++  }, []);
++
++  useEffect(() => {
++    void loadIdeas();
++
++    const channel = supabase
++      .channel("staff-app-ideas")
++      .on("postgres_changes", { event: "*", schema: "public", table: "chapman_app_ideas" }, () => { void loadIdeas(); })
++      .subscribe();
++
++    return () => {
++      supabase.removeChannel(channel);
++    };
++  }, [loadIdeas]);
++
++  const counts = useMemo(() => {
++    const base: Record<IdeaStatus, number> = { new: 0, reading: 0, planned: 0, done: 0, declined: 0 };
++    ideas.forEach((idea) => { base[idea.status] = (base[idea.status] ?? 0) + 1; });
++    return base;
++  }, [ideas]);
++
++  const visible = useMemo(
++    () => (filter === "all" ? ideas : ideas.filter((idea) => idea.status === filter)),
++    [ideas, filter],
++  );
++
++  const moveIdea = useCallback(async (idea: AppIdea, status: IdeaStatus) => {
++    if (!canEdit || idea.status === status) return;
++    setSavingId(idea.id);
++    setSavedMessage(null);
++
++    const { error: writeError } = await supabase
++      .from("chapman_app_ideas")
++      .update({ status })
++      .eq("id", idea.id);
++
++    if (writeError) {
++      setError(`Could not move that idea: ${writeError.message}`);
++    } else {
++      setIdeas((current) => current.map((row) => (row.id === idea.id ? { ...row, status } : row)));
++      setSavedMessage(`Moved to ${STATUS_META[status].label.toLowerCase()}.`);
++    }
++    setSavingId(null);
++  }, [canEdit]);
++
++  return (
++    <div className="ai-page">
++      <header className="ai-header">
++        <div>
++          <span className="ai-eyebrow"><Sparkles size={13} /> FROM THE CUSTOMER APP</span>
++          <h1>App Ideas</h1>
++          <p>
++            Every idea a customer sends from the app, with their name and number, so you can
++            reply to the person who wrote it. Move an idea along as you decide what to do
++            with it.
++          </p>
++        </div>
++        <button className="ai-refresh" onClick={() => { void loadIdeas(); }} disabled={loading}>
++          <RefreshCw size={14} className={loading ? "ai-spin" : undefined} /> Refresh
++        </button>
++      </header>
++
++      {notReady ? (
++        <div className="ai-notready">
++          <Lightbulb size={22} />
++          <h2>Ideas are not switched on in this project yet</h2>
++          <p>
++            Customers can write ideas in the app, but the place that stores them has not been
++            created in this Supabase project, so nothing has been saved yet and there is
++            nothing to show here. Run the statement file <strong>docs/customers-birthdays-and-ideas.sql</strong>
++            {" "}once, section 5, and ideas will start arriving on this page.
++          </p>
++        </div>
++      ) : (
++        <>
++          <div className="ai-summary">
++            {STATUS_ORDER.map((status) => (
++              <button
++                key={status}
++                className={`ai-summary-card ${filter === status ? "active" : ""} ${status}`}
++                onClick={() => setFilter(status)}
++                title={STATUS_META[status].hint}
++              >
++                <span>{STATUS_META[status].label}</span>
++                <strong>{counts[status] ?? 0}</strong>
++              </button>
++            ))}
++            <button className={`ai-summary-card all ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>
++              <span>All ideas</span>
++              <strong>{ideas.length}</strong>
++            </button>
++          </div>
++
++          {error && <div className="ai-error">{error}</div>}
++          {savedMessage && <div className="ai-saved">{savedMessage}</div>}
++
++          <div className="ai-panel">
++            <div className="ai-list-heading">
++              <div>
++                <h2>{filter === "all" ? "Every idea" : `${STATUS_META[filter].label} ideas`}</h2>
++                <p>{filter === "all" ? "Newest first." : STATUS_META[filter].hint}</p>
++              </div>
++              <span>{visible.length}</span>
++            </div>
++
++            {loading ? (
++              <div className="ai-empty"><h3>Reading ideas...</h3></div>
++            ) : visible.length === 0 ? (
++              <div className="ai-empty">
++                <h3>Nothing here yet</h3>
++                <p>The app tells a customer when an idea is sent, so anything sent will appear here by itself.</p>
++              </div>
++            ) : (
++              <div className="ai-list">
++                {visible.map((idea) => (
++                  <article key={idea.id} className="ai-idea">
++                    <div className="ai-idea-top">
++                      <span className="ai-kind" style={{ color: KIND_META[idea.kind]?.color, background: KIND_META[idea.kind]?.background }}>
++                        {KIND_META[idea.kind]?.label ?? idea.kind}
++                      </span>
++                      <span className="ai-status" style={{ color: STATUS_META[idea.status]?.color, background: STATUS_META[idea.status]?.background }}>
++                        {STATUS_META[idea.status]?.label ?? idea.status}
++                      </span>
++                    </div>
++
++                    <p className="ai-text">{idea.idea}</p>
++
++                    <div className="ai-meta">
++                      <span>{idea.author_name?.trim() || "Name not given"}</span>
++                      <span>{idea.phone?.trim() || "No number"}</span>
++                      <span>{formatMoment(idea.created_at)}</span>
++                    </div>
++
++                    {canEdit && (
++                      <div className="ai-actions">
++                        {STATUS_ORDER.map((status) => (
++                          <button
++                            key={status}
++                            className={`ai-move ${idea.status === status ? "current" : ""}`}
++                            onClick={() => { void moveIdea(idea, status); }}
++                            disabled={savingId === idea.id || idea.status === status}
++                          >
++                            {STATUS_META[status].label}
++                          </button>
++                        ))}
++                        {savingId === idea.id && <span className="ai-saving">Saving...</span>}
++                      </div>
++                    )}
++                  </article>
++                ))}
++              </div>
++            )}
++          </div>
++        </>
++      )}
++    </div>
++  );
++}
++
++export const AppIdeas = () => (
++  <PermissionGuard>
++    <AppIdeasContent />
++  </PermissionGuard>
++);
++
++export default AppIdeas;
+diff --git a/src/pages/Security.tsx b/src/pages/Security.tsx
+index 85424b8..6d88583 100644
+--- a/src/pages/Security.tsx
++++ b/src/pages/Security.tsx
+@@ -21,6 +21,10 @@ const PAGE_CONFIG = [
+   { label: 'Payments', key: 'payments' },
+   { label: 'Settings', key: 'settings' },
+   { label: 'Security', key: 'security' },
++  { label: 'Mobile Requests', key: 'mobile-requests' },
++  { label: 'Service Requests', key: 'service-requests' },
++  { label: 'App Ideas', key: 'app-ideas' },
++  { label: 'App Accounts', key: 'app-accounts' },
+ ];
+ 
+ const T = {
+diff --git a/src/pages/ServiceRequests.css b/src/pages/ServiceRequests.css
+new file mode 100644
+index 0000000..8245a14
+--- /dev/null
++++ b/src/pages/ServiceRequests.css
+@@ -0,0 +1,108 @@
++/* Service Requests page. Same dark workspace feel as the Mobile Requests queue. */
++
++.sr-page { display: flex; flex-direction: column; gap: 18px; padding: 22px 24px 40px; color: #e6e9f2; font-family: "DM Sans", system-ui, sans-serif; }
++
++.sr-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
++.sr-eyebrow { display: flex; align-items: center; gap: 7px; color: #61d7bc; font-size: 11px; font-weight: 700; letter-spacing: 1.3px; }
++.sr-header h1 { margin: 6px 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
++.sr-header p { margin: 0; max-width: 640px; color: #9aa3b5; font-size: 13px; line-height: 20px; }
++.sr-refresh { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border: 1px solid rgba(255,255,255,0.13); border-radius: 11px; background: rgba(255,255,255,0.05); color: #cfd6e6; font-size: 12px; font-weight: 700; cursor: pointer; }
++.sr-refresh:disabled { opacity: 0.6; cursor: default; }
++.sr-spin { animation: sr-rotate 900ms linear infinite; }
++@keyframes sr-rotate { to { transform: rotate(360deg); } }
++
++.sr-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; }
++.sr-summary-card { display: flex; flex-direction: column; gap: 5px; padding: 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; background: rgba(255,255,255,0.04); color: #9aa3b5; text-align: left; cursor: pointer; }
++.sr-summary-card span { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
++.sr-summary-card strong { font-size: 24px; font-weight: 800; color: #ffffff; }
++.sr-summary-card.active { border-color: rgba(97,215,188,0.55); background: rgba(97,215,188,0.1); }
++.sr-summary-card.amber.active { border-color: rgba(246,199,105,0.55); background: rgba(246,199,105,0.1); }
++.sr-summary-card.green.active { border-color: rgba(98,221,147,0.55); background: rgba(98,221,147,0.1); }
++.sr-summary-card.red.active { border-color: rgba(251,148,148,0.55); background: rgba(251,148,148,0.1); }
++
++.sr-summary-card.rose.active { border-color: rgba(224,139,139,0.55); background: rgba(224,139,139,0.12); }
++
++.sr-workspace { display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
++
++.sr-list-panel { display: flex; flex-direction: column; gap: 11px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; background: rgba(255,255,255,0.035); }
++.sr-list-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
++.sr-list-heading h2 { margin: 0 0 4px; font-size: 15px; font-weight: 800; }
++.sr-list-heading p { margin: 0; color: #8b94a7; font-size: 11px; line-height: 16px; }
++.sr-list-heading > span { min-width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,0.08); color: #e6e9f2; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
++
++.sr-list { display: flex; flex-direction: column; gap: 9px; max-height: 62vh; overflow-y: auto; }
++.sr-request { display: flex; flex-direction: column; gap: 8px; padding: 13px; border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; background: rgba(255,255,255,0.03); color: inherit; text-align: left; cursor: pointer; }
++.sr-request:hover { border-color: rgba(97,215,188,0.4); }
++.sr-request.selected { border-color: rgba(97,215,188,0.7); background: rgba(97,215,188,0.08); }
++.sr-request-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
++.sr-request-id { color: #7f8798; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; }
++.sr-status { padding: 4px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; }
++.sr-request-title { display: flex; flex-direction: column; gap: 3px; }
++.sr-request-title strong { font-size: 13px; font-weight: 800; }
++.sr-request-title span { color: #9aa3b5; font-size: 11px; }
++.sr-request-meta { display: flex; flex-wrap: wrap; gap: 10px; color: #9aa3b5; font-size: 11px; }
++.sr-request-meta span { display: inline-flex; align-items: center; gap: 5px; }
++
++.sr-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 26px 14px; color: #8b94a7; text-align: center; }
++.sr-empty h3 { margin: 0; color: #e6e9f2; font-size: 14px; }
++.sr-empty p { margin: 0; font-size: 12px; line-height: 17px; }
++.sr-empty .sr-hint { max-width: 420px; color: #d9c9a4; }
++.sr-empty .sr-hint strong { color: #ffffff; }
++.sr-error { padding: 11px; border-radius: 11px; background: rgba(248,113,113,0.14); color: #fb9494; font-size: 12px; }
++.sr-saved { padding: 11px; border-radius: 11px; background: rgba(97,215,188,0.14); color: #61d7bc; font-size: 12px; }
++
++.sr-detail-panel { display: flex; flex-direction: column; gap: 14px; padding: 17px; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; background: rgba(255,255,255,0.035); }
++.sr-detail-empty { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 52px 20px; color: #8b94a7; text-align: center; }
++.sr-detail-empty h2 { margin: 0; color: #e6e9f2; font-size: 16px; }
++.sr-detail-empty p { margin: 0; max-width: 380px; font-size: 12px; line-height: 18px; }
++.sr-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
++.sr-detail-label { color: #61d7bc; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
++.sr-detail-header h2 { margin: 5px 0 4px; font-size: 19px; font-weight: 800; }
++.sr-detail-header p { margin: 0; color: #8b94a7; font-size: 11px; }
++.sr-detail-header button { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; background: rgba(255,255,255,0.05); color: #cfd6e6; cursor: pointer; }
++.sr-detail-status { display: flex; align-items: center; gap: 9px; }
++.sr-tag { padding: 4px 9px; border-radius: 999px; background: rgba(255,255,255,0.08); color: #cfd6e6; font-size: 10px; font-weight: 700; }
++
++.sr-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
++.sr-detail-item { display: flex; gap: 9px; padding: 11px; border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; background: rgba(255,255,255,0.03); }
++.sr-detail-item > span { color: #61d7bc; }
++.sr-detail-item small { display: block; color: #8b94a7; font-size: 10px; }
++.sr-detail-item strong { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; }
++
++.sr-section { display: flex; flex-direction: column; gap: 7px; }
++.sr-section h3 { margin: 0; font-size: 13px; font-weight: 800; }
++.sr-note { margin: 0; color: #b9c0cf; font-size: 12px; line-height: 18px; }
++.sr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
++.sr-chips span { padding: 5px 10px; border-radius: 999px; background: rgba(97,215,188,0.12); color: #61d7bc; font-size: 11px; font-weight: 700; }
++
++.sr-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
++.sr-grid-item { padding: 10px; border-radius: 11px; background: rgba(255,255,255,0.04); }
++.sr-grid-item small { display: block; color: #8b94a7; font-size: 10px; }
++.sr-grid-item strong { display: block; margin-top: 3px; font-size: 12px; }
++
++.sr-decision { display: flex; flex-direction: column; gap: 11px; padding: 14px; border: 1px solid rgba(97,215,188,0.35); border-radius: 15px; background: rgba(97,215,188,0.07); }
++.sr-decision h3 { margin: 0 0 4px; font-size: 14px; font-weight: 800; }
++.sr-decision p { margin: 0; color: #b9c0cf; font-size: 11px; line-height: 17px; }
++.sr-decision label { display: flex; flex-direction: column; gap: 6px; color: #9aa3b5; font-size: 11px; font-weight: 700; }
++.sr-decision input { height: 40px; padding: 0 11px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; background: rgba(255,255,255,0.05); color: #e6e9f2; font-size: 13px; }
++.sr-save { height: 42px; border: none; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; font-size: 13px; font-weight: 800; cursor: pointer; }
++.sr-save:disabled { opacity: 0.6; cursor: default; }
++.sr-view-only { margin: 0; color: #f6c769; font-size: 11px; }
++
++.sr-decision-decline { border-color: rgba(224,139,139,0.4); background: rgba(224,139,139,0.06); }
++.sr-decision-decline textarea { padding: 10px 11px; border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; background: rgba(255,255,255,0.05); color: #e6e9f2; font-size: 13px; font-family: inherit; resize: vertical; }
++.sr-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
++.sr-reason-chip { padding: 6px 11px; border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; background: rgba(255,255,255,0.04); color: #b9c0cf; font-size: 11px; cursor: pointer; }
++.sr-reason-chip.active { border-color: rgba(224,139,139,0.6); background: rgba(224,139,139,0.16); color: #f3c9c9; }
++.sr-decline { height: 42px; border: 1px solid rgba(224,139,139,0.55); border-radius: 12px; background: rgba(224,139,139,0.14); color: #f3c9c9; font-size: 13px; font-weight: 800; cursor: pointer; }
++.sr-decline:disabled { opacity: 0.6; cursor: default; }
++.sr-declined-box { display: flex; flex-direction: column; gap: 7px; padding: 14px; border: 1px solid rgba(224,139,139,0.4); border-radius: 15px; background: rgba(224,139,139,0.08); }
++.sr-declined-box h3 { margin: 0; font-size: 14px; font-weight: 800; color: #f3c9c9; }
++.sr-muted-small { margin: 0; color: #8b94a7; font-size: 11px; line-height: 17px; }
++.sr-decline-line { margin: 0; color: #e08b8b; font-size: 11px; line-height: 16px; }
++
++@media (max-width: 1080px) {
++  .sr-workspace { grid-template-columns: minmax(0, 1fr); }
++  .sr-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++  .sr-list { max-height: none; }
++}
+diff --git a/src/pages/ServiceRequests.tsx b/src/pages/ServiceRequests.tsx
+new file mode 100644
+index 0000000..94685c2
+--- /dev/null
++++ b/src/pages/ServiceRequests.tsx
+@@ -0,0 +1,480 @@
++import { useCallback, useEffect, useMemo, useState } from "react";
++import { CalendarDays, ClipboardList, Inbox, Ruler, RefreshCw, ShieldCheck, Sparkles, X } from "lucide-react";
++import { supabase } from "../lib/supabaseClient";
++import { PermissionGuard } from "../components/PermissionGuard";
++import { usePermission } from "../hooks/usePermission";
++import "./ServiceRequests.css";
++
++/**
++ * Service Requests
++ *
++ * Cleaning, fumigation, detailing, polytank and contract requests sent from the
++ * Chapman customer app. The laundry queue has its own page, Mobile Requests.
++ *
++ * These arrived in the database and no staff screen read them, so customers were
++ * asking for work that nobody could see. This page closes that gap.
++ *
++ * The page is additive: it reads and writes only quote_requests and, read-only,
++ * customer_accounts. Nothing existing is altered.
++ */
++
++type AppointmentResponse = "awaiting-chapman" | "awaiting-customer" | "accepted" | "rejected" | "declined";
++type RequestView = "action" | "waiting" | "accepted" | "another" | "declined";
++
++interface QuoteDetails {
++  primaryLabel?: string;
++  primaryValue?: string;
++  secondaryLabel?: string;
++  secondaryValue?: string;
++  estimatedAreaM2?: number;
++  cameraGuided?: boolean;
++  estimateLabel?: string;
++  serviceLocation?: string;
++  selectedOptions?: string[];
++  requestedDate?: string;
++  cleanerCount?: string;
++  cleanerGenderPreference?: string;
++  cleanerExperiencePreference?: string;
++  concerns?: string[];
++  proposedDate?: string;
++  spaceBreakdown?: Record<string, unknown> | null;
++}
++
++interface ServiceRequest {
++  id: string;
++  customer_account_id: string | null;
++  service_id: string | null;
++  service_title: string | null;
++  property_type: string | null;
++  preference: string | null;
++  details: QuoteDetails | null;
++  appointment_response: AppointmentResponse;
++  declined_reason: string | null;
++  created_at: string;
++}
++
++interface CustomerIdentity {
++  full_name: string | null;
++  phone: string | null;
++}
++
++const STATE_META: Record<AppointmentResponse, { label: string; color: string; background: string }> = {
++  "awaiting-chapman": { label: "Needs a date", color: "#aab4ff", background: "rgba(108,114,243,0.16)" },
++  "awaiting-customer": { label: "With the customer", color: "#f6c769", background: "rgba(246,199,105,0.14)" },
++  accepted: { label: "Accepted", color: "#62dd93", background: "rgba(52,211,153,0.14)" },
++  rejected: { label: "Wants another date", color: "#fb9494", background: "rgba(248,113,113,0.14)" },
++  declined: { label: "Not taken", color: "#e08b8b", background: "rgba(224,139,139,0.14)" },
++};
++
++/**
++ * Quick reasons staff can pick with one tap, then edit if they want. The wording
++ * is what the customer reads in the app, so each one is written plainly.
++ */
++const QUICK_REASONS = [
++  "Fully booked on your preferred dates",
++  "This job needs a site visit before we can price it",
++  "Outside the areas we cover right now",
++];
++
++const SERVICE_NAMES: Record<string, string> = {
++  cleaning: "Deep cleaning",
++  fumigation: "Fumigation",
++  detailing: "Car detailing",
++  polytank: "Polytank cleaning",
++  contract: "Contract cleaning",
++  fabric: "Fabric and carpet care",
++};
++
++const formatDay = (value: string | null | undefined) =>
++  value ? new Date(`${value}T12:00:00`).toLocaleDateString("en-GH", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "No date chosen";
++
++const formatReceived = (value: string) => new Date(value).toLocaleString("en-GH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
++
++/**
++ * Staff can offer a date or decline while the request is still in their hands.
++ * Once a date is with the customer, or the customer has accepted, they must wait
++ * for the customer rather than changing the story underneath them.
++ */
++const isActionable = (response: AppointmentResponse) =>
++  response !== "awaiting-customer" && response !== "accepted";
++
++const requestState = (request: ServiceRequest) => STATE_META[request.appointment_response] ?? STATE_META["awaiting-chapman"];
++
++/** Turns "estimatedAreaM2" into "Estimated area" for the detail panel. */
++const readableKey = (key: string) => key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase());
++
++function ServiceRequestsContent() {
++  const { canEdit, loading: permissionLoading } = usePermission("/service-requests");
++  const [requests, setRequests] = useState<ServiceRequest[]>([]);
++  const [identities, setIdentities] = useState<Record<string, CustomerIdentity>>({});
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const [filter, setFilter] = useState<RequestView>("action");
++  const [selectedId, setSelectedId] = useState<string | null>(null);
++  const [date, setDate] = useState("");
++  const [declineReason, setDeclineReason] = useState("");
++  const [saving, setSaving] = useState(false);
++  const [savedMessage, setSavedMessage] = useState<string | null>(null);
++
++  /**
++   * Customer names and numbers are loaded separately and defensively. If the
++   * protection rules ever stop staff reading that table, this page still works
++   * and simply shows the request without a name, instead of failing entirely.
++   */
++  const loadIdentities = useCallback(async (accountIds: string[]) => {
++    if (!accountIds.length) { setIdentities({}); return; }
++    try {
++      const { data, error: identityError } = await supabase
++        .from("customer_accounts")
++        .select("auth_user_id, full_name, phone")
++        .in("auth_user_id", accountIds);
++      if (identityError) { setIdentities({}); return; }
++      const map: Record<string, CustomerIdentity> = {};
++      for (const row of (data ?? []) as Array<{ auth_user_id: string; full_name: string | null; phone: string | null }>) {
++        map[row.auth_user_id] = { full_name: row.full_name, phone: row.phone };
++      }
++      setIdentities(map);
++    } catch {
++      setIdentities({});
++    }
++  }, []);
++
++  const loadRequests = useCallback(async () => {
++    setLoading(true);
++    setError(null);
++
++    const { data, error: requestError } = await supabase
++      .from("quote_requests")
++      .select("*")
++      .order("created_at", { ascending: false });
++
++    if (requestError) {
++      console.error("SUPABASE ERROR:", requestError);
++      setError(`Could not load service requests: ${requestError.message}`);
++      setRequests([]);
++    } else {
++      const mapped: ServiceRequest[] = (data ?? []).map((row: any) => ({
++        id: row.id,
++        customer_account_id: row.customer_account_id ?? null,
++        service_id: row.service_id ?? null,
++        service_title: row.service_title ?? null,
++        property_type: row.property_type ?? null,
++        preference: row.preference ?? null,
++        details: (row.details ?? null) as QuoteDetails | null,
++        appointment_response: (row.appointment_response || "awaiting-chapman") as AppointmentResponse,
++        declined_reason: row.declined_reason ?? null,
++        created_at: row.created_at,
++      }));
++      setRequests(mapped);
++      setSelectedId((current) => (current && mapped.some((request) => request.id === current) ? current : null));
++      const accountIds = Array.from(new Set(mapped.map((request) => request.customer_account_id).filter((id): id is string => Boolean(id))));
++      await loadIdentities(accountIds);
++    }
++    setLoading(false);
++  }, [loadIdentities]);
++
++  useEffect(() => {
++    void loadRequests();
++
++    const channel = supabase
++      .channel("staff-service-requests")
++      .on(
++        "postgres_changes",
++        { event: "*", schema: "public", table: "quote_requests" },
++        () => { void loadRequests(); }
++      )
++      .subscribe((status: any) => {
++        if (status === "SUBSCRIBED") console.log("Staff realtime connected to quote_requests");
++      });
++
++    return () => { void supabase.removeChannel(channel); };
++  }, [loadRequests]);
++
++  const selected = requests.find((request) => request.id === selectedId) ?? null;
++
++  const counts = useMemo(() => ({
++    action: requests.filter((request) => request.appointment_response === "awaiting-chapman").length,
++    waiting: requests.filter((request) => request.appointment_response === "awaiting-customer").length,
++    accepted: requests.filter((request) => request.appointment_response === "accepted").length,
++    another: requests.filter((request) => request.appointment_response === "rejected").length,
++    declined: requests.filter((request) => request.appointment_response === "declined").length,
++  }), [requests]);
++
++  const filtered = useMemo(() => requests.filter((request) => {
++    if (filter === "action") return request.appointment_response === "awaiting-chapman";
++    if (filter === "waiting") return request.appointment_response === "awaiting-customer";
++    if (filter === "accepted") return request.appointment_response === "accepted";
++    if (filter === "another") return request.appointment_response === "rejected";
++    return request.appointment_response === "declined";
++  }), [filter, requests]);
++
++  useEffect(() => {
++    if (!selected) return;
++    const requested = selected.details?.requestedDate ? selected.details.requestedDate.slice(0, 10) : "";
++    const proposed = selected.details?.proposedDate ? selected.details.proposedDate.slice(0, 10) : "";
++    setDate(proposed || requested);
++    setDeclineReason("");
++  }, [selectedId, selected]);
++
++  const customerName = (request: ServiceRequest) => {
++    const identity = request.customer_account_id ? identities[request.customer_account_id] : undefined;
++    if (identity?.full_name) return identity.full_name;
++    if (identity?.phone) return identity.phone;
++    return "Customer details protected";
++  };
++
++  const customerPhone = (request: ServiceRequest) => {
++    const identity = request.customer_account_id ? identities[request.customer_account_id] : undefined;
++    return identity?.phone ?? null;
++  };
++
++  /**
++   * Sends a date to the customer for approval. The customer app reads this and
++   * shows an accept or reject choice, so the loop is closed on both sides.
++   */
++  const sendDate = async () => {
++    if (!selected) return;
++    if (!date) { setError("Choose the date you want to offer before saving."); return; }
++    setSaving(true);
++    setError(null);
++    setSavedMessage(null);
++
++    const nextDetails = { ...(selected.details ?? {}), proposedDate: date };
++    const { error: updateError } = await supabase
++      .from("quote_requests")
++      .update({ appointment_response: "awaiting-customer", details: nextDetails })
++      .eq("id", selected.id);
++
++    setSaving(false);
++    if (updateError) {
++      setError("The date could not be sent. Please try again.");
++      return;
++    }
++
++    setSelectedId(null);
++    setSavedMessage(`${formatDay(date)} sent to the customer. It stays in With the customer until they reply in the app.`);
++    setFilter("waiting");
++    await loadRequests();
++  };
++
++  /**
++   * Tells the customer Chapman cannot take this request, and why. This is stored
++   * on the request and the customer app shows the reason on their tracking page.
++   * A request can be taken again later by offering a date, which clears nothing
++   * the customer was told, so the history stays honest.
++   */
++  const sendDecline = async () => {
++    if (!selected) return;
++    const reason = declineReason.trim();
++    if (reason.length < 5) { setError("Write a short reason first. The customer reads this line in the app."); return; }
++    setSaving(true);
++    setError(null);
++    setSavedMessage(null);
++
++    const { error: updateError } = await supabase
++      .from("quote_requests")
++      .update({ appointment_response: "declined", declined_reason: reason })
++      .eq("id", selected.id);
++
++    setSaving(false);
++    if (updateError) {
++      setError(updateError.message.toLowerCase().includes("declined_reason")
++        ? "The reason box is missing from the database. Run docs/decline-with-reason.sql once, then try again."
++        : "The decline could not be saved. Please try again.");
++      return;
++    }
++
++    setSelectedId(null);
++    setSavedMessage(`Declined. The customer now sees this reason in the app: "${reason}"`);
++    setFilter("declined");
++    await loadRequests();
++  };
++
++  const heading: [string, string] = filter === "action"
++    ? ["Needs a date", "Requests waiting for Chapman to offer a service date"]
++    : filter === "waiting"
++      ? ["With the customer", "Dates offered, waiting for the customer to accept or reject"]
++      : filter === "accepted"
++        ? ["Accepted", "The customer approved the date, ready for the next Chapman step"]
++        : filter === "another"
++          ? ["Wants another date", "The customer asked for a different date and needs a new offer"]
++          : ["Not taken", "Chapman could not take these requests. The customer has been told why"];
++
++  return <div className="sr-page">
++    <header className="sr-header">
++      <div>
++        <div className="sr-eyebrow"><Inbox size={14} /> APP INTAKE</div>
++        <h1>Service Requests</h1>
++        <p>Cleaning, fumigation, detailing, polytank and contract requests sent from the Chapman app. Offer a date and the customer accepts or rejects it in the app.</p>
++      </div>
++      <button className="sr-refresh" onClick={() => void loadRequests()} disabled={loading} aria-label="Refresh service requests">
++        <RefreshCw size={16} className={loading ? "sr-spin" : ""} /> Refresh
++      </button>
++    </header>
++
++    <section className="sr-summary" aria-label="Service request views">
++      <button className={filter === "action" ? "sr-summary-card active" : "sr-summary-card"} onClick={() => setFilter("action")}><span>Needs a date</span><strong>{counts.action}</strong></button>
++      <button className={filter === "waiting" ? "sr-summary-card active amber" : "sr-summary-card amber"} onClick={() => setFilter("waiting")}><span>With the customer</span><strong>{counts.waiting}</strong></button>
++      <button className={filter === "accepted" ? "sr-summary-card active green" : "sr-summary-card green"} onClick={() => setFilter("accepted")}><span>Accepted</span><strong>{counts.accepted}</strong></button>
++      <button className={filter === "another" ? "sr-summary-card active red" : "sr-summary-card red"} onClick={() => setFilter("another")}><span>Wants another date</span><strong>{counts.another}</strong></button>
++      <button className={filter === "declined" ? "sr-summary-card active rose" : "sr-summary-card rose"} onClick={() => setFilter("declined")}><span>Not taken</span><strong>{counts.declined}</strong></button>
++    </section>
++
++    <section className="sr-workspace">
++      <div className="sr-list-panel">
++        <div className="sr-list-heading">
++          <div><h2>{heading[0]}</h2><p>{heading[1]}</p></div>
++          <span>{filtered.length}</span>
++        </div>
++        {error ? <div className="sr-error">{error}</div> : null}
++        {savedMessage ? <div className="sr-saved">{savedMessage}</div> : null}
++        {loading || permissionLoading
++          ? <div className="sr-empty"><RefreshCw size={18} className="sr-spin" /><p>Loading service requests...</p></div>
++          : filtered.length === 0
++            ? <div className="sr-empty">
++              <ClipboardList size={24} />
++              <h3>No requests in this view</h3>
++              <p>New app requests appear here the moment a customer sends one.</p>
++              {requests.length === 0 && (
++                <p className="sr-hint">
++                  If a customer has already sent one and it is not here, the database may not be
++                  letting staff read these records yet. Running the statement file
++                  {" "}<strong>docs/security-fix.sql</strong>, section 4, switches that on.
++                </p>
++              )}
++            </div>
++            : <div className="sr-list">
++              {filtered.map((request) => {
++                const state = requestState(request);
++                const area = request.details?.estimatedAreaM2;
++                return <button key={request.id} className={selectedId === request.id ? "sr-request selected" : "sr-request"} onClick={() => setSelectedId(request.id)}>
++                  <div className="sr-request-top">
++                    <span className="sr-request-id">#{request.id.slice(0, 8)}</span>
++                    <span className="sr-status" style={{ color: state.color, background: state.background }}>{state.label}</span>
++                  </div>
++                  <div className="sr-request-title">
++                    <strong>{request.service_title || SERVICE_NAMES[request.service_id ?? ""] || "Service request"}</strong>
++                    <span>{customerName(request)}</span>
++                  </div>
++                  <div className="sr-request-meta">
++                    <span><CalendarDays size={13} /> {formatDay(request.details?.requestedDate?.slice(0, 10))}</span>
++                    {area ? <span>{area} m2 measured</span> : <span>No measurement</span>}
++                  </div>
++                  {request.appointment_response === "declined" && request.declined_reason ? (
++                    <p className="sr-decline-line">Told the customer: {request.declined_reason}</p>
++                  ) : null}
++                </button>;
++              })}
++            </div>}
++      </div>
++
++      <aside className="sr-detail-panel" aria-live="polite">
++        {!selected
++          ? <div className="sr-detail-empty"><ShieldCheck size={26} /><h2>Select a request</h2><p>Review what the customer asked for, then offer a date. The customer accepts or rejects it in the app, and the answer appears here.</p></div>
++          : <>
++            <div className="sr-detail-header">
++              <div>
++                <span className="sr-detail-label">SERVICE REQUEST</span>
++                <h2>{selected.service_title || SERVICE_NAMES[selected.service_id ?? ""] || "Service request"}</h2>
++                <p>Received {formatReceived(selected.created_at)}</p>
++              </div>
++              <button onClick={() => setSelectedId(null)} aria-label="Close request details"><X size={18} /></button>
++            </div>
++
++            <div className="sr-detail-status">
++              <span className="sr-status" style={{ color: requestState(selected).color, background: requestState(selected).background }}>{requestState(selected).label}</span>
++              {selected.details?.cameraGuided ? <span className="sr-tag">Camera guided</span> : null}
++            </div>
++
++            <div className="sr-detail-grid">
++              <DetailItem icon={<CalendarDays size={16} />} label="Customer's preferred date" value={formatDay(selected.details?.requestedDate?.slice(0, 10))} />
++              <DetailItem icon={<ClipboardList size={16} />} label="Property" value={selected.property_type || "Not stated"} />
++              <DetailItem icon={<Sparkles size={16} />} label="Preference" value={selected.preference || "Not stated"} />
++              <DetailItem icon={<Ruler size={16} />} label="Measured area" value={selected.details?.estimatedAreaM2 ? `${selected.details.estimatedAreaM2} m2` : "Not measured"} />
++              <DetailItem icon={<ClipboardList size={16} />} label="Customer" value={customerName(selected)} />
++              <DetailItem icon={<ClipboardList size={16} />} label="Phone" value={customerPhone(selected) ?? "Protected in the app"} />
++            </div>
++
++            {selected.details?.estimateLabel ? <div className="sr-section"><h3>Estimate shown to the customer</h3><p className="sr-note">{selected.details.estimateLabel}</p></div> : null}
++
++            {selected.details?.concerns && selected.details.concerns.length > 0
++              ? <div className="sr-section"><h3>What the customer told us</h3><div className="sr-chips">{selected.details.concerns.map((concern, index) => <span key={`${concern}-${index}`}>{concern}</span>)}</div></div>
++              : null}
++
++            {selected.details?.selectedOptions && selected.details.selectedOptions.length > 0
++              ? <div className="sr-section"><h3>Areas chosen</h3><div className="sr-chips">{selected.details.selectedOptions.map((option, index) => <span key={`${option}-${index}`}>{option}</span>)}</div></div>
++              : null}
++
++            {selected.service_id === "contract" && (selected.details?.cleanerCount || selected.details?.cleanerGenderPreference || selected.details?.cleanerExperiencePreference)
++              ? <div className="sr-section"><h3>Team requested</h3><p className="sr-note">
++                {[selected.details?.cleanerCount, selected.details?.cleanerGenderPreference, selected.details?.cleanerExperiencePreference].filter(Boolean).join(" | ")}
++              </p></div>
++              : null}
++
++            {selected.details?.spaceBreakdown
++              ? <div className="sr-section"><h3>Room by room</h3><div className="sr-grid">
++                {Object.entries(selected.details.spaceBreakdown)
++                  .filter(([key, value]) => key !== "description" && value !== undefined && value !== null && value !== "")
++                  .map(([key, value]) => <div className="sr-grid-item" key={key}><small>{readableKey(key)}</small><strong>{Array.isArray(value) ? value.join(", ") : String(value)}</strong></div>)}
++              </div></div>
++              : null}
++
++            {selected.appointment_response === "declined" ? (
++              <div className="sr-declined-box">
++                <h3>Chapman said no to this request</h3>
++                <p className="sr-note">The customer saw this line in the app: "{selected.declined_reason || "no reason was written"}"</p>
++                <p className="sr-muted-small">You can still take the work. Offering a date below puts the request back in the customer's hands with a new date to accept.</p>
++              </div>
++            ) : null}
++
++            {isActionable(selected.appointment_response) ? (
++              <>
++                <div className="sr-decision">
++                  <div>
++                    <h3>{selected.appointment_response === "rejected" ? "Offer a new date" : selected.appointment_response === "declined" ? "Take the work after all" : "Offer a service date"}</h3>
++                    <p>The customer sees this date in the app and accepts or rejects it. {selected.appointment_response === "rejected" ? "They already asked for a different date." : "Starting from their preferred date is usually fastest."}</p>
++                  </div>
++                  <label>Date to offer<input type="date" value={date} onChange={(event) => setDate(event.target.value)} disabled={!canEdit || saving} /></label>
++                  <button className="sr-save" onClick={() => void sendDate()} disabled={!canEdit || saving}>
++                    {saving ? "Sending..." : "Send this date to the customer"}
++                  </button>
++                </div>
++
++                <div className="sr-decision sr-decision-decline">
++                  <div>
++                    <h3>Or decline it, with a reason</h3>
++                    <p>The customer reads your reason in the app, so write it the way you would say it to them. One line is enough.</p>
++                  </div>
++                  <div className="sr-reasons">
++                    {QUICK_REASONS.map((quick) => (
++                      <button key={quick} type="button" className={declineReason === quick ? "sr-reason-chip active" : "sr-reason-chip"} onClick={() => setDeclineReason(quick)} disabled={!canEdit || saving}>{quick}</button>
++                    ))}
++                  </div>
++                  <label>Reason the customer will read<textarea value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} placeholder="For example: We are fully booked on the dates you chose. Send a request for the following week and we will take it." disabled={!canEdit || saving} rows={3} /></label>
++                  <button className="sr-decline" onClick={() => void sendDecline()} disabled={!canEdit || saving}>
++                    {saving ? "Saving..." : "Decline this request"}
++                  </button>
++                  {!canEdit ? <p className="sr-view-only">You can review this request, but only an authorised manager can decline it.</p> : null}
++                </div>
++              </>
++            ) : (
++              <div className="sr-section">
++                <h3>{selected.appointment_response === "accepted" ? "Accepted by the customer" : "Waiting for the customer"}</h3>
++                <p className="sr-note">
++                  {selected.appointment_response === "accepted"
++                    ? `The customer accepted ${formatDay(selected.details?.proposedDate?.slice(0, 10))}. Create the order when the team is ready.`
++                    : `Chapman offered ${formatDay(selected.details?.proposedDate?.slice(0, 10))}. The answer appears here as soon as the customer replies in the app.`}
++                </p>
++              </div>
++            )}
++          </>}
++      </aside>
++    </section>
++  </div>;
++}
++
++function DetailItem({ icon, label, value }: { icon: JSX.Element; label: string; value: string }) {
++  return <div className="sr-detail-item"><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div>;
++}
++
++export const ServiceRequests = () => <PermissionGuard path="/service-requests" showBanner={false}><ServiceRequestsContent /></PermissionGuard>;
+diff --git a/src/router.tsx b/src/router.tsx
+index fed814b..3da2d13 100644
+--- a/src/router.tsx
++++ b/src/router.tsx
+@@ -19,6 +19,9 @@ import { SystemAdmin } from "./pages/SystemAdmin";
+ import { Profile } from "./pages/Profile";
+ import { Help } from "./pages/Help";
+ import { MobileRequests } from "./pages/MobileRequests";
++import { ServiceRequests } from "./pages/ServiceRequests";
++import { AppIdeas } from "./pages/AppIdeas";
++import { AppAccounts } from "./pages/AppAccounts";
+ 
+ /* ─── PROTECTED ROUTE WRAPPER ────────────────────────────────────────────── */
+ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+@@ -80,6 +83,9 @@ export const router = createBrowserRouter([
+       { path: "reports", element: <Reports /> },
+       { path: "help", element: <Help /> },
+       { path: "mobile-requests", element: <MobileRequests /> },
++      { path: "service-requests", element: <ServiceRequests /> },
++      { path: "app-ideas", element: <AppIdeas /> },
++      { path: "app-accounts", element: <AppAccounts /> },
+     ],
+   },
+   { path: "*", element: <Navigate to="/dashboard" replace /> }, 

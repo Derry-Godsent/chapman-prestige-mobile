@@ -50,7 +50,7 @@ to you. That was my mistake. This document fixes it.
 | 23 | **Every line, and the short sign-in note** | No screen draws its own white line any more, and the phone field says one sentence | DONE **Look at your profile page in dark** |
 | 24 | **The code that never arrives** | The app and Supabase both did their part. The message is being lost between Supabase and the phone, which is outside this app | WAITING **Two dashboards to look at, written out below** |
 | 25 | **A home screen app that updates itself** | The web app notices a newer build and refreshes on its own, so nobody has to delete and re-add the icon | DONE **Close it fully once, then it looks after itself** |
-| 26 | **Nothing on the app goes to blank** | Quote requests, app ideas and app sign-in records become visible in the staff app | AGREED **First, and it is small** |
+| 26 | **Nothing on the app goes to blank** | Quote requests, app ideas and app sign-in records become visible in the staff app | BUILT **One paste and one merge from you, below** |
 | 27 | **Chat that actually works** | Three channels, routed to the right staff, stored properly, with photos and notifications | AGREED **After 26** |
 | 28 | **Workers: choose, agree, then release** | Customers see real worker profiles and choose, Chapman negotiates and releases the worker | AGREED **After 27** |
 | 29 | **Payments** | How the prompt on the phone works, and the three routes. Waiting on you and your boss | ON HOLD **You are asking your boss** |
@@ -677,27 +677,63 @@ the same in either skin.
 
 ---
 
-## Phase 26 onwards, what we agreed in discussion NOT STARTED
+## Phase 26, Nothing on the app goes to blank BUILT, two things from you
 
-These four were discussed on 6 October and the order is settled. Nothing here is
+The app has been writing three kinds of record that no staff screen read:
+cleaning and service enquiries, ideas sent from the app, and the app's sign-in and
+PIN moments. Work your customers did landed nowhere. This phase gives the staff
+system the pages that read them.
+
+### What was built, in the staff system
+
+| Page | What it shows |
+| --- | --- |
+| **Service Requests** | Every cleaning, fumigation, detailing, polytank and contract enquiry, with the customer's name where it can be read, the property, the preference, the measured area, the areas picked and any concerns flagged. The office offers a date the customer accepts or rejects in the app, or declines with one line the customer reads |
+| **App Ideas** | Every idea sent from the app with the sender's name and number, moved along as new, reading, planned, done, or not doing |
+| **App Accounts** | Who has signed into the app, with every security moment on their account: sign-in, PIN set, PIN removed, PIN used up. The four digits are never stored, and the page says so |
+
+Also in this change: the side menu numbers now come from one live counts hook
+covering orders, laundry requests, service requests, app ideas, app customers,
+clients and staff, and each number explains itself when hovered. The bell now
+listens to real records. The old bell watched orders filtered by a client id,
+which a staff member never has, so it silently delivered nothing.
+
+Each page says plainly, on screen, when the table or the rule it needs has not
+been created in the project yet, instead of showing an empty list as though there
+were nothing to see.
+
+### How it was checked
+
+The staff project was cloned, the change applied, and then: the TypeScript check
+passes, the production build succeeds, and the repository's own lint reports no
+new problems from any file this change adds. The same was repeated on a fresh
+clone with the patch applied, which is exactly what you would do by hand.
+
+What could not be checked: signing in to the staff system and clicking through
+the pages, because this sandbox has no route to Supabase.
+
+### The two things waiting on you
+
+1. **One paste.** `docs/staff-app-pages.sql` in this project. Six menu rows so
+   admins and managers may open the new pages, and one empty box where a decline
+   reason is written. It was run against a real Postgres engine first: the six
+   rows appear, the column appears, existing records are untouched, and running it
+   twice changes nothing the second time.
+2. **One merge, or one connection.** The GitHub connection this sandbox uses can
+   read the staff repository but not write to it, so the change is a patch here:
+   `docs/staff-web-app/app-records-pages.patch`, with the whole thing explained in
+   the folder's README. Reconnecting GitHub in Arena with access to `laundry-app`
+   means I push the branch and open the pull request myself, and the same for the
+   chat and workers work that comes next.
+
+---
+
+## Phase 27 onwards, what we agreed in discussion NOT STARTED
+
+These three were discussed on 6 October and the order is settled. Nothing here is
 built yet. The decisions are recorded so nothing is lost or reopened by accident.
 
-### 1. Nothing on the app goes to blank (first, and it is small)
-
-The app already writes quote requests, app ideas, and app sign-in and PIN records.
-The staff app reads none of them, which is why work on the phone lands nowhere.
-Three screens on the staff side fix it, and each one is a table that already exists:
-
-- a quote requests inbox, with the ability to answer
-- an ideas inbox, so submitted app ideas are read
-- the app security records on the Security page, so staff sign-ins and app sign-ins
-  are one picture
-
-The staff app repo is `Derry-Godsent/laundry-app` and I can write to it. The auth
-work already sits on its `feature/customer-auth-foundation` branch, so this joins it
-there and you merge once, deliberately.
-
-### 2. Chat that actually works (after 26)
+### 1. Chat that actually works (next, after 26)
 
 Your words: no named person per customer. The app keeps its three channels and they
 route by role, not by a person's name:
@@ -718,7 +754,7 @@ What has to be true for it to count as working:
 
 What exists today is a mock. Typed messages live in the phone's memory and vanish.
 
-### 3. Workers: choose, agree, then release (after 27)
+### 2. Workers: choose, agree, then release (after chat)
 
 Your model, recorded as decided:
 
@@ -740,7 +776,7 @@ Two consequences worth stating now, because they change what gets built:
 - Since Chapman sets the price, Chapman must see the worker's own rate before quoting
   the customer. One small record per worker, private to staff, solves it.
 
-### 4. Payments, on hold until you and your boss decide
+### 3. Payments, on hold until you and your boss decide
 
 Your question was exact: betting apps show a MoMo prompt on the phone and no gateway
 page at all. Here is how, in plain words.
