@@ -50,6 +50,10 @@ to you. That was my mistake. This document fixes it.
 | 23 | **Every line, and the short sign-in note** | No screen draws its own white line any more, and the phone field says one sentence | DONE **Look at your profile page in dark** |
 | 24 | **The code that never arrives** | The app and Supabase both did their part. The message is being lost between Supabase and the phone, which is outside this app | WAITING **Two dashboards to look at, written out below** |
 | 25 | **A home screen app that updates itself** | The web app notices a newer build and refreshes on its own, so nobody has to delete and re-add the icon | DONE **Close it fully once, then it looks after itself** |
+| 26 | **Nothing on the app goes to blank** | Quote requests, app ideas and app sign-in records become visible in the staff app | AGREED **First, and it is small** |
+| 27 | **Chat that actually works** | Three channels, routed to the right staff, stored properly, with photos and notifications | AGREED **After 26** |
+| 28 | **Workers: choose, agree, then release** | Customers see real worker profiles and choose, Chapman negotiates and releases the worker | AGREED **After 27** |
+| 29 | **Payments** | How the prompt on the phone works, and the three routes. Waiting on you and your boss | ON HOLD **You are asking your boss** |
 | 20 | **Let the PIN protect the saved sign-in** | The biggest security step left. Structural, so it needs your yes first | PROPOSED **Waiting on your decision** |
 
 **Phases 1 and 2 are finished. Phase 3 is the only urgent one. Phase 4 is written and
@@ -673,6 +677,104 @@ the same in either skin.
 
 ---
 
+## Phase 26 onwards, what we agreed in discussion NOT STARTED
+
+These four were discussed on 6 October and the order is settled. Nothing here is
+built yet. The decisions are recorded so nothing is lost or reopened by accident.
+
+### 1. Nothing on the app goes to blank (first, and it is small)
+
+The app already writes quote requests, app ideas, and app sign-in and PIN records.
+The staff app reads none of them, which is why work on the phone lands nowhere.
+Three screens on the staff side fix it, and each one is a table that already exists:
+
+- a quote requests inbox, with the ability to answer
+- an ideas inbox, so submitted app ideas are read
+- the app security records on the Security page, so staff sign-ins and app sign-ins
+  are one picture
+
+The staff app repo is `Derry-Godsent/laundry-app` and I can write to it. The auth
+work already sits on its `feature/customer-auth-foundation` branch, so this joins it
+there and you merge once, deliberately.
+
+### 2. Chat that actually works (after 26)
+
+Your words: no named person per customer. The app keeps its three channels and they
+route by role, not by a person's name:
+
+| Channel | Who receives it |
+| --- | --- |
+| Chat with Admin | You |
+| Chat with CEO | Your boss |
+| Contact Chapman Prestige Limited | Every other staff member; whoever is free answers |
+
+What has to be true for it to count as working:
+
+- Messages are stored in the database, so they survive a reinstall and both sides
+  read the same conversation.
+- A photo can be attached, because "here is the stain" beats a paragraph.
+- It updates live on both sides, with unread counts on the staff side menu.
+- The app is honest about when a human will answer.
+
+What exists today is a mock. Typed messages live in the phone's memory and vanish.
+
+### 3. Workers: choose, agree, then release (after 27)
+
+Your model, recorded as decided:
+
+- Workers are found, vetted and approved by Chapman. Chapman holds the control to
+  make a worker available or unavailable.
+- Customers see a profile: picture, name, the kind of work, and reputation. Reputation
+  is earned from completed jobs, not written by the worker.
+- The customer chooses a worker. Chapman does not assign anyone.
+- The job details and the money are agreed with Chapman, not with the worker. Chapman
+  then releases the worker to the job.
+- If the chosen worker is engaged or unavailable, Chapman recommends a similar one.
+- The category list is open: electricians, plumbers, CCTV installers, sales people,
+  shop replacements, and anything added later.
+
+Two consequences worth stating now, because they change what gets built:
+
+- A worker needs a **live status** (available, busy until a date, off). Without it two
+  customers choose the same person and one is let down.
+- Since Chapman sets the price, Chapman must see the worker's own rate before quoting
+  the customer. One small record per worker, private to staff, solves it.
+
+### 4. Payments, on hold until you and your boss decide
+
+Your question was exact: betting apps show a MoMo prompt on the phone and no gateway
+page at all. Here is how, in plain words.
+
+Those apps do use payment companies. What they do not use is the payment company's
+page. There are two ways a gateway can work:
+
+1. **Their page (checkout).** The customer is sent to a Paystack or Hubtel screen and
+   chooses their network there. That is what we would get by default, and it is not
+   what you want.
+2. **Your page, their pipe (the charge request).** Our own screen collects the phone
+   number and the amount, and a server call asks the network to prompt the customer.
+   The prompt appears on the phone, the customer enters their MoMo PIN on their own
+   handset, and the network confirms. No gateway page is ever seen. This is what the
+   betting apps do, and Paystack, Hubtel and Flutterwave all offer it.
+
+The three routes, honestly compared:
+
+| Route | What the customer sees | Cost | Money reaches you |
+| --- | --- | --- | --- |
+| Gateway charge request (Paystack, Hubtel) | Our screen, then the MoMo prompt | 1.95% (Hubtel 2.5% on AT) | Bank or wallet, next working day, or Hubtel balance within the hour |
+| Direct network merchant integration (MTN, Telecel, AT separately) | Our screen, then the MoMo prompt | Near zero merchant fees | Straight into the business MoMo wallet, instantly |
+| Our MoMo number or bank account, customer pays, staff confirm by hand | Our screen and a reference | Free | Straight to you, but somebody must check statements all day |
+
+The honest limits: doing it with no payment company at all is only possible if the
+business signs a merchant agreement with each network, one at a time, and that
+requires the company registration and each network's onboarding. Collecting into a
+personal MoMo number by machine is not possible, and the app never asks for a MoMo
+PIN itself; only the network's own prompt does.
+
+**Status: on hold.** You are asking your boss. Nothing here is built.
+
+---
+
 ## Phase 25, The home screen app updates itself DONE
 
 ### What you found
@@ -815,6 +917,33 @@ The question to put to Arkesel, quoting the message id: "This message stayed at
 SUBMITTED while another network delivered the same text within seconds. Is sender ID
 X approved for transactional SMS on the network this number is on, and what did the
 carrier answer?"
+
+### It arrived, hours later, which completes the picture
+
+The message eventually landed on the first network, hours after it was sent. Nothing
+is blocked. The number is fine, the sender ID is fine, the account is fine. A
+message that arrives hours late was queued, which is the signature of a sender ID
+sitting on a slow route rather than one that was refused. That is a routing setting
+on Arkesel's side, and it is the whole of the problem.
+
+It also means the code is useless by the time it arrives. A sign-in code that comes
+back after three hours has long expired, and the customer has given up.
+
+**The one request to Arkesel, in these words:** "Our OTP sender ID X is delivering
+hours late on [network, for example MTN]. Please move it to the transactional route
+on all three networks, MTN, Telecel and AT, and confirm the routing and sender ID
+approval for each. Here are the message ids and the delivery timestamps that show
+the delay."
+
+Two smaller things worth knowing while the route is slow:
+
+- **Do not keep tapping "Send a new code".** Each request issues a new code and
+  Supabase keeps one live at a time, so the newest message is the only one that
+  works. Several resends while the route is congested just spread confusion.
+- **The message text promises five minutes.** In Supabase, Auth settings, there is
+  an OTP expiry. If the route cannot deliver inside five minutes, that promise is
+  wrong. Once the route is fixed, five minutes is right. Until then, the code that
+  arrives late will be refused by the app, which is correct behaviour, not a bug.
 
 ## Phase 22, Three things you found on your iPhone DONE
 
