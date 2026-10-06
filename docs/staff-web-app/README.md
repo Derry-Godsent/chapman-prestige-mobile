@@ -63,11 +63,14 @@ were nothing to see.
 
 ## Getting it in, two ways
 
-**Way one, and I would prefer it: let me do it.** The GitHub connection this
-sandbox uses can read `laundry-app` but not write to it. Reconnecting GitHub in
-Arena with access to that repository means I push the branch and open the pull
-request myself, for every staff change from here on. Chat and the workers pages
-both need staff-side work, so this is worth doing once.
+**The plan we settled on: a chat of its own for this repository.** A chat in Arena
+is tied to the repository it was started from, and it can push to that repository.
+So staff work gets its own chat, started from `laundry-app`, and the mobile app
+stays in this one. The new chat has a complete brief waiting for it:
+`docs/staff-web-app/HANDOVER.md`.
+
+**Way one, if you are in the new chat: let the session do it.** It can push the
+branch and open the pull request itself.
 
 **Way two, by hand.** One block, in a folder where you keep projects. It clones
 the staff system, applies the patch, checks it, and pushes a branch you can merge:

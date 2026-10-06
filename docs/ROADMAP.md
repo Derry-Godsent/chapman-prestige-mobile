@@ -719,12 +719,16 @@ the pages, because this sandbox has no route to Supabase.
    reason is written. It was run against a real Postgres engine first: the six
    rows appear, the column appears, existing records are untouched, and running it
    twice changes nothing the second time.
-2. **One merge, or one connection.** The GitHub connection this sandbox uses can
-   read the staff repository but not write to it, so the change is a patch here:
-   `docs/staff-web-app/app-records-pages.patch`, with the whole thing explained in
-   the folder's README. Reconnecting GitHub in Arena with access to `laundry-app`
-   means I push the branch and open the pull request myself, and the same for the
-   chat and workers work that comes next.
+2. **One merge, or one new chat.** The connection this chat was given is tied to
+   this repository only, so the staff change travels as a patch:
+   `docs/staff-web-app/app-records-pages.patch`, explained in full in
+   `docs/staff-web-app/README.md`, with the step by step brief for a new session in
+   `docs/staff-web-app/HANDOVER.md`.
+
+   **Decided on 6 October:** staff web app work moves to its own chat, started from
+   the `laundry-app` repository, because a chat started from a repository can push
+   to it. This chat stays on the mobile app. The two sides meet on GitHub and in
+   `docs/ROADMAP.md`, which both can read.
 
 ---
 
