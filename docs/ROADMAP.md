@@ -51,6 +51,7 @@ to you. That was my mistake. This document fixes it.
 | 24 | **The code that never arrives** | The app and Supabase both did their part. The message is being lost between Supabase and the phone, which is outside this app | WAITING **Two dashboards to look at, written out below** |
 | 25 | **A home screen app that updates itself** | The web app notices a newer build and refreshes on its own, so nobody has to delete and re-add the icon | DONE **Close it fully once, then it looks after itself** |
 | 26 | **Nothing on the app goes to blank** | Quote requests, app ideas and app sign-in records become visible in the staff app | BUILT **One paste and one merge from you, below** |
+| 27 | **The real logo on the home screen** | The installed icon is now the company logo itself, and the browser uses the same one | DONE **Look at your phone after the next install** |
 | 27 | **Chat that actually works** | Three channels, routed to the right staff, stored properly, with photos and notifications | AGREED **After 26** |
 | 28 | **Workers: choose, agree, then release** | Customers see real worker profiles and choose, Chapman negotiates and releases the worker | AGREED **After 27** |
 | 29 | **Payments** | How the prompt on the phone works, and the three routes. Waiting on you and your boss | ON HOLD **You are asking your boss** |
@@ -674,6 +675,67 @@ line in a booking timeline followed the error colour instead of a fixed pink.
 What is deliberately left as a fixed colour: the gold bar on the launch screen and
 the white fill inside the bonus card, because both sit on a coloured panel that is
 the same in either skin.
+
+---
+
+## Phase 27, The real logo on the home screen DONE
+
+You asked for the logo to be the installed icon, and for the background to be gone.
+Both are done, and the logo now runs through every place a customer sees the mark.
+
+### The logo you sent
+
+It is the same artwork the app already held, and the cleanest copy: your original
+file, with the grey background removed and the edges kept soft, at 960 by 640. It is
+committed in the repository as `assets/images/cpl-logo-borderless.png`, so it is on
+GitHub and cannot be lost, and it is embedded in the app itself as the Chapman mark
+on the sign-in and tracking screens.
+
+### What the installed icon is now
+
+The full logo, CPL and the drop and the name bar, on white. That is the icon a
+customer sees after installing. It is also what the browser uses, so the tab, the
+home screen and the installed app all show the same thing.
+
+### The Android icon, and a defect found while building it
+
+Android does not use one picture. It draws a see-through layer over a background
+layer and may crop and round the result, so the droplet sits inside the middle of
+the canvas. While building that, I found a small fault in the icon that shipped
+before: a clipped sliver of the navy name bar along its bottom edge, because the
+sliver came from cutting the drop out of the logo. The new layer is cut strictly
+above the bar, so the sliver is gone.
+
+### Why the browser tab is the droplet, not the logo
+
+At sixteen pixels wide, the name bar and the gold line turn to mud. The droplet
+holds its shape at any size, so the tab uses the droplet, and everything larger
+uses the full logo. That is the same choice the app already makes.
+
+### How it was checked
+
+Every file was rebuilt from the logo and then measured, not assumed: the opaque
+icons report a white corner, the Android layer reports a see-through corner (it
+must, or the navy behind it would be hidden), and the bottom strip of the droplet
+layer is fully transparent, which is the sliver being gone. The phone sized proofs
+are in the brand folder, built from the very files that ship.
+
+### Where the files are
+
+In the brand folder in this workspace, ready to download:
+
+| File | What it is |
+| --- | --- |
+| `chapman-prestige-logo.png` | The logo, background removed, for the web app's sign-in page and header |
+| `chapman-prestige-logo-original.jpg` | Your original artwork, untouched |
+| `chapman-prestige-app-icon.png` | The installed icon, 1024 by 1024 |
+| `chapman-prestige-icon-512.png` | Web app icon |
+| `chapman-prestige-icon-512-maskable.png` | The copy Android and Chrome crop to a circle |
+| `chapman-prestige-icon-192.png` | Android home screen |
+| `chapman-prestige-icon-180.png` | iPhone home screen |
+| `chapman-prestige-favicon.png` | Browser tab |
+| `android/` | The two Android layers and the launch screen mark |
+| `icon-set-final.png` | How each one looks at the size a phone really uses |
 
 ---
 
